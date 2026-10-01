@@ -19,9 +19,10 @@ import {
 } from '@xyflow/react';
 import { GAME_VERSION, GENERATORS, MACHINES } from './game/data';
 import { mediumsMatch, portMedium } from './game/ports';
-import { isProduction, type BeltEdge, type BeltTier, type FactoryData, type FactoryNode, type PipeTier } from './game/types';
+import { isAnnotation, isProduction, type BeltEdge, type BeltTier, type FactoryData, type FactoryNode, type PipeTier } from './game/types';
 import { fmt } from './format';
 import { GRID } from './grid';
+import { ANNOTATION_COLORS, annotationNode, frameMembers, snapGrid } from './game/annotations';
 
 /** diâmetro dos pontos do fundo */
 const DOT = 1.2;
@@ -108,6 +109,9 @@ function EnergyChip({ energy }: { energy: EnergyResult }) {
 
 const minimapColor = (n: FactoryNode) => {
   const d = n.data;
+  // moldura translúcida (não esconde o que está dentro); anotação com a cor dela
+  if (d.kind === 'frame') return `${ANNOTATION_COLORS[d.color]?.base ?? '#6b7686'}40`;
+  if (d.kind === 'note') return ANNOTATION_COLORS[d.color]?.base ?? '#6b7686';
   if (d.kind === 'miner') return '#7d5236';
   if (d.kind === 'extractor' || d.kind === 'well') return '#1f5f8b';
   if ((d.kind === 'splitter' || d.kind === 'merger') && d.fluid) return '#3b6f99';
@@ -258,21 +262,63 @@ function Planner() {
   const sim = psim.results[activeId] ?? EMPTY_SIM;
   const summary = useMemo(() => summarizeProject(factories, psim), [factories, psim]);
 
+  /*
+   * Arrastar uma moldura leva junto o que está dentro dela. Escolha: as posições continuam
+   * absolutas (sem parentId/sub-flow do React Flow), e os nodes de dentro são calculados no
+   * começo do arraste e deslocados junto. Assim copiar/colar, gerador, simulação, salvamento e
+   * a seleção por caixa não precisam saber de moldura, e um node "entra" ou "sai" de uma moldura
+   * só por estar (ou não) em cima dela.
+   */
+  const frameDrag = useRef<{ start: Map<string, { x: number; y: number }>; members: Map<string, { frame: string; x: number; y: number }> } | null>(null);
+  const onNodeDragStart = useCallback(
+    (_e: unknown, _n: FactoryNode, dragged: FactoryNode[]) => {
+      const frames = dragged.filter((n) => n.data.kind === 'frame');
+      if (!frames.length) return void (frameDrag.current = null);
+      const all = getNodes();
+      const moving = new Set(dragged.map((n) => n.id));
+      const members = new Map<string, { frame: string; x: number; y: number }>();
+      for (const f of frames)
+        for (const m of frameMembers(f, all)) if (!moving.has(m.id) && !members.has(m.id)) members.set(m.id, { frame: f.id, ...m.position });
+      frameDrag.current = { start: new Map(frames.map((f) => [f.id, { ...f.position }])), members };
+    },
+    [getNodes],
+  );
+  const onNodeDragStop = useCallback(() => void (frameDrag.current = null), []);
+
   // Encaixe no grid feito aqui (e não pelo snapToGrid do React Flow) pra valer
-  // mesmo quando o Alt é apertado no meio do arraste
+  // mesmo quando o Alt é apertado no meio do arraste. Molduras e anotações ficam sempre no grid
+  // (posição e tamanho, inclusive ao redimensionar).
   const filterBoxSelection = useBoxSelection();
   const onNodesChangeSnapped = useCallback(
     (changes: NodeChange<FactoryNode>[]) => {
       changes = filterBoxSelection(changes);
-      if (snappingRef.current) {
-        const snap = (v: number) => Math.round(v / GRID) * GRID;
-        changes = changes.map((c) =>
-          c.type === 'position' && c.position ? { ...c, position: { x: snap(c.position.x), y: snap(c.position.y) } } : c,
-        );
+      const annotation = (id: string) => {
+        const n = getNode(id);
+        return !!n && isAnnotation(n.data);
+      };
+      changes = changes.map((c) => {
+        if (c.type === 'position' && c.position && (snappingRef.current || annotation(c.id)))
+          return { ...c, position: { x: snapGrid(c.position.x), y: snapGrid(c.position.y) } };
+        if (c.type === 'dimensions' && c.dimensions && annotation(c.id))
+          return { ...c, dimensions: { width: snapGrid(c.dimensions.width), height: snapGrid(c.dimensions.height) } };
+        return c;
+      });
+      // o que está dentro da moldura arrastada anda o mesmo tanto que ela
+      const fd = frameDrag.current;
+      if (fd) {
+        const extra: NodeChange<FactoryNode>[] = [];
+        for (const c of changes) {
+          const s = c.type === 'position' && c.position ? fd.start.get(c.id) : undefined;
+          if (!s || c.type !== 'position' || !c.position) continue;
+          const dx = c.position.x - s.x;
+          const dy = c.position.y - s.y;
+          for (const [mid, m] of fd.members) if (m.frame === c.id) extra.push({ type: 'position', id: mid, position: { x: m.x + dx, y: m.y + dy } });
+        }
+        changes = [...changes, ...extra];
       }
       onNodesChange(changes);
     },
-    [onNodesChange, filterBoxSelection],
+    [onNodesChange, filterBoxSelection, getNode],
   );
 
   /* ---------- desfazer / refazer (um histórico por fábrica) ---------- */
@@ -508,7 +554,9 @@ function Planner() {
         pos = screenToFlowPosition({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
         pos = { x: pos.x - 120 + Math.random() * 40, y: pos.y - 80 + Math.random() * 40 };
       }
-      const node = { id: newId(data.kind), type: data.kind, position: pos, data: structuredClone(data) } as FactoryNode;
+      const node = isAnnotation(data)
+        ? annotationNode(newId(data.kind), structuredClone(data), pos)
+        : ({ id: newId(data.kind), type: data.kind, position: pos, data: structuredClone(data) } as FactoryNode);
       setNodes((ns) => [...ns.map((n) => ({ ...n, selected: false })), { ...node, selected: true }]);
     },
     [screenToFlowPosition, setNodes],
@@ -837,6 +885,8 @@ function Planner() {
                 nodes={nodes}
                 edges={edges}
                 onNodesChange={onNodesChangeSnapped}
+                onNodeDragStart={onNodeDragStart}
+                onNodeDragStop={onNodeDragStop}
                 selectionMode={SelectionMode.Partial}
                 connectionLineType={gridBelts ? ConnectionLineType.Step : ConnectionLineType.Bezier}
                 onEdgesChange={onEdgesChange}
