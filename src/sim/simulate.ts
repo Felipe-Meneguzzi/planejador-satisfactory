@@ -285,8 +285,17 @@ export function simulate(allNodes: SimNode[], edges: SimEdge[]): SimResult {
     if (!changed) break;
   }
 
-  // 2) Ponto fixo de oferta/demanda
+  // 2) Ponto fixo de oferta/demanda, em duas fases:
+  //  a) sem back-pressure nas máquinas: cada uma pede tudo de cada entrada e solta tudo que
+  //     consegue fazer (como no começo do jogo, com os estoques internos vazios: nada entupido
+  //     e uma entrada não espera a outra); divisores e mescladores repartem normalmente;
+  //  b) com back-pressure: a partir daí, demanda e oferta se ajustam até fechar.
+  // Começar direto pela (b) do zero travaria linhas em que o subproduto de uma máquina volta
+  // pra outra ligada a ela (ex.: água da Aluminum Scrap na Alumina Solution, Heavy Oil Residue
+  // da Rubber virando o Fuel que a Recycled Plastic usa junto com essa Rubber): cada lado
+  // esperaria o outro. Laço sem nenhuma fonte de fora continua parado (a oferta parte do zero).
   let delta = 0;
+  let potential = true;
   const setS = (b: Belt, raw: number) => {
     const s = Math.min(b.cap, raw);
     delta = Math.max(delta, diff(b.s, s));
@@ -326,10 +335,10 @@ export function simulate(allNodes: SimNode[], edges: SimEdge[]): SimResult {
         const ins = r.inputs.map((p, i) => ({ need: p.rate * k, item: p.item, b: inB(n.id, i) }));
         const outs = r.outputs.map((p, i) => ({ max: p.rate * k * ampOf(d), b: outB(n.id, i) }));
         const inR = ins.map((p) => (!p.b || isWrong(p.b.item, p.item) ? 0 : Math.min(1, p.b.s / p.need)));
-        const outR = outs.map((p) => (!p.b ? 1 : Math.min(1, p.b.d / p.max)));
+        const outR = outs.map((p) => (!p.b || potential ? 1 : Math.min(1, p.b.d / p.max)));
         ins.forEach((p, i) => {
           if (!p.b) return;
-          setD(p.b, isWrong(p.b.item, p.item) ? 0 : p.need * Math.min(minOf(outR), minExcept(inR, i)));
+          setD(p.b, isWrong(p.b.item, p.item) ? 0 : potential ? p.need : p.need * Math.min(minOf(outR), minExcept(inR, i)));
         });
         outs.forEach((p, j) => {
           if (p.b) setS(p.b, p.max * Math.min(minOf(inR), minExcept(outR, j)));
@@ -346,10 +355,10 @@ export function simulate(allNodes: SimNode[], edges: SimEdge[]): SimResult {
         const outs = gp.outputs.map((p, i) => ({ max: p.rate * k, b: outB(n.id, i) }));
         // insumo opcional (Alien Power Matrix) não trava o gerador: só puxa o que ele queima
         const inR = ins.map((p) => (p.optional ? 1 : !p.b || isWrong(p.b.item, p.item) ? 0 : Math.min(1, p.b.s / p.need)));
-        const outR = outs.map((p) => (!p.b ? 1 : Math.min(1, p.b.d / p.max)));
+        const outR = outs.map((p) => (!p.b || potential ? 1 : Math.min(1, p.b.d / p.max)));
         ins.forEach((p, i) => {
           if (!p.b) return;
-          setD(p.b, isWrong(p.b.item, p.item) ? 0 : p.optional ? p.need : p.need * Math.min(minOf(outR), minExcept(inR, i)));
+          setD(p.b, isWrong(p.b.item, p.item) ? 0 : p.optional || potential ? p.need : p.need * Math.min(minOf(outR), minExcept(inR, i)));
         });
         outs.forEach((p, j) => {
           if (p.b) setS(p.b, p.max * Math.min(minOf(inR), minExcept(outR, j)));
@@ -406,10 +415,14 @@ export function simulate(allNodes: SimNode[], edges: SimEdge[]): SimResult {
       }
     }
   };
-  for (let iter = 0; iter < 5000; iter++) {
-    delta = 0;
-    for (const n of nodes) step(n);
-    if (delta < 1e-9) break;
+  for (const phase of [true, false]) {
+    potential = phase;
+    for (let iter = 0; iter < 5000; iter++) {
+      delta = 0;
+      for (const n of nodes) step(n);
+      // a fase (a) precisa fechar bem justo: a (b) parte dela e, em laços, qualquer resto vira desvio
+      if (delta < (phase ? 1e-11 : 1e-9)) break;
+    }
   }
 
   // 3) Resultados, problemas e resumo
