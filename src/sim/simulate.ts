@@ -504,11 +504,13 @@ export function simulate(nodes: SimNode[], edges: SimEdge[]): SimResult {
           outputs: outs.map((x, i) => port(`out-${i}`, d.resource, x.R, x.b, actual[i])),
         };
         if (!rates.length) add('warning', 'node', n.id, 'nosat', `Poço sem extratores-satélite: o ${WELL.name} consome ${fmt(p)} MW sem extrair nada`);
-        outs.forEach((x, i) => {
-          if (x.b) return;
-          addTo(loose, d.resource, x.R);
-          add('info', 'node', n.id, `free${i}`, `Satélite ${i + 1} com saída livre: ${withUnit(fmt(x.R), d.resource)} de ${ITEMS[d.resource].name} disponíveis`);
-        });
+        // satélites sem cano: uma mensagem só, com o total disponível
+        const free = outs.map((x, i) => ({ ...x, i })).filter((x) => !x.b);
+        free.forEach((x) => addTo(loose, d.resource, x.R));
+        if (free.length) {
+          const which = free.length === outs.length ? 'Saída livre' : `Saída livre nos satélites ${free.map((x) => x.i + 1).join(', ')}`;
+          add('info', 'node', n.id, 'free', `${which}: ${withUnit(fmt(sum(free.map((x) => x.R))), d.resource)} de ${ITEMS[d.resource].name} disponíveis`);
+        }
         break;
       }
       case 'machine': {
