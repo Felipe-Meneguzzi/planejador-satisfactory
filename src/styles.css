@@ -2061,3 +2061,172 @@ button.danger:hover:not(:disabled) {
   color: var(--muted);
   white-space: nowrap;
 }
+
+/* ---------- molduras e anotações ---------- */
+
+/* a moldura só pega o mouse no cabeçalho e nas alças: clicar/arrastar no meio dela age no
+   canvas (mover a vista, seleção por caixa) ou nos nodes que estão em cima */
+.react-flow__node-frame {
+  pointer-events: none !important;
+}
+.react-flow__node-frame .frame-header,
+.react-flow__node-frame .react-flow__resize-control {
+  pointer-events: all;
+}
+.frame {
+  width: 100%;
+  height: 100%;
+  border: 2px solid var(--ann);
+  border-radius: 10px;
+  background: var(--ann-fill);
+  /* contorno escuro: a moldura não some em cima dos pontos do fundo */
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+}
+.frame.selected {
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35), 0 0 0 4px color-mix(in srgb, var(--ann) 35%, transparent);
+}
+.frame-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 8px 0 12px;
+  border-radius: 7px 7px 0 0;
+  background: color-mix(in srgb, var(--ann) 55%, #15171c);
+  color: #fff;
+  cursor: grab;
+}
+.react-flow__node-frame.dragging .frame-header {
+  cursor: grabbing;
+}
+.frame-title {
+  flex: 1;
+  min-width: 0;
+  font-weight: 700;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.frame-title.empty,
+.note-text.empty {
+  opacity: 0.55;
+  font-style: italic;
+}
+.frame-title-input {
+  flex: 1;
+  min-width: 0;
+  font-weight: 700;
+  font-size: 13px;
+  padding: 2px 6px;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.35);
+  color: #fff;
+  outline: none;
+}
+.ann-btn {
+  padding: 0 6px;
+  line-height: 20px;
+  font-size: 13px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid transparent;
+  color: #fff;
+}
+.ann-color {
+  position: relative;
+  display: flex;
+}
+.ann-color-btn {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4);
+}
+.ann-color-pop {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: -4px;
+  z-index: 10;
+  display: grid;
+  grid-template-columns: repeat(4, 22px);
+  gap: 6px;
+  padding: 8px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
+  pointer-events: all;
+}
+.ann-swatch {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border-radius: 50%;
+  border: 2px solid transparent;
+}
+.ann-swatch.on {
+  border-color: #fff;
+}
+.ann-swatch:hover:not(:disabled) {
+  border-color: rgba(255, 255, 255, 0.6);
+}
+
+.note-card {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, var(--ann) 70%, #000);
+  border-top: 4px solid var(--ann);
+  background: color-mix(in srgb, var(--ann) 16%, var(--panel));
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  color: var(--text);
+}
+.note-card.selected {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--ann) 60%, transparent), 0 4px 14px rgba(0, 0, 0, 0.35);
+}
+.note-text {
+  width: 100%;
+  height: 100%;
+  padding: 8px 10px;
+  overflow: hidden;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+  line-height: 1.4;
+}
+.note-input {
+  display: block;
+  resize: none;
+  border: 0;
+  outline: none;
+  background: rgba(0, 0, 0, 0.2);
+  font: inherit;
+  font-size: 13px;
+  user-select: text;
+}
+.note-tools {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+}
+
+/* alças de redimensionar das molduras/anotações */
+.react-flow__node-frame .react-flow__resize-control.handle,
+.react-flow__node-note .react-flow__resize-control.handle {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  border: 1px solid #fff;
+}
+
+/* pontas de uma conexão selecionada: dá pra arrastar e ligar em outra porta */
+.react-flow__edge.selected .react-flow__edgeupdater {
+  fill: rgba(255, 255, 255, 0.18);
+  stroke: rgba(255, 255, 255, 0.55);
+  stroke-width: 1.5;
+}
