@@ -11,6 +11,26 @@ Os dados do jogo (receitas, máquinas, esteiras, overclock, Somersloops, gerador
 - **Poço de recurso**: um node com o Resource Well Pressurizer (clock e energia, 150 MW × clock^1,321928) e a lista de extratores-satélite, cada um com a sua pureza e o seu cano. Plantas antigas com o "extrator de poço" abrem como um poço de um satélite. O gerador de linha divide os satélites em poços de até N satélites, onde N é a média de satélites por poço daquele recurso no mapa, arredondada pra cima (Nitrogen Gas 8, Crude Oil 6, Water 7).
 - **AWESOME Sink**: modo da saída que só aceita sólidos (cano é recusado) e mostra os pontos/min; o painel soma os pontos da planta e estima os cupons por hora a partir dos cupons já impressos. Itens sem pontos (ex.: Uranium Waste) travam a esteira e geram aviso.
 
+## Gerador de linha otimizado
+
+No 🏭 **Gerar linha**, o modo **Otimizado** (ao lado de "Eu escolho as receitas", que continua igual) escolhe as receitas sozinho por **programação linear** ([YALPS](https://github.com/IanManske/YALPS): simplex em TypeScript, ~10 KB, síncrono, reescrita mais estável do `javascript-lp-solver`; o `glpk.js` resolveria também, mas traz um WASM bem maior e é assíncrono).
+
+- **Modelo**: uma variável por receita (quanto ela roda, em "máquinas a 100%" = ciclos/min × duração/60), uma por recurso extraído e uma por insumo de fora (só pra item que nenhuma receita permitida faz, como Mycelia). Balanço por item: produção (todas as saídas, inclusive subprodutos) − consumo + extração ≥ demanda; a folga é a sobra. Como o subproduto entra no balanço igual à saída principal, ele alimenta qualquer receita: a água da Aluminum Scrap volta pra Alumina Solution, o Heavy Oil Residue da Rubber/Plastic vira Fuel (Residual Fuel, Diluted Fuel), Petroleum Coke, Smokeless Powder… O que ninguém usa vai pra armazém como no modo manual.
+- **Objetivos**: menos recursos brutos, menos máquinas (conta contínua no clock máximo, extratores incluídos) ou menos energia (MW no clock máximo). Um termo pequeno desempata e evita laços inúteis (empacotar e desempacotar água).
+- **Pesos dos recursos**: todos começam em **1**. O wiki não traz quanto de cada minério existe no mapa (só os poços de recurso), então não dá pra usar "inverso da disponibilidade" sem inventar número; os pesos ficam editáveis na janela (aumente o do que é escasso pra você, diminua o da água). Insumos de fora pesam 1000: só entram quando não há outro jeito.
+- **Receitas permitidas**: só padrão, padrão + alternativas escolhidas (lista com busca, "marcar todas" e "desmarcar") ou todas.
+- **Maximizar com o que eu tenho**: informe quanto há de cada recurso por minuto (ex.: 240 Iron Ore) e, se quiser, água à vontade; o otimizador acha a maior produção (arredondada pra baixo em 4 casas) e depois aplica o objetivo escolhido nessa quantidade. Sem nada que sirva, a mensagem diz o que falta (ex.: "falta Crude Oil").
+- **Na janela**: receitas escolhidas e a taxa de cada, recursos usados, subprodutos **reaproveitados × armazém**, a comparação com o plano manual na mesma quantidade (recursos, máquinas e energia, contando as máquinas inteiras das duas linhas desenhadas) e a linha conferida na simulação antes de gerar.
+- **Ajustes da solução**: nenhuma máquina abaixo do clock mínimo (1%) — receita usada num fluxo minúsculo sai e o LP procura outro caminho (volta presa no mínimo se não houver); extração menor que 1% de uma máquina tira o mínimo e a diferença vai pra armazém. Laço que não dá partida sozinho no jogo (ex.: Recycled Rubber ↔ Recycled Plastic sem Rubber/Plastic de outra fonte) sai da conta; se o laço só precisa de um recurso (água que volta como subproduto), esse recurso passa a ser extraído de verdade.
+
+**Como vira linha**: se a solução é uma "árvore" (cada item com uma fonte, nenhum subproduto reaproveitado), ela é exatamente o que o modo manual faria e usa o mesmo cálculo. Senão:
+
+- **Barramento**: item com várias fontes (grupo principal + subprodutos de outros grupos, ou duas receitas) junta todas num mesclador antes de dividir pras faixas. A soma das fontes é exatamente a soma das faixas, então no water-filling o mesclador consome tudo de todas as entradas e o divisor entrega a demanda exata de cada saída — nenhuma esteira de "transbordo". Item de uma fonte só continua como no modo manual (sub-grupos por faixa).
+- **Sobra**: divisor comum não separa uma quantia exata pro armazém (ele reparte por igual), então a sobra sai de fontes **inteiras**: a receita é cortada em pedaços com clock próprio e, no pedaço "guardado", aquela saída vai toda pro armazém.
+- **Mk máximo**: quando o barramento de algum item não cabe numa esteira/cano, a linha inteira vira N **cópias** iguais que fecham sozinhas (custa algumas máquinas a mais pelo arredondamento por cópia, mas é sempre exato; partir fonte por fonte mexeria em outros itens em cascata).
+- **Simulação**: antes, a oferta e a demanda partiam do zero juntas, e uma linha em que o subproduto volta pra uma máquina ligada a ela travava (cada lado esperando o outro: a Foundry não pedia silica sem sucata, e a sucata dependia da Alumina Solution que soltava essa silica). Agora o ponto fixo tem duas fases: primeiro sem back-pressure nas máquinas (como no começo do jogo, com estoques vazios), depois com back-pressure a partir daí. Laço sem nenhuma fonte de fora continua parado. Plantas sem laço dão o mesmo resultado de antes.
+- **Limitação**: com "Todas as receitas", alguns casos raros com muita água reciclada (ex.: Encased Plutonium Cell) ou laços de Dark Matter não fecham na simulação ou não têm solução que dê partida; a janela avisa ("A simulação acusa…" ou a mensagem do laço) antes de gerar.
+
 ## Várias fábricas
 
 - **Abas**: cada aba é uma fábrica, com os próprios nodes, esteiras, histórico de desfazer/refazer e zoom/posição (lembrados ao trocar de aba). `+` cria uma fábrica, duplo clique renomeia, arrastar reordena e o menu `⋯` da aba aberta renomeia, duplica, move ou apaga (com confirmação). O badge da aba mostra quantos erros/avisos ela tem.
@@ -75,7 +95,7 @@ npm run build    # gera a versão de produção em dist/
 
 | Comando | O que roda |
 |---|---|
-| `npm test` | Testes unitários (Vitest): simulação, cálculo da linha e aceitação do gerador sem browser |
+| `npm test` | Testes unitários (Vitest): simulação, cálculo da linha, otimizador e aceitação do gerador (manual e otimizado) sem browser |
 | `npm run test:watch` | Os mesmos, rodando de novo a cada alteração |
 | `npm run test:e2e` | Testes E2E (Playwright) no Chromium; sobe o Vite sozinho na porta 4174 |
 
@@ -97,7 +117,7 @@ Na primeira vez, baixe o navegador do Playwright com `npx playwright install chr
 | Arrastar a ponta de uma esteira/cano | Liga em outra porta (soltar no vazio não apaga) |
 | Arrastar o título da moldura | Move a moldura com o que está dentro |
 | Duplo clique na moldura / anotação | Renomeia / edita o texto |
-| 🏭 **Gerar linha** | Monta uma linha de produção inteira com 100% de eficiência (na aba aberta) |
+| 🏭 **Gerar linha** | Monta uma linha de produção inteira com 100% de eficiência (na aba aberta); no modo Otimizado, escolhe as receitas e reaproveita subprodutos |
 | `+` nas abas / duplo clique na aba | Nova fábrica / renomeia |
 | Arrastar a aba / menu `⋯` | Reordena / renomeia, duplica, move, apaga |
 | `Ctrl+C` numa aba, `Ctrl+V` em outra | Copia nodes entre fábricas |
