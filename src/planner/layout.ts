@@ -1,7 +1,7 @@
-import { BELTS, BELT_TIERS } from '../game/data';
-import type { BeltEdge, BeltTier, FactoryData, FactoryNode, Rotation } from '../game/types';
+import { BELTS, BELT_TIERS, PIPES, PIPE_TIERS, isFluid } from '../game/data';
+import type { BeltEdge, BeltTier, FactoryData, FactoryNode, ItemId, PipeTier, Rotation } from '../game/types';
 import { newId } from '../state/storage';
-import type { Group, Lane, Plan } from './plan';
+import type { ByproductLane, Group, Lane, Plan } from './plan';
 
 /*
  * Desenho da linha planejada.
@@ -12,13 +12,15 @@ import type { Group, Lane, Plan } from './plan';
  *  - Dentro da faixa: colunas de distribuição (divisores) | máquinas | coleta (mescladores).
  *    Máquina com várias entradas tem uma coluna de divisores por entrada, cada uma deslocada
  *    140px pra baixo (um "degrau"), e a esteira dela vira só perto da máquina: assim nenhuma
- *    esteira atravessa o divisor de outra entrada.
+ *    esteira atravessa o divisor de outra entrada. Subprodutos (2ª saída) fazem o mesmo do
+ *    lado da coleta.
  *  - Entre faixas, as esteiras sobem pra um "corredor" de trilhos acima de tudo (um trilho
  *    por esteira), andam na horizontal e descem até o destino. Nada cruza máquina.
+ *  - Fluidos usam cano e junções de cano no lugar de esteira, divisor e mesclador.
  *
- * As esteiras que precisam de curvas extras levam `bends` (coordenadas das viradas) e
+ * As conexões que precisam de curvas extras levam `bends` (coordenadas das viradas) e
  * `anchor` (onde estavam as pontas na geração). Se um node for movido, a âncora deixa de
- * bater e a esteira volta pro roteamento automático.
+ * bater e a conexão volta pro roteamento automático.
  */
 
 export type DistributionMode = 'manifold' | 'tree';
@@ -26,10 +28,12 @@ export type DistributionMode = 'manifold' | 'tree';
 const G = 20;
 const CUBE = 120;
 const MACH_W = 240; // máquina minimizada
-const MACH_H = 100;
 const SINK_W = 280;
 const COL = 160; // largura de uma coluna de divisores/mescladores (cubo + folga)
-const STEP = 140; // degrau vertical entre colunas de entradas diferentes
+const STEP = 140; // degrau vertical entre colunas de entradas (ou saídas) diferentes
+
+/** altura da máquina minimizada: 100 com 1 saída, +20 por saída extra (título sempre em 1 linha) */
+const machineHeight = (outputs: number) => 100 + 20 * Math.max(0, outputs - 1);
 
 const snap = (v: number) => Math.round(v / G) * G;
 /** posição do conector numa borda (mesma conta do CSS round() das faixas de conector) */
@@ -54,7 +58,11 @@ interface Band {
   left: number;
   right: number;
   top: number;
+  /** saída principal (topo da coleta) */
   source?: Port;
+  /** topo de cada coleta de subproduto, por armazém de destino */
+  byproductSources: { lane: ByproductLane; port: Port }[];
+  /** entradas das faixas de consumidor, por id da faixa */
   entries: Map<string, Port>;
 }
 
@@ -63,18 +71,24 @@ export interface Layout {
   edges: BeltEdge[];
 }
 
-export function layoutPlan(plan: Plan, mode: DistributionMode, maxBelt: BeltTier, origin: Pt): Layout {
+export function layoutPlan(plan: Plan, mode: DistributionMode, maxBelt: BeltTier, maxPipe: PipeTier, origin: Pt): Layout {
   const nodes: FactoryNode[] = [];
   const edges: BeltEdge[] = [];
 
-  const tierFor = (flow: number) => (BELT_TIERS.find((t) => BELTS[t].rate >= flow - EPS && t <= maxBelt) ?? maxBelt) as BeltTier;
+  /** menor Mk que aguenta o fluxo (esteira pra sólido, cano pra fluido), até o máximo liberado */
+  const tierFor = (flow: number, item: ItemId) =>
+    isFluid(item)
+      ? (PIPE_TIERS.find((t) => PIPES[t].rate >= flow - EPS && t <= maxPipe) ?? maxPipe)
+      : (BELT_TIERS.find((t) => BELTS[t].rate >= flow - EPS && t <= maxBelt) ?? maxBelt);
 
   const addNode = (data: FactoryData, x: number, y: number) => {
     const id = newId(data.kind);
     nodes.push({ id, type: data.kind, position: { x, y }, data } as FactoryNode);
     return id;
   };
-  const cube = (kind: 'splitter' | 'merger', rotation: Rotation, x: number, y: number) => addNode({ kind, rotation }, x, y);
+  /** divisor/mesclador; pra fluido vira junção de cano */
+  const cube = (kind: 'splitter' | 'merger', rotation: Rotation, x: number, y: number, item: ItemId) =>
+    addNode({ kind, rotation, ...(isFluid(item) ? { fluid: true } : {}) }, x, y);
   /** conector de um cubo (todos ficam no meio da face) */
   const cubePort = (node: string, handle: string, side: Side, x: number, y: number): Port => ({
     node,
@@ -82,16 +96,17 @@ export function layoutPlan(plan: Plan, mode: DistributionMode, maxBelt: BeltTier
     side,
     pt: side === 'left' ? { x, y: y + 60 } : side === 'right' ? { x: x + CUBE, y: y + 60 } : side === 'top' ? { x: x + 60, y } : { x: x + 60, y: y + CUBE },
   });
-  const belt = (from: Port, to: Port, flow: number, bends?: number[]) => {
+  /** esteira (sólido) ou cano (fluido) */
+  const belt = (from: Port, to: Port, flow: number, item: ItemId, bends?: number[]) => {
     edges.push({
       id: newId('b'),
-      type: 'belt',
+      type: isFluid(item) ? 'pipe' : 'belt',
       source: from.node,
       sourceHandle: from.handle,
       target: to.node,
       targetHandle: to.handle,
       data: {
-        tier: tierFor(flow),
+        tier: tierFor(flow, item),
         ...(bends?.length ? { bends, anchor: [from.pt.x, from.pt.y, to.pt.x, to.pt.y] } : {}),
       },
     });
@@ -102,14 +117,19 @@ export function layoutPlan(plan: Plan, mode: DistributionMode, maxBelt: BeltTier
   const layoutGroup = (g: Group, X0: number): Band => {
     const n = g.count;
     const K = g.recipe?.inputs.length ?? 0;
-    const P = Math.max(STEP, STEP * K); // distância vertical entre máquinas
-    const yin = (k: number) => stripOffset(k, K, MACH_H);
-    const yout = stripOffset(0, 1, MACH_H);
+    const O = g.recipe?.outputs.length ?? 1;
+    const H = machineHeight(O);
+    const P = Math.max(STEP, STEP * K, STEP * O); // distância vertical entre máquinas
+    const yin = (k: number) => stripOffset(k, K, H);
+    const yout = (k: number) => stripOffset(k, O, H);
     const base = K ? yin(0) - 60 : 0; // alinha o divisor da 1ª entrada com o conector dela
     const gapIn = K ? G * (K + 2) : 0;
     const slotTop = (m: number, k: number) => m * P + base + STEP * k;
     const slotCy = (m: number, k: number) => slotTop(m, k) + 60;
+    const outBase = yout(0) - 60; // alinha o mesclador da saída principal com o conector dela
+    const outSlotTop = (m: number, k: number) => m * P + outBase + STEP * k;
     const perOut = g.demand / n;
+    const mainItem = g.item;
 
     // colunas de distribuição: por entrada (k), por faixa (lane), e na árvore por profundidade
     const treeDepth = (s: number): number => (s <= 3 ? 0 : 1 + treeDepth(Math.ceil(s / 3)));
@@ -122,48 +142,51 @@ export function layoutPlan(plan: Plan, mode: DistributionMode, maxBelt: BeltTier
     const colX = (c: number) => machineX - gapIn - CUBE - c * COL; // c = 0 é a coluna mais perto da máquina
     const bendX = (k: number) => machineX - G * (K - k + 1);
 
-    const band: Band = { group: g, left: X0, right: 0, top: Infinity, entries: new Map() };
+    const band: Band = { group: g, left: X0, right: 0, top: Infinity, entries: new Map(), byproductSources: [] };
     const track = (id: string) => {
       const nd = nodes.find((x) => x.id === id)!;
       band.top = Math.min(band.top, nd.position.y);
     };
 
-    // máquinas
+    // máquinas / mineradoras / extratores
     const machines: string[] = [];
     for (let m = 0; m < n; m++) {
       const data: FactoryData =
         g.kind === 'miner'
           ? { kind: 'miner', resource: g.item, purity: g.ore!.purity, tier: g.ore!.tier, clock: g.clock, collapsed: true }
-          : { kind: 'machine', machine: g.machine!, recipe: g.recipe!.id, clock: g.clock, collapsed: true };
+          : g.kind === 'extractor'
+            ? { kind: 'extractor', extractor: g.extractor!, resource: g.item, purity: g.ore!.purity, clock: g.clock, collapsed: true }
+            : { kind: 'machine', machine: g.machine!, recipe: g.recipe!.id, clock: g.clock, collapsed: true };
       machines.push(addNode(data, machineX, m * P));
       track(machines[m]);
     }
     const machineIn = (m: number, k: number): Port => ({ node: machines[m], handle: `in-${k}`, side: 'left', pt: { x: machineX, y: m * P + yin(k) } });
-    const machineOut = (m: number): Port => ({ node: machines[m], handle: 'out-0', side: 'right', pt: { x: machineX + MACH_W, y: m * P + yout } });
+    const machineOut = (m: number, k = 0): Port => ({ node: machines[m], handle: `out-${k}`, side: 'right', pt: { x: machineX + MACH_W, y: m * P + yout(k) } });
 
-    // esteira de um ponto da coluna da entrada k até a máquina m (vira só perto da máquina)
-    const toMachine = (from: Port, m: number, k: number, q: number) => {
+    // conexão de um ponto da coluna da entrada k até a máquina m (vira só perto da máquina)
+    const toMachine = (from: Port, m: number, k: number, q: number, item: ItemId) => {
       const to = machineIn(m, k);
       const vertical = from.side === 'top' || from.side === 'bottom';
-      if (k === 0) belt(from, to, q, vertical ? [to.pt.y] : undefined);
-      else belt(from, to, q, vertical ? [slotCy(m, k), bendX(k)] : [bendX(k)]);
+      if (k === 0) belt(from, to, q, item, vertical ? [to.pt.y] : undefined);
+      else belt(from, to, q, item, vertical ? [slotCy(m, k), bendX(k)] : [bendX(k)]);
     };
 
     /* distribuição */
     let c = 0;
     for (const { k, lane, cols } of blocks) {
       const q = lane.demand / (lane.to - lane.from);
+      const item = lane.item;
       if (mode === 'manifold') {
         // corrente de divisores girados 90°: entra por cima, sai pra máquina (direita) e pro próximo (baixo)
         let prev: string | undefined;
         for (let m = lane.from; m < lane.to; m++) {
           const x = colX(c);
           const y = slotTop(m, k);
-          const id = cube('splitter', 90, x, y);
+          const id = cube('splitter', 90, x, y, item);
           track(id);
-          if (prev) belt(cubePort(prev, 'out-1', 'bottom', x, slotTop(m - 1, k)), cubePort(id, 'in-0', 'top', x, y), q * (lane.to - m));
+          if (prev) belt(cubePort(prev, 'out-1', 'bottom', x, slotTop(m - 1, k)), cubePort(id, 'in-0', 'top', x, y), q * (lane.to - m), item);
           else band.entries.set(lane.id, cubePort(id, 'in-0', 'top', x, y));
-          toMachine(cubePort(id, 'out-0', 'right', x, y), m, k, q);
+          toMachine(cubePort(id, 'out-0', 'right', x, y), m, k, q, item);
           prev = id;
         }
       } else {
@@ -175,12 +198,12 @@ export function layoutPlan(plan: Plan, mode: DistributionMode, maxBelt: BeltTier
             const mid = size === 3 ? a + 1 : a;
             const x = colX(c0);
             const y = slotTop(mid, k);
-            const id = cube('splitter', 0, x, y);
+            const id = cube('splitter', 0, x, y, item);
             track(id);
             const outs = size === 3 ? ['out-0', 'out-1', 'out-2'] : size === 2 ? ['out-1', 'out-2'] : ['out-1'];
             outs.forEach((h, i) => {
               const side: Side = h === 'out-0' ? 'top' : h === 'out-1' ? 'right' : 'bottom';
-              toMachine(cubePort(id, h, side, x, y), a + i, k, q);
+              toMachine(cubePort(id, h, side, x, y), a + i, k, q, item);
             });
             return { id, x, y, depth: 0 };
           }
@@ -192,7 +215,7 @@ export function layoutPlan(plan: Plan, mode: DistributionMode, maxBelt: BeltTier
           const x = colX(c0 + depth);
           const mid = kids.length === 3 ? kids[1] : kids[0];
           const y = mid.y;
-          const id = cube('splitter', 0, x, y);
+          const id = cube('splitter', 0, x, y, item);
           track(id);
           const handles = kids.length === 3 ? ['out-0', 'out-1', 'out-2'] : ['out-1', 'out-2'];
           kids.forEach((kd, i) => {
@@ -200,8 +223,7 @@ export function layoutPlan(plan: Plan, mode: DistributionMode, maxBelt: BeltTier
             const side: Side = h === 'out-0' ? 'top' : h === 'out-1' ? 'right' : 'bottom';
             const from = cubePort(id, h, side, x, y);
             const to = cubePort(kd.id, 'in-0', 'left', kd.x, kd.y);
-            const flow = q * (spans[i][1] - spans[i][0]);
-            belt(from, to, flow, side === 'right' ? undefined : [to.pt.y]);
+            belt(from, to, q * (spans[i][1] - spans[i][0]), item, side === 'right' ? undefined : [to.pt.y]);
           });
           return { id, x, y, depth };
         };
@@ -211,18 +233,19 @@ export function layoutPlan(plan: Plan, mode: DistributionMode, maxBelt: BeltTier
       c += cols;
     }
 
-    /* coleta */
-    const mx0 = machineX + MACH_W + 40;
+    /* coleta da saída principal */
+    const gapOut = O > 1 ? G * (O + 2) : 40;
+    const mx0 = machineX + MACH_W + gapOut;
     let right = mx0 + CUBE;
     if (mode === 'manifold') {
       // corrente de mescladores girados 270°: recebe da máquina (esquerda) e de baixo, sai por cima
       let below: string | undefined;
       for (let m = n - 1; m >= 0; m--) {
-        const y = m * P + yout - 60;
-        const id = cube('merger', 270, mx0, y);
+        const y = outSlotTop(m, 0);
+        const id = cube('merger', 270, mx0, y, mainItem);
         track(id);
-        belt(machineOut(m), cubePort(id, 'in-0', 'left', mx0, y), perOut);
-        if (below) belt(cubePort(below, 'out-0', 'top', mx0, (m + 1) * P + yout - 60), cubePort(id, 'in-1', 'bottom', mx0, y), perOut * (n - m - 1));
+        belt(machineOut(m), cubePort(id, 'in-0', 'left', mx0, y), perOut, mainItem);
+        if (below) belt(cubePort(below, 'out-0', 'top', mx0, outSlotTop(m + 1, 0)), cubePort(id, 'in-1', 'bottom', mx0, y), perOut * (n - m - 1), mainItem);
         below = id;
         if (m === 0) band.source = cubePort(id, 'out-0', 'top', mx0, y);
       }
@@ -232,14 +255,14 @@ export function layoutPlan(plan: Plan, mode: DistributionMode, maxBelt: BeltTier
         if (size <= 3) {
           const mid = size === 3 ? a + 1 : a;
           const x = mx0;
-          const y = mid * P + yout - 60;
-          const id = cube('merger', 0, x, y);
+          const y = outSlotTop(mid, 0);
+          const id = cube('merger', 0, x, y, mainItem);
           track(id);
           const ins = size === 3 ? ['in-0', 'in-1', 'in-2'] : size === 2 ? ['in-1', 'in-2'] : ['in-1'];
           ins.forEach((h, i) => {
             const side: Side = h === 'in-0' ? 'top' : h === 'in-1' ? 'left' : 'bottom';
             const to = cubePort(id, h, side, x, y);
-            belt(machineOut(a + i), to, perOut, side === 'left' ? undefined : [to.pt.x]);
+            belt(machineOut(a + i), to, perOut, mainItem, side === 'left' ? undefined : [to.pt.x]);
           });
           return { id, x, y, depth: 0 };
         }
@@ -251,7 +274,7 @@ export function layoutPlan(plan: Plan, mode: DistributionMode, maxBelt: BeltTier
         const x = mx0 + depth * COL;
         const mid = kids.length === 3 ? kids[1] : kids[0];
         const y = mid.y;
-        const id = cube('merger', 0, x, y);
+        const id = cube('merger', 0, x, y, mainItem);
         track(id);
         right = Math.max(right, x + CUBE);
         const handles = kids.length === 3 ? ['in-0', 'in-1', 'in-2'] : ['in-1', 'in-2'];
@@ -259,13 +282,36 @@ export function layoutPlan(plan: Plan, mode: DistributionMode, maxBelt: BeltTier
           const h = handles[i];
           const side: Side = h === 'in-0' ? 'top' : h === 'in-1' ? 'left' : 'bottom';
           const to = cubePort(id, h, side, x, y);
-          belt(cubePort(kd.id, 'out-0', 'right', kd.x, kd.y), to, perOut * (spans[i][1] - spans[i][0]), side === 'left' ? undefined : [to.pt.x]);
+          belt(cubePort(kd.id, 'out-0', 'right', kd.x, kd.y), to, perOut * (spans[i][1] - spans[i][0]), mainItem, side === 'left' ? undefined : [to.pt.x]);
         });
         return { id, x, y, depth };
       };
       const root = build(0, n);
       band.source = cubePort(root.id, 'out-0', 'right', root.x, root.y);
       right = Math.max(right, root.x + CUBE);
+    }
+
+    /* coleta dos subprodutos: corrente de mescladores por faixa, um degrau abaixo por saída */
+    // na árvore a coleta principal pode ocupar várias colunas; os subprodutos ficam depois dela
+    let bx = right + 40 + (mode === 'tree' ? CUBE + 40 : 0);
+    const bendOut = (k: number) => machineX + MACH_W + G * (k + 1);
+    for (const bl of g.byproducts) {
+      const k = bl.output;
+      const q = bl.amount / (bl.to - bl.from);
+      let below: string | undefined;
+      for (let m = bl.to - 1; m >= bl.from; m--) {
+        const y = outSlotTop(m, k);
+        const id = cube('merger', 270, bx, y, bl.item);
+        track(id);
+        // sai da máquina, desce até o degrau desta saída perto da máquina e segue reto
+        const to = cubePort(id, 'in-0', 'left', bx, y);
+        belt(machineOut(m, k), to, q, bl.item, [bendOut(k), to.pt.y]);
+        if (below) belt(cubePort(below, 'out-0', 'top', bx, outSlotTop(m + 1, k)), cubePort(id, 'in-1', 'bottom', bx, y), q * (bl.to - m - 1), bl.item);
+        below = id;
+        if (m === bl.from) band.byproductSources.push({ lane: bl, port: cubePort(id, 'out-0', 'top', bx, y) });
+      }
+      right = Math.max(right, bx + CUBE);
+      bx += COL;
     }
     band.right = right;
     return band;
@@ -284,23 +330,27 @@ export function layoutPlan(plan: Plan, mode: DistributionMode, maxBelt: BeltTier
     X = band.right + 80 + fan + (mode === 'tree' ? CUBE + 40 : 0);
   }
 
-  // armazéns, lado a lado, recebendo por cima
-  const sinkBand: Band = { left: X, right: X, top: 0, entries: new Map() };
+  // armazéns (produto final e subprodutos), lado a lado, recebendo por cima
+  const sinkBand = { left: X, right: X, top: 0 };
+  const sinkPorts = new Map<string, Port>();
   plan.sinks.forEach((s, i) => {
     const x = X + 40 + i * (SINK_W + 40);
     const id = addNode({ kind: 'sink', rotation: 90 }, x, 0);
-    sinkBand.entries.set(s.lane.id, { node: id, handle: 'in-0', side: 'top', pt: { x: x + stripOffset(0, 1, SINK_W), y: 0 } });
+    sinkPorts.set(s.id, { node: id, handle: 'in-0', side: 'top', pt: { x: x + stripOffset(0, 1, SINK_W), y: 0 } });
     sinkBand.right = x + SINK_W;
   });
 
   const entries = new Map<string, Port>();
-  for (const b of [...bands, sinkBand]) for (const [k, v] of b.entries) entries.set(k, v);
+  for (const b of bands) for (const [k, v] of b.entries) entries.set(k, v);
+  for (const s of plan.sinks) if (s.lane) entries.set(s.lane.id, sinkPorts.get(s.id)!);
 
   /* ---------- roteamento entre faixas (corredor acima de tudo) ---------- */
 
   interface Piece {
     from: Port;
-    lane: Lane;
+    to?: Port;
+    flow: number;
+    item: ItemId;
     /** x da subida até o trilho (quando a saída é lateral) */
     riseX?: number;
   }
@@ -311,8 +361,9 @@ export function layoutPlan(plan: Plan, mode: DistributionMode, maxBelt: BeltTier
     const g = band.group!;
     const src = band.source!;
     const feeds = [...g.feeds].sort((a, b) => (entries.get(a.id)?.pt.x ?? 0) - (entries.get(b.id)?.pt.x ?? 0));
+    for (const bp of band.byproductSources) pieces.push({ from: bp.port, to: sinkPorts.get(bp.lane.sink), flow: bp.lane.amount, item: bp.lane.item });
     if (feeds.length === 1) {
-      pieces.push({ from: src, lane: feeds[0], riseX: src.side === 'right' ? src.pt.x + 40 : undefined });
+      pieces.push({ from: src, to: entries.get(feeds[0].id), flow: feeds[0].demand, item: g.item, riseX: src.side === 'right' ? src.pt.x + 40 : undefined });
       continue;
     }
     // corrente de divisores girados 270° acima da faixa: entra por baixo, sai pros lados e por cima
@@ -325,9 +376,9 @@ export function layoutPlan(plan: Plan, mode: DistributionMode, maxBelt: BeltTier
       const x = rx - 60;
       const y = band.top - 60 - CUBE - i * 160;
       routerTops.push(y);
-      const id = cube('splitter', 270, x, y);
+      const id = cube('splitter', 270, x, y, g.item);
       const inPort = cubePort(id, 'in-0', 'bottom', x, y);
-      belt(prevPort, inPort, prevFlow, prevPort.side === 'right' ? [rx] : undefined);
+      belt(prevPort, inPort, prevFlow, g.item, prevPort.side === 'right' ? [rx] : undefined);
       const last = i === S - 1;
       const take = last ? remaining.length : 2;
       const mine = remaining.slice(0, take);
@@ -341,7 +392,7 @@ export function layoutPlan(plan: Plan, mode: DistributionMode, maxBelt: BeltTier
         const [h, side] = outs[j];
         const spread = 20 * (S - 1 - i);
         const riseX = side === 'left' ? x - 20 - spread : side === 'right' ? x + CUBE + 20 + spread : undefined;
-        pieces.push({ from: cubePort(id, h, side, x, y), lane, riseX });
+        pieces.push({ from: cubePort(id, h, side, x, y), to: entries.get(lane.id), flow: lane.demand, item: g.item, riseX });
       });
       prevPort = cubePort(id, 'out-1', 'top', x, y);
       prevFlow = remaining.reduce((a, l) => a + l.demand, 0);
@@ -351,12 +402,12 @@ export function layoutPlan(plan: Plan, mode: DistributionMode, maxBelt: BeltTier
   const allTops = [...bands.map((b) => b.top), sinkBand.top, ...routerTops];
   const corridor = Math.min(...allTops) - 40;
   pieces.forEach((p, t) => {
-    const to = entries.get(p.lane.id);
+    const to = p.to;
     if (!to) return;
     const y = corridor - 20 * t;
     const dropX = to.side === 'left' ? to.pt.x - 20 : to.pt.x;
     const bends = p.riseX !== undefined ? [p.riseX, y, dropX] : [y, dropX];
-    belt(p.from, to, p.lane.demand, bends);
+    belt(p.from, to, p.flow, p.item, bends);
   });
 
   /* ---------- posição final: tudo deslocado pra origem ---------- */
@@ -367,12 +418,13 @@ export function layoutPlan(plan: Plan, mode: DistributionMode, maxBelt: BeltTier
   const dy = snap(origin.y - minY);
   for (const n of nodes) n.position = { x: n.position.x + dx, y: n.position.y + dy };
   // desloca âncoras e viradas; o eixo de cada virada alterna a partir da direção de saída
+  const byId = new Map(nodes.map((n) => [n.id, n]));
   for (const e of edges) {
     const d = e.data!;
     if (!d.bends || !d.anchor) continue;
     const [sx, sy, tx, ty] = d.anchor;
     d.anchor = [sx + dx, sy + dy, tx + dx, ty + dy];
-    const startHorizontal = isHorizontalHandle(nodes.find((n) => n.id === e.source)!, e.sourceHandle!);
+    const startHorizontal = isHorizontalHandle(byId.get(e.source)!, e.sourceHandle!);
     d.bends = d.bends.map((v, i) => v + ((i % 2 === 0) === startHorizontal ? dx : dy));
   }
   return { nodes, edges };
