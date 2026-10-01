@@ -165,21 +165,31 @@ function NodeCard(props: {
             {props.subtitle && <small>{props.subtitle}</small>}
           </span>
           {collapsed && flagged.length > 0 && <span className={`issue-count ${worst}`}>{flagged.length}</span>}
-          {props.power !== undefined && <span className="fnode-power">⚡ {fmt(props.power)} MW</span>}
-          {props.generated !== undefined && (
+          {/* minimizado, a energia vai pra linha de baixo (PowerChip): o título fica com a linha toda */}
+          {!collapsed && props.power !== undefined && (
+            <span className="fnode-power" title="Consumo de energia">
+              ⚡ {fmt(props.power)} MW
+            </span>
+          )}
+          {!collapsed && props.generated !== undefined && (
             <span className="fnode-power gen" title="Energia gerada">
               ⚡ +{fmt(props.generated)} MW
             </span>
           )}
-          {props.onToggleCollapse && (
-            <button className="rotate-btn nodrag" onClick={props.onToggleCollapse} title={collapsed ? 'Expandir' : 'Minimizar'}>
-              {collapsed ? '▸' : '▾'}
-            </button>
-          )}
-          {props.onRotate && (
-            <button className="rotate-btn nodrag" onClick={props.onRotate} title="Girar 90° (R)">
-              ⟳
-            </button>
+          {/* botões só aparecem com o mouse em cima ou com o node selecionado, por cima do fim do cabeçalho */}
+          {(props.onToggleCollapse || props.onRotate) && (
+            <span className="fnode-actions">
+              {props.onToggleCollapse && (
+                <button className="rotate-btn nodrag" onClick={props.onToggleCollapse} title={collapsed ? 'Expandir' : 'Minimizar'}>
+                  {collapsed ? '▸' : '▾'}
+                </button>
+              )}
+              {props.onRotate && (
+                <button className="rotate-btn nodrag" onClick={props.onRotate} title="Girar 90° (R)">
+                  ⟳
+                </button>
+              )}
+            </span>
           )}
         </div>
         <div className="fnode-body">{props.children}</div>
@@ -460,6 +470,18 @@ function CollapsedSummary(props: {
   );
 }
 
+/** Energia do node minimizado (no cabeçalho ela tirava espaço do nome) */
+const powerChip = (power?: number, generated?: number) =>
+  generated !== undefined ? (
+    <span className="mini-chip power gen" title="Energia gerada">
+      ⚡+{fmt(generated)} MW
+    </span>
+  ) : power !== undefined ? (
+    <span className="mini-chip power" title="Consumo de energia">
+      ⚡{fmt(power)} MW
+    </span>
+  ) : null;
+
 const clockChip = (clock: number) =>
   Math.abs(clampClock(clock) - 100) > 1e-9 && <span className="mini-chip">{fmt(clampClock(clock))}%</span>;
 
@@ -496,7 +518,12 @@ export function MinerNodeView({ id, data, selected }: NodeProps<MinerNode>) {
       <NodeCard {...card}>
         <CollapsedSummary
           line={`${ITEMS[data.resource].name} · ${PURITIES[data.purity].name}`}
-          chips={clockChip(data.clock)}
+          chips={
+            <>
+              {clockChip(data.clock)}
+              {powerChip(r?.power)}
+            </>
+          }
           outputs={[{ item: data.resource, actual: out?.actual ?? max, max }]}
           util={r?.util ?? 1}
         />
@@ -558,7 +585,12 @@ export function ExtractorNodeView({ id, data, selected }: NodeProps<ExtractorNod
       <NodeCard {...card}>
         <CollapsedSummary
           line={info.usesPurity ? `${ITEMS[data.resource].name} · ${PURITIES[data.purity].name}` : ITEMS[data.resource].name}
-          chips={clockChip(data.clock)}
+          chips={
+            <>
+              {clockChip(data.clock)}
+              {powerChip(r?.power)}
+            </>
+          }
           outputs={[{ item: data.resource, actual: out?.actual ?? max, max }]}
           util={r?.util ?? 1}
         />
@@ -652,7 +684,12 @@ export function WellNodeView({ id, data, selected }: NodeProps<WellNode>) {
               {sats.length} satélite{sats.length === 1 ? '' : 's'}
             </span>
           }
-          chips={clockChip(data.clock)}
+          chips={
+            <>
+              {clockChip(data.clock)}
+              {powerChip(card.power)}
+            </>
+          }
           outputs={sats.map((p, i) => ({ item: data.resource, label: `${i + 1} · ${PURITIES[p].name}`, actual: r?.outputs[i]?.actual ?? rates[i], max: rates[i] }))}
           util={r?.util ?? 1}
         />
@@ -775,6 +812,7 @@ export function MachineNodeView({ id, data, selected }: NodeProps<MachineNode>) 
             <>
               {clockChip(data.clock)}
               {sloops > 0 && <span className="mini-chip sloop">S×{sloops}</span>}
+              {powerChip(r?.power)}
             </>
           }
           outputs={recipe.outputs.map((p, i) => ({ item: p.item, actual: r?.outputs[i]?.actual ?? 0, max: r?.outputs[i]?.max ?? p.rate }))}
@@ -874,7 +912,12 @@ export function GeneratorNodeView({ id, data, selected }: NodeProps<GeneratorNod
       <NodeCard {...card}>
         <CollapsedSummary
           line={<span className="collapsed-recipe" title={line}>{line}</span>}
-          chips={g.overclockable && clockChip(data.clock)}
+          chips={
+            <>
+              {g.overclockable && clockChip(data.clock)}
+              {powerChip(undefined, generated)}
+            </>
+          }
           outputs={ports.outputs.map((p, i) => ({ item: p.item, actual: r?.outputs[i]?.actual ?? 0, max: r?.outputs[i]?.max ?? p.rate }))}
           util={r?.util ?? 0}
         />
