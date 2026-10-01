@@ -60,6 +60,44 @@ describe('storage', () => {
     expect(sanitize({ version: 1, nodes: [ok], edges: [{ id: 'b', source: 'a' }] })).toBeNull();
   });
 
+  it('migra o extrator de poço antigo pra um poço com um satélite (mesmo clock, conexão mantida)', () => {
+    const raw = {
+      version: 1,
+      defaultTier: 1,
+      nodes: [
+        { id: 'w', type: 'extractor', position: { x: 0, y: 0 }, data: { kind: 'extractor', extractor: 'well', resource: 'nitrogen-gas', purity: 'pure', clock: 150, rotation: 90 } },
+        { id: 'k', type: 'sink', position: { x: 400, y: 0 }, data: { kind: 'sink' } },
+      ],
+      edges: [{ id: 'p', type: 'pipe', source: 'w', sourceHandle: 'out-0', target: 'k', targetHandle: 'in-0', data: { tier: 2 } }],
+    };
+    const s = sanitize(raw)!;
+    expect(s.nodes[0]).toEqual({
+      id: 'w',
+      type: 'well',
+      position: { x: 0, y: 0 },
+      data: { kind: 'well', resource: 'nitrogen-gas', clock: 150, rotation: 90, satellites: ['pure'] },
+    });
+    // a saída do satélite 1 é a mesma out-0 de antes
+    expect(s.edges[0]).toMatchObject({ source: 'w', sourceHandle: 'out-0', type: 'pipe' });
+    // migrar de novo não muda nada
+    expect(sanitize(JSON.parse(JSON.stringify(s)))).toEqual(s);
+    // extratores de água/petróleo ficam como estão
+    const water = { id: 'x', type: 'extractor', position: { x: 0, y: 0 }, data: { kind: 'extractor', extractor: 'water', resource: 'water', purity: 'normal', clock: 100 } };
+    expect(sanitize({ version: 1, nodes: [water], edges: [] })!.nodes[0]).toEqual(water);
+  });
+
+  it('poço com satélites quebrados fica só com as purezas válidas', () => {
+    const raw = { version: 1, nodes: [{ id: 'w', type: 'well', position: { x: 0, y: 0 }, data: { kind: 'well', resource: 'water', clock: 100, satellites: ['pure', 'x', 3] } }], edges: [] };
+    expect(sanitize(raw)!.nodes[0].data).toMatchObject({ satellites: ['pure'] });
+    const none = { ...raw, nodes: [{ ...raw.nodes[0], data: { kind: 'well', resource: 'water', clock: 100 } }] };
+    expect(sanitize(none)!.nodes[0].data).toMatchObject({ satellites: [] });
+  });
+
+  it('guarda os cupons já impressos (inteiro positivo)', () => {
+    expect(sanitize({ version: 1, nodes: [], edges: [], couponsPrinted: 12.7 })!.couponsPrinted).toBe(12);
+    expect(sanitize({ version: 1, nodes: [], edges: [], couponsPrinted: -3 })).not.toHaveProperty('couponsPrinted');
+  });
+
   it('o exemplo sobrevive ao sanitize', () => {
     const demo = demoState();
     expect(sanitize(JSON.parse(JSON.stringify(demo)))).toEqual({ ...demo, defaultPipeTier: 1 });

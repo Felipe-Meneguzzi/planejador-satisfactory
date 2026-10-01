@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { WELL } from '../../src/game/data';
 import { defaultChoice, planLine, type Group, type Plan, type PlanInput } from '../../src/planner/plan';
+import { wellPower } from '../../src/sim/simulate';
 
 const base: Omit<PlanInput, 'item' | 'rate'> = { choices: {}, ores: {}, maxClock: 100, maxBelt: 3, maxPipe: 1 };
 const plan = (item: string, rate: number, extra: Partial<PlanInput> = {}) => planLine({ ...base, item, rate, ...extra });
@@ -112,5 +114,25 @@ describe('planLine', () => {
     expect(p.sinks.filter((s) => s.item === 'fuel').map((s) => s.demand)).toEqual([200, 200]);
     // com cano Mk.2 (600) cabe numa linha só
     expect(groupsOf(plan('fuel', 400, { maxPipe: 2 }), 'fuel')).toHaveLength(1);
+  });
+
+  it('Nitrogen Gas vem de poço: satélites divididos em poços de até 8, pressurizadores na conta', () => {
+    // 600 m³/min com satélites puros (120) e cano Mk.2 (600): 5 satélites num poço só
+    const p = plan('nitrogen-gas', 600, { ores: { 'nitrogen-gas': { purity: 'pure', tier: 1 } }, maxPipe: 2 });
+    const g = one(p, 'nitrogen-gas');
+    expect(g.kind).toBe('well');
+    expect(g.count).toBe(5);
+    expect(g.wells).toEqual([5]);
+    expect(g.clock).toBeCloseTo(100);
+    expect(g.power).toBeCloseTo(150);
+    // 1.200 m³/min com satélites normais (60) a 100%: 2 linhas de 600 → 10 satélites cada → 2 poços de 5 por linha
+    const big = plan('nitrogen-gas', 1200, { maxPipe: 2 });
+    for (const w of groupsOf(big, 'nitrogen-gas')) {
+      expect(w.kind).toBe('well');
+      expect(Math.max(...w.wells!)).toBeLessThanOrEqual(WELL.satelliteLimit['nitrogen-gas']);
+      expect(w.wells!.reduce((a, b) => a + b, 0)).toBe(w.count);
+      expect(w.power).toBeCloseTo(wellPower(w.clock) * w.wells!.length);
+    }
+    expect(groupsOf(big, 'nitrogen-gas').flatMap((w) => w.wells)).toEqual([5, 5, 5, 5]);
   });
 });
