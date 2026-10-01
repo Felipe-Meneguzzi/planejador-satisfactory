@@ -2194,6 +2194,11 @@ button.danger:hover:not(:disabled) {
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
   pointer-events: all;
 }
+/* na moldura a escolha de cor abre pra cima: embaixo do cabeçalho costuma ter máquina (que fica na frente) */
+.frame .ann-color-pop {
+  top: auto;
+  bottom: calc(100% + 6px);
+}
 .ann-swatch {
   width: 22px;
   height: 22px;
