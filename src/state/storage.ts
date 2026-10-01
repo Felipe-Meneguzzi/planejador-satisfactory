@@ -15,7 +15,9 @@ export interface SavedState {
   beltLabels?: boolean;
 }
 
-export const newId = (prefix = 'n') => `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+/** contador da sessão: o gerador cria centenas de ids no mesmo milissegundo */
+let idSeq = 0;
+export const newId = (prefix = 'n') => `${prefix}-${Date.now().toString(36)}-${(idSeq++).toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
 
 /** Mantém só o que importa (descarta seleção, medidas etc.) */
 export function sanitize(raw: unknown): SavedState | null {

@@ -33,11 +33,8 @@ describe('storage', () => {
     expect(sanitize(JSON.parse(JSON.stringify(demo)))).toEqual({ ...demo, defaultPipeTier: 1 });
   });
 
-  // BUG: newId = Date.now() em base 36 + só 4 caracteres aleatórios. O gerador cria centenas de ids
-  // no mesmo milissegundo e, numa Heavy Modular Frame (~525 ids), ~0,7% das gerações saem com id
-  // repetido (2 em 300 rodadas). Esteira com id repetido some/fica duplicada no React Flow.
-  // Pulado porque é probabilístico; reativar quando o newId usar um contador ou crypto.randomUUID.
-  it.skip('newId não repete em 2000 chamadas seguidas', () => {
+  // o gerador cria centenas de ids no mesmo milissegundo: o contador garante que não repetem
+  it('newId não repete em 2000 chamadas seguidas', () => {
     const ids = Array.from({ length: 2000 }, () => newId('b'));
     expect(new Set(ids).size).toBe(ids.length);
   });
