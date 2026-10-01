@@ -66,6 +66,9 @@ function sizeOf(n: FactoryNode): { w: number; h: number } {
     case 'inbound':
       // gerada minimizada e com a saída em cima
       return { w: 240, h: 100 };
+    default:
+      // o gerador nunca cria moldura nem anotação
+      throw new Error(`node inesperado na linha gerada: ${d.kind}`);
   }
 }
 

@@ -33,6 +33,10 @@ export function nodeLabel(n?: FactoryNode): string {
       return `Entrada externa · ${ITEMS[d.item]?.name ?? d.item}`;
     case 'outbound':
       return d.name ? `Saída externa · ${d.name}` : 'Saída externa';
+    case 'frame':
+      return `Moldura · ${d.title}`;
+    case 'note':
+      return 'Anotação';
   }
 }
 

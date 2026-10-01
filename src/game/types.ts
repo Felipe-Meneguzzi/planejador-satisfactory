@@ -75,7 +75,22 @@ export type ExternalLink = { factory: string; node: string };
 export type InboundData = { kind: 'inbound'; item: ItemId; rate: number; link?: ExternalLink; rotation?: Rotation; collapsed?: boolean };
 /** Saída externa: recebe qualquer item (como o Armazém) e pode alimentar Entradas externas de outras fábricas */
 export type OutboundData = { kind: 'outbound'; name?: string; rotation?: Rotation };
-export type FactoryData = MinerData | ExtractorData | WellData | MachineData | SplitterData | MergerData | SinkData | GeneratorData | InboundData | OutboundData;
+/** Nodes que produzem, transportam ou consomem: os únicos que a simulação e o gerador consideram */
+export type ProductionData = MinerData | ExtractorData | WellData | MachineData | SplitterData | MergerData | SinkData | GeneratorData | InboundData | OutboundData;
+
+/** Cor de moldura/anotação (chave da paleta em src/game/annotations.ts) */
+export type AnnotationColor = 'slate' | 'blue' | 'teal' | 'green' | 'amber' | 'orange' | 'red' | 'purple';
+/**
+ * Moldura: retângulo com título que agrupa visualmente uma área (ex.: "Andar 2 — Aço").
+ * O tamanho fica no próprio node (width/height do React Flow), sempre múltiplo do grid.
+ */
+export type FrameData = { kind: 'frame'; title: string; color: AnnotationColor };
+/** Anotação: bloco de texto livre (várias linhas) */
+export type NoteData = { kind: 'note'; text: string; color: AnnotationColor };
+/** Organização do canvas: não produz nada (simulação, resumo e gerador ignoram) */
+export type AnnotationData = FrameData | NoteData;
+
+export type FactoryData = ProductionData | AnnotationData;
 
 export type MinerNode = Node<MinerData, 'miner'>;
 export type ExtractorNode = Node<ExtractorData, 'extractor'>;
@@ -87,7 +102,15 @@ export type SinkNode = Node<SinkData, 'sink'>;
 export type GeneratorNode = Node<GeneratorData, 'generator'>;
 export type InboundNode = Node<InboundData, 'inbound'>;
 export type OutboundNode = Node<OutboundData, 'outbound'>;
-export type FactoryNode = MinerNode | ExtractorNode | WellNode | MachineNode | SplitterNode | MergerNode | SinkNode | GeneratorNode | InboundNode | OutboundNode;
+export type FrameNode = Node<FrameData, 'frame'>;
+export type NoteNode = Node<NoteData, 'note'>;
+export type ProductionNode = MinerNode | ExtractorNode | WellNode | MachineNode | SplitterNode | MergerNode | SinkNode | GeneratorNode | InboundNode | OutboundNode;
+export type AnnotationNode = FrameNode | NoteNode;
+export type FactoryNode = ProductionNode | AnnotationNode;
+
+/** Moldura ou anotação (não entra na simulação nem no gerador) */
+export const isAnnotation = (d: FactoryData): d is AnnotationData => d.kind === 'frame' || d.kind === 'note';
+export const isProduction = (d: FactoryData): d is ProductionData => !isAnnotation(d);
 
 /** 'grid' = ângulos retos alinhados ao grid; 'curve' = curva livre. Sem valor = segue o padrão global */
 export type BeltRouting = 'grid' | 'curve';

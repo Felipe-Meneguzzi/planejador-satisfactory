@@ -19,7 +19,7 @@ import {
 } from '@xyflow/react';
 import { GAME_VERSION, GENERATORS, MACHINES } from './game/data';
 import { mediumsMatch, portMedium } from './game/ports';
-import type { BeltEdge, BeltTier, FactoryData, FactoryNode, PipeTier } from './game/types';
+import { isProduction, type BeltEdge, type BeltTier, type FactoryData, type FactoryNode, type PipeTier } from './game/types';
 import { fmt } from './format';
 import { GRID } from './grid';
 
@@ -160,16 +160,17 @@ const toSimEdge = (e: BeltEdge): SimEdge => ({
   tier: e.data?.tier ?? 1,
   medium: e.type === 'pipe' ? 'pipe' : 'belt',
 });
-/** Só o que afeta o fluxo (arrastar node não muda): chave do cache da simulação */
+/** Só o que afeta o fluxo (arrastar node ou mexer em moldura/anotação não muda): chave do cache da simulação */
 const simKeyOf = (nodes: FactoryNode[], edges: BeltEdge[]) =>
   JSON.stringify([
-    nodes.map((n) => [n.id, n.data]),
+    nodes.filter((n) => isProduction(n.data)).map((n) => [n.id, n.data]),
     edges.map((e) => [e.id, e.type, e.source, e.sourceHandle, e.target, e.targetHandle, e.data?.tier]),
   ]);
 const toSimFactory = (f: Factory, key = simKeyOf(f.nodes, f.edges)): ProjectFactory => ({
   id: f.id,
   name: f.name,
-  nodes: f.nodes.map((n) => ({ id: n.id, data: n.data })),
+  // molduras e anotações ficam de fora (a simulação também as ignora, por garantia)
+  nodes: f.nodes.filter((n) => isProduction(n.data)).map((n) => ({ id: n.id, data: n.data })),
   edges: f.edges.map(toSimEdge),
   key,
 });
@@ -318,7 +319,10 @@ function Planner() {
       if (t.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName)) return;
       e.preventDefault();
       setNodes((ns) =>
-        ns.map((n) => (n.selected ? ({ ...n, data: { ...n.data, rotation: nextRotation(n.data.rotation, e.shiftKey ? -1 : 1) } } as FactoryNode) : n)),
+        ns.map((n) =>
+          // moldura e anotação não giram
+          n.selected && isProduction(n.data) ? ({ ...n, data: { ...n.data, rotation: nextRotation(n.data.rotation, e.shiftKey ? -1 : 1) } } as FactoryNode) : n,
+        ),
       );
     };
     window.addEventListener('keydown', onKey);

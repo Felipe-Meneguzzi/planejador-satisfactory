@@ -1,5 +1,6 @@
 import { AMPLIFICATION, BELTS, BELT_TIERS, EXTRACTORS, GENERATORS, ITEMS, MACHINES, MINER_TIERS, OVERCLOCK, PIPES, PIPE_TIERS, PURITIES, SINK, WELL, extractorClockable, generatorClockable, generatorPorts, getRecipe, isFluid, sinkPoints, withUnit } from '../game/data';
-import type { BeltItem, BeltTier, ExtractorData, FactoryData, GeneratorData, GeneratorId, InboundData, ItemId, MachineData, MinerData, PipeTier, SinkData, WellData } from '../game/types';
+import { isProduction } from '../game/types';
+import type { BeltItem, BeltTier, ExtractorData, FactoryData, GeneratorData, GeneratorId, InboundData, ItemId, MachineData, MinerData, PipeTier, ProductionData, SinkData, WellData } from '../game/types';
 import { fmt } from '../format';
 
 /*
@@ -16,7 +17,10 @@ import { fmt } from '../format';
  * convergir (ponto fixo).
  */
 
+/** Node como chega na simulação: molduras e anotações podem vir junto e são ignoradas */
 export type SimNode = { id: string; data: FactoryData };
+/** Node que a simulação de fato considera (produção, transporte, saídas) */
+type ProdNode = { id: string; data: ProductionData };
 export type SimEdge = {
   id: string;
   source: string;
@@ -217,7 +221,9 @@ interface Belt {
   d: number;
 }
 
-export function simulate(nodes: SimNode[], edges: SimEdge[]): SimResult {
+export function simulate(allNodes: SimNode[], edges: SimEdge[]): SimResult {
+  // molduras e anotações não produzem nem transportam nada (e não têm conectores)
+  const nodes = allNodes.filter((n): n is ProdNode => isProduction(n.data));
   const nodeById = new Map(nodes.map((n) => [n.id, n]));
   const belts = new Map<string, Belt>();
   const bySource = new Map<string, Belt>();
@@ -238,7 +244,7 @@ export function simulate(nodes: SimNode[], edges: SimEdge[]): SimResult {
   const three = [0, 1, 2];
 
   // 1) Propaga qual item corre em cada esteira
-  const outItems = (n: SimNode): BeltItem[] => {
+  const outItems = (n: ProdNode): BeltItem[] => {
     const d = n.data;
     switch (d.kind) {
       case 'miner':
@@ -294,7 +300,7 @@ export function simulate(nodes: SimNode[], edges: SimEdge[]): SimResult {
     b.d = d;
   };
 
-  const step = (n: SimNode) => {
+  const step = (n: ProdNode) => {
     const d = n.data;
     switch (d.kind) {
       case 'miner': {

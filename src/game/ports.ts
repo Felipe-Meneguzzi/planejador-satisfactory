@@ -35,6 +35,10 @@ export function portMedium(data: FactoryData, handle?: string | null): Medium | 
       const p = handle?.startsWith('in') ? g.inputs[idx] : g.outputs[idx];
       return p && isFluid(p.item) ? 'fluid' : 'solid';
     }
+    case 'frame':
+    case 'note':
+      // moldura e anotação não têm conectores: nunca chegam numa conexão
+      return 'any';
   }
 }
 

@@ -1,5 +1,5 @@
 import { BELTS, BELT_TIERS, PIPES, PIPE_TIERS, isFluid } from '../game/data';
-import type { BeltEdge, BeltTier, FactoryData, FactoryNode, ItemId, PipeTier, Rotation } from '../game/types';
+import type { BeltEdge, BeltTier, FactoryNode, ItemId, PipeTier, ProductionData, ProductionNode, Rotation } from '../game/types';
 import { newId } from '../state/storage';
 import type { ByproductLane, Group, Lane, Plan } from './plan';
 
@@ -78,7 +78,7 @@ export interface Layout {
 }
 
 export function layoutPlan(plan: Plan, mode: DistributionMode, maxBelt: BeltTier, maxPipe: PipeTier, origin: Pt): Layout {
-  const nodes: FactoryNode[] = [];
+  const nodes: ProductionNode[] = [];
   const edges: BeltEdge[] = [];
 
   /** menor Mk que aguenta o fluxo (esteira pra sólido, cano pra fluido), até o máximo liberado */
@@ -87,9 +87,9 @@ export function layoutPlan(plan: Plan, mode: DistributionMode, maxBelt: BeltTier
       ? (PIPE_TIERS.find((t) => PIPES[t].rate >= flow - EPS && t <= maxPipe) ?? maxPipe)
       : (BELT_TIERS.find((t) => BELTS[t].rate >= flow - EPS && t <= maxBelt) ?? maxBelt);
 
-  const addNode = (data: FactoryData, x: number, y: number) => {
+  const addNode = (data: ProductionData, x: number, y: number) => {
     const id = newId(data.kind);
-    nodes.push({ id, type: data.kind, position: { x, y }, data } as FactoryNode);
+    nodes.push({ id, type: data.kind, position: { x, y }, data } as ProductionNode);
     return id;
   };
   /** divisor/mesclador; pra fluido vira junção de cano */
@@ -170,7 +170,7 @@ export function layoutPlan(plan: Plan, mode: DistributionMode, maxBelt: BeltTier
       track(id);
     });
     for (let m = 0; m < (wells.length ? 0 : n); m++) {
-      const data: FactoryData =
+      const data: ProductionData =
         g.kind === 'miner'
           ? { kind: 'miner', resource: g.item, purity: g.ore!.purity, tier: g.ore!.tier, clock: g.clock, collapsed: true }
           : g.kind === 'extractor'
@@ -478,14 +478,14 @@ export function layoutPlan(plan: Plan, mode: DistributionMode, maxBelt: BeltTier
 /* lado de saída de um conector, considerando o tipo e a rotação do node */
 const CLOCKWISE: Side[] = ['left', 'top', 'right', 'bottom'];
 const rot = (s: Side, r: Rotation = 0) => CLOCKWISE[(CLOCKWISE.indexOf(s) + r / 90) % 4];
-function handleSide(n: FactoryNode, handle: string): Side {
+function handleSide(n: ProductionNode, handle: string): Side {
   const d = n.data;
   const r = d.rotation ?? 0;
   if (d.kind === 'splitter') return rot(({ 'in-0': 'left', 'out-0': 'top', 'out-1': 'right', 'out-2': 'bottom' } as Record<string, Side>)[handle], r);
   if (d.kind === 'merger') return rot(({ 'in-0': 'top', 'in-1': 'left', 'in-2': 'bottom', 'out-0': 'right' } as Record<string, Side>)[handle], r);
   return rot(handle.startsWith('in') ? 'left' : 'right', r);
 }
-const isHorizontalHandle = (n: FactoryNode, handle: string) => {
+const isHorizontalHandle = (n: ProductionNode, handle: string) => {
   const s = handleSide(n, handle);
   return s === 'left' || s === 'right';
 };
