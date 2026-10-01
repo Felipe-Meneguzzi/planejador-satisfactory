@@ -10,12 +10,12 @@ import {
   ReactFlowProvider,
   SelectionMode,
   useEdgesState,
-  useNodesInitialized,
   useNodesState,
   useReactFlow,
   type Connection,
   type Edge,
   type NodeChange,
+  type Viewport,
 } from '@xyflow/react';
 import { GAME_VERSION, GENERATORS, MACHINES } from './game/data';
 import { mediumsMatch, portMedium } from './game/ports';
@@ -31,8 +31,31 @@ import { DND_TYPE, Palette } from './components/Palette';
 import { SidePanel } from './components/SidePanel';
 import { BeltInspector } from './components/BeltInspector';
 import { SimContext } from './sim/SimContext';
-import { simulate, type EnergyResult, type Issue } from './sim/simulate';
-import { demoState, downloadJson, loadState, newId, sanitize, saveState } from './state/storage';
+import { EMPTY_SIM } from './sim/SimContext';
+import { ProjectContext, type ProjectInfo } from './sim/ProjectContext';
+import { simulateProject, summarizeProject, type ProjectFactory, type SimCache } from './sim/project';
+import type { EnergyResult, Issue, SimEdge } from './sim/simulate';
+import {
+  applyImport,
+  backupNow,
+  demoPlant,
+  downloadJson,
+  exportFactory,
+  exportProject,
+  loadState,
+  newId,
+  nextFactoryName,
+  parseImport,
+  sanitizePlant,
+  saveState,
+  slug,
+  today,
+  uniqueName,
+  type Factory,
+  type Incoming,
+  type ProjectState,
+} from './state/storage';
+import { decodeShare, isShareHash, shareUrl } from './state/share';
 import { useHistory, type Snapshot } from './state/useHistory';
 import { useClipboard } from './state/useClipboard';
 import { useBoxSelection } from './state/useBoxSelection';
@@ -41,6 +64,11 @@ import { PlannerModal } from './components/PlannerModal';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { CanvasCrash } from './components/RecoveryPanel';
 import { BackupMenu } from './components/Backups';
+import { FactoryTabs } from './components/FactoryTabs';
+import { IncomingDialog } from './components/IncomingDialog';
+import { ShareDialog, type ShareScope } from './components/ShareDialog';
+import { ProjectSummary } from './components/ProjectSummary';
+import { MenuButton } from './components/Popover';
 import { debugCrash } from './errors';
 import { layoutPlan, type DistributionMode } from './planner/layout';
 import type { Plan } from './planner/plan';
@@ -86,6 +114,8 @@ const minimapColor = (n: FactoryNode) => {
   if (d.kind === 'machine') return MACHINES[d.machine].color;
   if (d.kind === 'sink') return d.mode === 'awesome' ? '#7d3a8c' : '#2f7a52';
   if (d.kind === 'generator') return GENERATORS[d.generator]?.color ?? '#555b66';
+  if (d.kind === 'inbound') return '#22707a';
+  if (d.kind === 'outbound') return '#8a5a1f';
   return '#555b66';
 };
 
@@ -120,11 +150,48 @@ function useAltHeld() {
   return held;
 }
 
+/** Conexão no formato da simulação */
+const toSimEdge = (e: BeltEdge): SimEdge => ({
+  id: e.id,
+  source: e.source,
+  sourceHandle: e.sourceHandle,
+  target: e.target,
+  targetHandle: e.targetHandle,
+  tier: e.data?.tier ?? 1,
+  medium: e.type === 'pipe' ? 'pipe' : 'belt',
+});
+/** Só o que afeta o fluxo (arrastar node não muda): chave do cache da simulação */
+const simKeyOf = (nodes: FactoryNode[], edges: BeltEdge[]) =>
+  JSON.stringify([
+    nodes.map((n) => [n.id, n.data]),
+    edges.map((e) => [e.id, e.type, e.source, e.sourceHandle, e.target, e.targetHandle, e.data?.tier]),
+  ]);
+const toSimFactory = (f: Factory, key = simKeyOf(f.nodes, f.edges)): ProjectFactory => ({
+  id: f.id,
+  name: f.name,
+  nodes: f.nodes.map((n) => ({ id: n.id, data: n.data })),
+  edges: f.edges.map(toSimEdge),
+  key,
+});
+/** Cópia limpa (sem seleção, medidas etc.) de uma planta */
+const cleanPlant = (f: Factory) => sanitizePlant(f) ?? structuredClone({ nodes: f.nodes, edges: f.edges });
+/** Tira o hash do link compartilhado da URL (sem recarregar nem criar entrada no histórico) */
+const clearShareHash = () => {
+  if (isShareHash(location.hash)) history.replaceState(null, '', location.pathname + location.search);
+};
+
+type Notice = { kind: 'ok' | 'error'; text: string };
+type Pending = { incoming: Incoming; source: 'file' | 'link'; fileName?: string };
+
 function Planner() {
   debugCrash('app');
   const initial = useMemo(loadState, []);
-  const [nodes, setNodes, onNodesChange] = useNodesState<FactoryNode>(initial.nodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState<BeltEdge>(initial.edges);
+  // fábricas do projeto; a aberta vive no estado do React Flow (nodes/edges) e a cópia dela aqui fica pra trás até trocar de aba
+  const [factories, setFactories] = useState<Factory[]>(initial.factories);
+  const [activeId, setActiveId] = useState(initial.active);
+  const initialActive = initial.factories.find((f) => f.id === initial.active) ?? initial.factories[0];
+  const [nodes, setNodes, onNodesChange] = useNodesState<FactoryNode>(initialActive.nodes);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<BeltEdge>(initialActive.edges);
   const [defaultTier, setDefaultTier] = useState<BeltTier>(initial.defaultTier);
   const [defaultPipeTier, setDefaultPipeTier] = useState<PipeTier>(initial.defaultPipeTier ?? 1);
   const [gridBelts, setGridBelts] = useState(initial.gridBelts ?? true);
@@ -148,32 +215,47 @@ function Planner() {
   const snapping = useAltHeld();
   const snappingRef = useRef(snapping);
   snappingRef.current = snapping;
-  const { screenToFlowPosition, setCenter, setViewport, fitView, getNode, getNodes } = useReactFlow<FactoryNode, BeltEdge>();
+  const { screenToFlowPosition, setCenter, setViewport, getViewport, fitView, getNode, getNodes } = useReactFlow<FactoryNode, BeltEdge>();
   const canvasRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [notice, setNotice] = useState<Notice | null>(null);
+  const [pending, setPending] = useState<Pending | null>(null);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [summaryOpen, setSummaryOpen] = useState(false);
 
-  // Só recalcula quando muda algo que afeta o fluxo (arrastar node não recalcula)
-  const simKey = JSON.stringify([
-    nodes.map((n) => [n.id, n.data]),
-    edges.map((e) => [e.id, e.type, e.source, e.sourceHandle, e.target, e.targetHandle, e.data?.tier]),
-  ]);
-  const sim = useMemo(
+  // avisos de sucesso somem sozinhos; erros ficam até fechar
+  useEffect(() => {
+    if (notice?.kind !== 'ok') return;
+    const t = setTimeout(() => setNotice(null), 6000);
+    return () => clearTimeout(t);
+  }, [notice]);
+
+  /* ---------- projeto e simulação ---------- */
+
+  /** fábricas com a aberta atualizada */
+  const live = useMemo(() => factories.map((f) => (f.id === activeId ? { ...f, nodes, edges } : f)), [factories, activeId, nodes, edges]);
+  const active = live.find((f) => f.id === activeId)!;
+  const project = useCallback(
+    (): ProjectState => ({ version: 2, factories: live, active: activeId, defaultTier, defaultPipeTier, gridBelts, beltLabels, couponsPrinted }),
+    [live, activeId, defaultTier, defaultPipeTier, gridBelts, beltLabels, couponsPrinted],
+  );
+
+  // Só recalcula quando muda algo que afeta o fluxo (arrastar node não recalcula); as fábricas
+  // fechadas só mudam ao trocar de aba, e o cache evita simular de novo as que não mudaram
+  const activeKey = simKeyOf(nodes, edges);
+  const closed = useMemo(() => new Map(factories.filter((f) => f.id !== activeId).map((f) => [f.id, toSimFactory(f)])), [factories, activeId]);
+  const simCache = useRef<SimCache>(new Map());
+  const psim = useMemo(
     () =>
-      simulate(
-        nodes.map((n) => ({ id: n.id, data: n.data })),
-        edges.map((e) => ({
-          id: e.id,
-          source: e.source,
-          sourceHandle: e.sourceHandle,
-          target: e.target,
-          targetHandle: e.targetHandle,
-          tier: e.data?.tier ?? 1,
-          medium: e.type === 'pipe' ? ('pipe' as const) : ('belt' as const),
-        })),
+      simulateProject(
+        factories.map((f) => (f.id === activeId ? toSimFactory({ ...f, nodes, edges }, activeKey) : closed.get(f.id)!)),
+        simCache.current,
       ),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [simKey],
+    [closed, activeKey],
   );
+  const sim = psim.results[activeId] ?? EMPTY_SIM;
+  const summary = useMemo(() => summarizeProject(factories, psim), [factories, psim]);
 
   // Encaixe no grid feito aqui (e não pelo snapToGrid do React Flow) pra valer
   // mesmo quando o Alt é apertado no meio do arraste
@@ -192,7 +274,7 @@ function Planner() {
     [onNodesChange, filterBoxSelection],
   );
 
-  /* ---------- desfazer / refazer ---------- */
+  /* ---------- desfazer / refazer (um histórico por fábrica) ---------- */
 
   const applySnapshot = useCallback(
     (s: Snapshot) => {
@@ -201,7 +283,8 @@ function Planner() {
     },
     [setNodes, setEdges],
   );
-  const { undo, redo, canUndo, canRedo } = useHistory(nodes, edges, applySnapshot);
+  const { undo, redo, forget, canUndo, canRedo } = useHistory(activeId, nodes, edges, applySnapshot);
+  // o "copiado" fica no Planner: copia numa aba e cola em outra
   const clipboard = useClipboard(GRID);
   const [plannerOpen, setPlannerOpen] = useState(false);
 
@@ -242,22 +325,103 @@ function Planner() {
     return () => window.removeEventListener('keydown', onKey);
   }, [setNodes]);
 
-  // Enquadra tudo assim que os nodes forem medidos na primeira carga
-  const nodesReady = useNodesInitialized();
-  const didFit = useRef(false);
+  /* ---------- viewport por fábrica ---------- */
+
+  /** zoom/posição de cada fábrica, lembrados ao trocar de aba */
+  const viewports = useRef(new Map<string, Viewport>());
+  /** enquadrar tudo assim que os nodes da fábrica aberta forem medidos (primeira carga, aba nova) */
+  const pendingFit = useRef(true);
   useEffect(() => {
-    if (nodesReady && !didFit.current) {
-      didFit.current = true;
+    if (!pendingFit.current) return;
+    if (!nodes.length) {
+      pendingFit.current = false;
+      setViewport({ x: 0, y: 0, zoom: 1 });
+    } else if (nodes.every((n) => n.measured?.width)) {
+      pendingFit.current = false;
       fitView({ padding: 0.15, maxZoom: 1 });
     }
-  }, [nodesReady, fitView]);
+  }, [nodes, fitView, setViewport]);
 
-  // salvamento automático (pausado enquanto algum Error Boundary estiver em erro);
+  // salvamento automático do projeto inteiro (pausado enquanto algum Error Boundary estiver em erro);
   // canvasEpoch: salva o que foi feito com o canvas quebrado assim que ele volta
   useEffect(() => {
-    const t = setTimeout(() => saveState({ version: 1, nodes, edges, defaultTier, defaultPipeTier, gridBelts, beltLabels, couponsPrinted }), 300);
+    const t = setTimeout(() => saveState(project()), 300);
     return () => clearTimeout(t);
-  }, [nodes, edges, defaultTier, defaultPipeTier, gridBelts, beltLabels, couponsPrinted, canvasEpoch]);
+  }, [project, canvasEpoch]);
+  // fechar/recarregar a página logo depois de uma edição: salva na hora em vez de esperar o debounce
+  const projectRef = useRef(project);
+  projectRef.current = project;
+  useEffect(() => {
+    const flush = () => saveState(projectRef.current());
+    window.addEventListener('pagehide', flush);
+    return () => window.removeEventListener('pagehide', flush);
+  }, []);
+
+  /* ---------- abas ---------- */
+
+  /** Abre a fábrica `id` de `list` (que vira a lista de fábricas) */
+  const open = (list: Factory[], id: string, opts: { refit?: boolean } = {}) => {
+    const target = list.find((f) => f.id === id) ?? list[0];
+    if (target.id !== activeId) viewports.current.set(activeId, getViewport());
+    setFactories(list);
+    setActiveId(target.id);
+    setNodes(target.nodes);
+    setEdges(target.edges);
+    const vp = viewports.current.get(target.id);
+    if (vp && !opts.refit && target.id !== activeId) setViewport(vp);
+    else pendingFit.current = true;
+  };
+
+  const selectFactory = (id: string) => id !== activeId && factories.some((f) => f.id === id) && open(live, id);
+  // os nodes de Saída externa abrem a fábrica de destino: sempre com a versão mais nova da função
+  const selectRef = useRef(selectFactory);
+  selectRef.current = selectFactory;
+  const openFactory = useCallback((id: string) => selectRef.current(id), []);
+
+  const addFactory = (plant: { nodes: FactoryNode[]; edges: BeltEdge[] } = { nodes: [], edges: [] }, name = nextFactoryName(factories)) => {
+    const f: Factory = { id: newId('f'), name: uniqueName(name, factories.map((x) => x.name)), ...plant };
+    open([...live, f], f.id);
+  };
+
+  const duplicateFactory = (id: string) => {
+    const list = live;
+    const i = list.findIndex((f) => f.id === id);
+    const src = list[i];
+    const copy: Factory = { id: newId('f'), name: uniqueName(`${src.name} (cópia)`, list.map((f) => f.name)), ...cleanPlant(src) };
+    open([...list.slice(0, i + 1), copy, ...list.slice(i + 1)], copy.id);
+  };
+
+  const deleteFactory = (id: string) => {
+    if (factories.length <= 1) return;
+    const list = live;
+    const f = list.find((x) => x.id === id)!;
+    // Entradas externas de outras fábricas que puxam desta
+    const links = list.filter((x) => x.id !== id).flatMap((x) => x.nodes.filter((n) => n.data.kind === 'inbound' && n.data.link?.factory === id)).length;
+    const msg =
+      `Apagar a fábrica "${f.name}" (${f.nodes.length} itens, ${f.edges.length} conexões)?` +
+      (links ? `\n\n${links} Entrada(s) externa(s) de outras fábricas puxam dela e vão passar a usar a vazão manual.` : '') +
+      '\n\nDá pra voltar pelas versões anteriores (🕘).';
+    if (!confirm(msg)) return;
+    backupNow(project());
+    const rest = list.filter((x) => x.id !== id);
+    forget(id);
+    viewports.current.delete(id);
+    if (id !== activeId) setFactories((fs) => fs.filter((x) => x.id !== id));
+    else open(rest, rest[Math.max(0, list.findIndex((x) => x.id === id) - 1)].id);
+  };
+
+  const renameFactory = (id: string, name: string) => setFactories((fs) => fs.map((f) => (f.id === id ? { ...f, name } : f)));
+
+  const moveFactory = (id: string, to: number) =>
+    setFactories((fs) => {
+      const from = fs.findIndex((f) => f.id === id);
+      const dest = Math.max(0, Math.min(fs.length - 1, to));
+      if (from < 0 || from === dest) return fs;
+      const list = [...fs];
+      const [f] = list.splice(from, 1);
+      list.splice(dest, 0, f);
+      return list;
+    });
 
   /* ---------- conexões ---------- */
 
@@ -364,7 +528,7 @@ function Planner() {
     [setEdges],
   );
 
-  /* ---------- gerador de linha ---------- */
+  /* ---------- gerador de linha (entra na fábrica aberta) ---------- */
 
   const generateLine = useCallback(
     (plan: Plan, mode: DistributionMode, maxBelt: BeltTier, maxPipe: PipeTier) => {
@@ -388,38 +552,89 @@ function Planner() {
     [getNodes, setNodes, setEdges, fitView],
   );
 
-  /* ---------- toolbar ---------- */
+  /* ---------- projeto inteiro: substituir, importar, exportar, compartilhar ---------- */
 
-  const replaceAll = (s: { nodes: FactoryNode[]; edges: BeltEdge[]; defaultTier: BeltTier; defaultPipeTier?: PipeTier; gridBelts?: boolean; beltLabels?: boolean; couponsPrinted?: number }) => {
-    setNodes(s.nodes);
-    setEdges(s.edges);
-    setDefaultTier(s.defaultTier);
-    if (s.gridBelts !== undefined) setGridBelts(s.gridBelts);
-    if (s.defaultPipeTier !== undefined) setDefaultPipeTier(s.defaultPipeTier);
-    if (s.beltLabels !== undefined) setBeltLabels(s.beltLabels);
-    if (s.couponsPrinted !== undefined) setCouponsPrinted(s.couponsPrinted);
-    setTimeout(() => (s.nodes.length ? fitView({ padding: 0.15, maxZoom: 1, duration: 300 }) : setViewport({ x: 0, y: 0, zoom: 1 })), 50);
+  /** Troca o projeto inteiro (importado, versão anterior). `backup`: guarda o atual antes */
+  const replaceProject = (p: ProjectState, backup = true) => {
+    if (backup) backupNow(project());
+    setDefaultTier(p.defaultTier);
+    setDefaultPipeTier(p.defaultPipeTier);
+    setGridBelts(p.gridBelts);
+    setBeltLabels(p.beltLabels);
+    setCouponsPrinted(p.couponsPrinted ?? 0);
+    viewports.current.clear();
+    open(p.factories, p.active, { refit: true });
   };
 
-  const exportJson = () =>
-    downloadJson({ version: 1, nodes, edges, defaultTier, defaultPipeTier, gridBelts, beltLabels, couponsPrinted }, `fabrica-${new Date().toISOString().slice(0, 10)}.json`);
+  const accept = (how: 'add' | 'replace') => {
+    if (!pending) return;
+    const inc = pending.incoming;
+    const n = inc.project.factories.length;
+    const { project: next, added } = applyImport(project(), inc, how);
+    if (how === 'replace') {
+      replaceProject(next);
+      setNotice({ kind: 'ok', text: `Projeto substituído (${n} fábrica${n === 1 ? '' : 's'}). O anterior ficou nas versões anteriores 🕘.` });
+    } else {
+      open(next.factories, next.active);
+      setNotice({ kind: 'ok', text: n === 1 ? `Fábrica "${added[0].name}" adicionada.` : `${n} fábricas adicionadas: ${added.map((f) => f.name).join(', ')}.` });
+    }
+    if (pending.source === 'link') clearShareHash();
+    setPending(null);
+  };
+  const cancelIncoming = () => {
+    if (pending?.source === 'link') clearShareHash();
+    setPending(null);
+  };
+
+  // link compartilhado (#share=...): mostra o que veio e pergunta o que fazer
+  useEffect(() => {
+    const check = () => {
+      if (!isShareHash(location.hash)) return;
+      const r = decodeShare(location.hash);
+      if (r.ok) setPending({ incoming: r.incoming, source: 'link' });
+      else {
+        setNotice({ kind: 'error', text: r.error });
+        clearShareHash();
+      }
+    };
+    check();
+    window.addEventListener('hashchange', check);
+    return () => window.removeEventListener('hashchange', check);
+  }, []);
 
   const importJson = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
+    let raw: unknown;
     try {
-      const s = sanitize(JSON.parse(await file.text()));
-      if (!s) throw new Error('formato inválido');
-      replaceAll(s);
-    } catch (err) {
-      alert(`Não consegui importar: ${(err as Error).message}`);
+      raw = JSON.parse(await file.text());
+    } catch {
+      setNotice({ kind: 'error', text: `Não dá pra abrir "${file.name}": não é um arquivo JSON válido.` });
+      return;
     }
+    const r = parseImport(raw, file.name.replace(/\.json$/i, ''));
+    if (r.ok) setPending({ incoming: r.incoming, source: 'file', fileName: file.name });
+    else setNotice({ kind: 'error', text: `${file.name}: ${r.error}` });
   };
+
+  const exportFile = (scope: ShareScope) => {
+    const data = scope === 'project' ? exportProject(project()) : exportFactory(active);
+    if (!data) return setNotice({ kind: 'error', text: 'Não deu pra exportar: há algum node ou conexão inválida.' });
+    downloadJson(data, scope === 'project' ? `projeto-satisfactory-${today()}.json` : `fabrica-${slug(active.name)}-${today()}.json`);
+  };
+
+  const makeLink = useCallback(
+    (scope: ShareScope) => {
+      const data = scope === 'project' ? exportProject(project()) : exportFactory(live.find((f) => f.id === activeId)!);
+      return data ? shareUrl(data, location.href) : null;
+    },
+    [project, live, activeId],
+  );
 
   /* ---------- minimizar ---------- */
 
-  const collapsible = (n: FactoryNode) => ['machine', 'miner', 'generator', 'well'].includes(n.data.kind);
+  const collapsible = (n: FactoryNode) => ['machine', 'miner', 'generator', 'well', 'inbound'].includes(n.data.kind);
   const anyExpanded = nodes.some((n) => collapsible(n) && !(n.data as { collapsed?: boolean }).collapsed);
   const toggleCollapseAll = () => {
     // Com seleção, age só nos selecionados; sem seleção, em tudo
@@ -433,6 +648,13 @@ function Planner() {
 
   const errors = sim.issues.filter((i) => i.level === 'error').length;
   const warnings = sim.issues.filter((i) => i.level === 'warning').length;
+
+  const projectInfo = useMemo<ProjectInfo>(
+    () => ({ factoryId: activeId, feeds: psim.feeds[activeId] ?? {}, destinations: psim.destinations[activeId] ?? {}, outbounds: psim.outbounds, openFactory }),
+    [psim, activeId, openFactory],
+  );
+  const tabs = summary.factories.map((f) => ({ id: f.id, name: f.name, errors: f.errors, warnings: f.warnings }));
+  const activeSummary = summary.factories.find((f) => f.id === activeId);
 
   return (
     <div className="app">
@@ -477,16 +699,70 @@ function Planner() {
           >
             🏷 Rótulos
           </button>
-          <button onClick={() => confirm('Substituir o plano atual pelo exemplo?') && replaceAll(demoState())}>Exemplo</button>
-          <button onClick={() => confirm('Apagar tudo?') && replaceAll({ nodes: [], edges: [], defaultTier })}>Limpar</button>
-          <button onClick={exportJson}>Exportar</button>
-          <button onClick={() => fileRef.current?.click()}>Importar</button>
-          <input ref={fileRef} type="file" accept="application/json,.json" hidden onChange={importJson} />
-          <BackupMenu onRestore={replaceAll} />
+          <MenuButton
+            label="📁 Arquivo ▾"
+            title="Exportar, importar, exemplo e limpar"
+            items={[
+              { label: '⬇ Exportar projeto (.json)', onClick: () => exportFile('project'), title: 'Todas as fábricas e configurações' },
+              { label: '⬇ Exportar só esta fábrica (.json)', onClick: () => exportFile('factory'), title: `Só "${active.name}"` },
+              { label: '⬆ Importar arquivo…', onClick: () => fileRef.current?.click(), title: 'Projeto, fábrica avulsa ou planta do formato antigo' },
+              { label: '🧪 Exemplo numa fábrica nova', onClick: () => addFactory(demoPlant(), 'Exemplo'), separator: true },
+              {
+                label: '🗑 Limpar esta fábrica…',
+                danger: true,
+                onClick: () => {
+                  if (!confirm(`Apagar tudo da fábrica "${active.name}"? (Ctrl+Z desfaz)`)) return;
+                  setNodes([]);
+                  setEdges([]);
+                  setViewport({ x: 0, y: 0, zoom: 1 });
+                },
+              },
+            ]}
+          />
+          <input ref={fileRef} type="file" accept="application/json,.json" hidden onChange={importJson} data-testid="import-file" />
+          <button onClick={() => setShareOpen(true)} title="Gerar um link com esta fábrica ou o projeto inteiro">
+            🔗 Compartilhar
+          </button>
+          <BackupMenu onRestore={(s) => replaceProject(s, false)} />
         </div>
       </header>
 
+      <FactoryTabs
+        tabs={tabs}
+        active={activeId}
+        onSelect={selectFactory}
+        onAdd={() => addFactory()}
+        onRename={renameFactory}
+        onDuplicate={duplicateFactory}
+        onDelete={deleteFactory}
+        onMove={moveFactory}
+        onSummary={() => setSummaryOpen(true)}
+      />
+
       {plannerOpen && <PlannerModal onClose={() => setPlannerOpen(false)} onGenerate={generateLine} />}
+      {pending && (
+        <IncomingDialog
+          incoming={pending.incoming}
+          source={pending.source}
+          fileName={pending.fileName}
+          current={factories.length}
+          onAdd={() => accept('add')}
+          onReplace={() => accept('replace')}
+          onCancel={cancelIncoming}
+        />
+      )}
+      {shareOpen && <ShareDialog factoryName={active.name} factories={factories.length} makeLink={makeLink} onExport={exportFile} onClose={() => setShareOpen(false)} />}
+      {summaryOpen && (
+        <ProjectSummary
+          summary={summary}
+          active={activeId}
+          onOpen={(id) => {
+            setSummaryOpen(false);
+            selectFactory(id);
+          }}
+          onClose={() => setSummaryOpen(false)}
+        />
+      )}
       <datalist id="clock-marks">
         <option value="100" />
         <option value="150" />
@@ -505,6 +781,14 @@ function Planner() {
           }}
         />
         <div className="canvas" ref={canvasRef} onDragOver={onDragOver} onDrop={onDrop} {...clipboard.trackMouse}>
+          {notice && (
+            <div className={`notice ${notice.kind}`} role={notice.kind === 'error' ? 'alert' : 'status'}>
+              <span>{notice.text}</span>
+              <button className="modal-x" onClick={() => setNotice(null)} title="Fechar aviso">
+                ✕
+              </button>
+            </div>
+          )}
           {/* se só o canvas quebrar, paleta e painel lateral continuam usáveis */}
           <ErrorBoundary
             name="canvas"
@@ -514,6 +798,7 @@ function Planner() {
           <CanvasDebugCrash />
           <SettingsContext.Provider value={settings}>
           <LabelRootContext.Provider value={labelRoot}>
+            <ProjectContext.Provider value={projectInfo}>
             <SimContext.Provider value={sim}>
               <ReactFlow<FactoryNode, BeltEdge>
                 nodes={nodes}
@@ -546,6 +831,7 @@ function Planner() {
                 <MiniMap pannable zoomable nodeColor={minimapColor} maskColor="rgba(15,17,21,0.7)" />
               </ReactFlow>
             </SimContext.Provider>
+            </ProjectContext.Provider>
           </LabelRootContext.Provider>
           </SettingsContext.Provider>
           </ErrorBoundary>
@@ -556,6 +842,7 @@ function Planner() {
           onFixBelt={fixBelt}
           couponsPrinted={couponsPrinted}
           onCouponsPrinted={setCouponsPrinted}
+          transfers={activeSummary}
           beltDetails={
             selectedEdge && (
               <BeltInspector
