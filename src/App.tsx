@@ -438,23 +438,30 @@ function Planner() {
     [getNode],
   );
 
-  const isValidConnection = useCallback(
-    (c: Connection | Edge) => {
+  /** conexão sendo reconectada (arrastando uma das pontas): as portas dela não contam como ocupadas */
+  const reconnecting = useRef<BeltEdge | null>(null);
+
+  /**
+   * Valida uma conexão (nova ou reconectada): saída → entrada de nodes diferentes, mesmo meio,
+   * portas livres. `moving` = a conexão que está sendo reconectada (ela mesma não ocupa porta e
+   * não pode trocar de esteira pra cano, nem o contrário).
+   */
+  const connectionOk = useCallback(
+    (c: Connection | Edge, list: BeltEdge[], moving: BeltEdge | null) => {
       const src = getNode(c.source);
       const tgt = getNode(c.target);
-      return (
-        !!src &&
-        !!tgt &&
-        c.source !== c.target &&
-        !!c.sourceHandle?.startsWith('out') &&
-        !!c.targetHandle?.startsWith('in') &&
-        // fluido só liga em fluido (cano); sólido só em sólido (esteira)
-        mediumsMatch(portMedium(src.data, c.sourceHandle), portMedium(tgt.data, c.targetHandle)) &&
-        !edges.some((e) => (e.source === c.source && e.sourceHandle === c.sourceHandle) || (e.target === c.target && e.targetHandle === c.targetHandle))
+      if (!src || !tgt || c.source === c.target || !c.sourceHandle?.startsWith('out') || !c.targetHandle?.startsWith('in')) return false;
+      // fluido só liga em fluido (cano); sólido só em sólido (esteira)
+      if (!mediumsMatch(portMedium(src.data, c.sourceHandle), portMedium(tgt.data, c.targetHandle))) return false;
+      if (moving && (portMedium(src.data, c.sourceHandle) === 'fluid') !== (moving.type === 'pipe')) return false;
+      return !list.some(
+        (e) => e.id !== moving?.id && ((e.source === c.source && e.sourceHandle === c.sourceHandle) || (e.target === c.target && e.targetHandle === c.targetHandle)),
       );
     },
-    [edges, getNode],
+    [getNode],
   );
+
+  const isValidConnection = useCallback((c: Connection | Edge) => connectionOk(c, edges, reconnecting.current), [connectionOk, edges]);
 
   const onConnect = useCallback(
     (c: Connection) =>
@@ -467,6 +474,28 @@ function Planner() {
         return [...eds, { ...c, id: newId('b'), type: pipe ? 'pipe' : 'belt', data: { tier: pipe ? defaultPipeTier : defaultTier } }];
       }),
     [setEdges, defaultTier, defaultPipeTier, sourceMedium],
+  );
+
+  /*
+   * Reconectar: arrastar a ponta de uma conexão pra outra porta. Vale a mesma validação de uma
+   * conexão nova; a conexão continua a mesma (id, Mk, rota), só o trajeto planejado pelo gerador
+   * (bends/anchor) é descartado. Soltar no vazio ou numa porta inválida não muda nada.
+   */
+  const onReconnectStart = useCallback((_e: unknown, edge: BeltEdge) => void (reconnecting.current = edge), []);
+  const onReconnectEnd = useCallback(() => void (reconnecting.current = null), []);
+  const onReconnect = useCallback(
+    (old: BeltEdge, c: Connection) =>
+      setEdges((eds) => {
+        if (!connectionOk(c, eds, old)) return eds;
+        const same = c.source === old.source && c.sourceHandle === old.sourceHandle && c.target === old.target && c.targetHandle === old.targetHandle;
+        if (same) return eds;
+        return eds.map((e) => {
+          if (e.id !== old.id) return e;
+          const { bends: _b, anchor: _a, ...data } = e.data ?? { tier: 1 };
+          return { ...e, source: c.source, sourceHandle: c.sourceHandle, target: c.target, targetHandle: c.targetHandle, data };
+        });
+      }),
+    [setEdges, connectionOk],
   );
 
   /* ---------- adicionar nodes ---------- */
@@ -812,6 +841,9 @@ function Planner() {
                 connectionLineType={gridBelts ? ConnectionLineType.Step : ConnectionLineType.Bezier}
                 onEdgesChange={onEdgesChange}
                 onConnect={onConnect}
+                onReconnect={onReconnect}
+                onReconnectStart={onReconnectStart}
+                onReconnectEnd={onReconnectEnd}
                 isValidConnection={isValidConnection}
                 nodeTypes={nodeTypes}
                 edgeTypes={edgeTypes}
