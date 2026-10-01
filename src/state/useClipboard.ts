@@ -2,6 +2,7 @@ import { useCallback, useMemo, useRef, type MouseEvent } from 'react';
 import { useReactFlow } from '@xyflow/react';
 import type { BeltEdge, FactoryNode } from '../game/types';
 import { newId } from './storage';
+import { frameMembers, nodeShape } from '../game/annotations';
 
 interface Clip {
   nodes: FactoryNode[];
@@ -11,6 +12,7 @@ interface Clip {
 /**
  * Copiar / recortar / colar / duplicar nodes. Copia os nodes selecionados e as esteiras
  * que ligam um ao outro (esteiras que saem pra fora da seleção ficam de fora).
+ * Moldura selecionada leva junto o que está dentro dela (como ao arrastar).
  * Cola com o canto da seleção na posição do mouse; sem mouse no canvas, desloca um pouco.
  */
 export function useClipboard(grid: number) {
@@ -21,11 +23,14 @@ export function useClipboard(grid: number) {
   const repeat = useRef({ key: '', count: 0 });
 
   const snapshotSelection = useCallback((): Clip | null => {
-    const nodes = getNodes().filter((n) => n.selected);
-    if (!nodes.length) return null;
-    const ids = new Set(nodes.map((n) => n.id));
+    const all = getNodes();
+    const picked = all.filter((n) => n.selected);
+    if (!picked.length) return null;
+    const ids = new Set(picked.map((n) => n.id));
+    for (const f of picked) if (f.data.kind === 'frame') for (const m of frameMembers(f, all)) ids.add(m.id);
+    const nodes = all.filter((n) => ids.has(n.id));
     return structuredClone({
-      nodes: nodes.map(({ id, type, position, data }) => ({ id, type, position, data }) as FactoryNode),
+      nodes: nodes.map(nodeShape),
       edges: getEdges()
         .filter((e) => ids.has(e.source) && ids.has(e.target))
         .map(({ id, type, source, sourceHandle, target, targetHandle, data }) => ({ id, type, source, sourceHandle, target, targetHandle, data })),
@@ -83,7 +88,7 @@ export function useClipboard(grid: number) {
 
   const cut = useCallback(() => {
     if (!copy()) return false;
-    const removed = new Set(getNodes().filter((n) => n.selected).map((n) => n.id));
+    const removed = new Set(clip.current!.nodes.map((n) => n.id));
     setNodes((ns) => ns.filter((n) => !removed.has(n.id)));
     setEdges((es) => es.filter((e) => !removed.has(e.source) && !removed.has(e.target)));
     return true;
@@ -108,5 +113,8 @@ export function useClipboard(grid: number) {
     [],
   );
 
-  return useMemo(() => ({ copy, paste, cut, duplicate, trackMouse }), [copy, paste, cut, duplicate, trackMouse]);
+  /** posição do mouse na tela, se ele estiver no canvas (pra adicionar nodes ali) */
+  const pointer = useCallback(() => (mouse.current.inside ? { x: mouse.current.x, y: mouse.current.y } : null), []);
+
+  return useMemo(() => ({ copy, paste, cut, duplicate, trackMouse, pointer }), [copy, paste, cut, duplicate, trackMouse, pointer]);
 }

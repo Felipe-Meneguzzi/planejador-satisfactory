@@ -1,4 +1,5 @@
 import { ITEMS } from '../game/data';
+import { cleanAnnotationData, nodeShape } from '../game/annotations';
 import type { BeltEdge, BeltTier, FactoryData, FactoryNode, PipeTier, Purity } from '../game/types';
 
 /** Chave do salvamento (o nome é da versão 1, mas guarda o projeto atual; plantas v1 antigas são migradas ao ler) */
@@ -68,7 +69,7 @@ export const newId = (prefix = 'n') => `${prefix}-${Date.now().toString(36)}-${(
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null;
 const finite = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
 
-const KINDS = new Set(['miner', 'extractor', 'well', 'machine', 'splitter', 'merger', 'sink', 'generator', 'inbound', 'outbound']);
+const KINDS = new Set(['miner', 'extractor', 'well', 'machine', 'splitter', 'merger', 'sink', 'generator', 'inbound', 'outbound', 'frame', 'note']);
 
 /** id, posição numérica e dados com `kind` conhecido: o mínimo pro canvas desenhar o node */
 function validNode(n: unknown) {
@@ -94,6 +95,7 @@ const isPurity = (v: unknown): v is Purity => PURITY_VALUES.includes(v as Purity
  *    conexões continuam valendo: a saída do satélite 1 é a mesma out-0.
  *  - poço com lista de satélites quebrada fica só com as purezas válidas.
  *  - Entrada externa: vazão inválida vira 0 e link quebrado é descartado (fica a vazão manual).
+ *  - Moldura/anotação: título/texto cortados, cor desconhecida vira cinza (o tamanho é tratado no nodeShape).
  */
 function migrateNode(type: unknown, data: Record<string, unknown>): { type: string; data: FactoryData } {
   if (data.kind === 'extractor' && data.extractor === 'well') {
@@ -112,6 +114,7 @@ function migrateNode(type: unknown, data: Record<string, unknown>): { type: stri
       data: { ...rest, rate: finite(rate) && rate > 0 ? rate : 0, ...(okLink ? { link: { factory: link.factory, node: link.node } } : {}) } as FactoryData,
     };
   }
+  if (data.kind === 'frame' || data.kind === 'note') return { type: data.kind, data: cleanAnnotationData(data) };
   if (data.kind === 'outbound') {
     const { name, ...rest } = data;
     const clean = typeof name === 'string' ? name.trim().slice(0, MAX_NAME) : '';
@@ -127,7 +130,10 @@ export function sanitizePlant(raw: unknown): Plant | null {
   // um node ou esteira quebrado invalida tudo (melhor não salvar do que gravar lixo por cima)
   if (!p.nodes.every(validNode) || !p.edges.every(validEdge)) return null;
   return {
-    nodes: p.nodes.map((n) => ({ id: n.id, position: { x: n.position.x, y: n.position.y }, ...migrateNode(n.type, n.data as Record<string, unknown>) }) as FactoryNode),
+    // nodeShape: molduras e anotações levam o tamanho (múltiplo do grid) e a camada
+    nodes: p.nodes.map((n) =>
+      nodeShape({ ...n, id: n.id, position: { x: n.position.x, y: n.position.y }, ...migrateNode(n.type, n.data as Record<string, unknown>) } as FactoryNode),
+    ),
     edges: p.edges.map((e) => ({
       id: e.id,
       type: e.type === 'pipe' ? ('pipe' as const) : ('belt' as const),
