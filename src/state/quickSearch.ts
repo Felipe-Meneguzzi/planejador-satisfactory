@@ -65,7 +65,7 @@ export interface QuickSection {
 
 /**
  * Filtra e ordena: cada grupo mostra até `perGroup` itens, com os melhores primeiro; os
- * grupos vêm na ordem da melhor nota de cada um. Busca vazia: a lista padrão, na ordem original.
+ * grupos vêm na ordem da melhor nota de cada um. Busca vazia: a lista padrão inteira, na ordem original.
  */
 export function rankQuick(items: QuickItem[], query: string, perGroup = 8): QuickSection[] {
   const empty = !tokenize(query).length;
@@ -80,7 +80,8 @@ export function rankQuick(items: QuickItem[], query: string, perGroup = 8): Quic
   });
   const sections = [...scored.entries()].map(([group, list]) => {
     const sorted = empty ? list : [...list].sort((a, b) => b.score - a.score);
-    return { group, best: sorted[0]?.score ?? -Infinity, items: sorted.slice(0, perGroup).map((x) => x.item) };
+    // busca vazia: a lista padrão inteira (todas as ações)
+    return { group, best: sorted[0]?.score ?? -Infinity, items: (empty ? sorted : sorted.slice(0, perGroup)).map((x) => x.item) };
   });
   sections.sort((a, b) => (empty ? 0 : b.best - a.best) || GROUP_ORDER.indexOf(a.group) - GROUP_ORDER.indexOf(b.group));
   return sections.filter((s) => s.items.length).map(({ group, items }) => ({ group, items }));
