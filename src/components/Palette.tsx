@@ -95,13 +95,15 @@ export function Palette({
         <h3>Como usar</h3>
         <ul>
           <li>Arraste da paleta pro canvas (ou clique)</li>
+          <li><kbd>Ctrl</kbd>+<kbd>K</kbd> busca rápida: adicionar, ir para um node ou moldura (em qualquer fábrica) e ações</li>
           <li>Ligue a <b>saída</b> (direita) numa <b>entrada</b> (esquerda) pra criar uma esteira</li>
-          <li>Troque o Mk da esteira no rótulo dela</li>
+          <li>Troque o Mk da esteira no rótulo dela; arraste a ponta dela pra ligar em outra porta</li>
           <li><kbd>Del</kbd> apaga o selecionado</li>
           <li><kbd>Ctrl</kbd>+<kbd>Z</kbd> desfaz, <kbd>Ctrl</kbd>+<kbd>Y</kbd> refaz</li>
           <li><kbd>Ctrl</kbd>+<kbd>C</kbd> / <kbd>X</kbd> / <kbd>V</kbd> copia, recorta e cola (no mouse); <kbd>Ctrl</kbd>+<kbd>D</kbd> duplica</li>
           <li><kbd>R</kbd> gira o selecionado (<kbd>Shift</kbd>+<kbd>R</kbd> ao contrário)</li>
           <li><kbd>Alt</kbd> + arrastar alinha ao grid</li>
+          <li><b>Moldura</b>: arraste pelo título (leva o que está dentro), duplo clique renomeia; <b>Anotação</b>: duplo clique edita</li>
           <li><kbd>Shift</kbd> + arrastar seleciona vários</li>
           <li>Abas em cima do canvas: uma fábrica por aba (duplo clique renomeia, arraste pra reordenar)</li>
           <li>Copie numa aba e cole em outra</li>
