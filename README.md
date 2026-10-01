@@ -37,6 +37,16 @@ npm run dev      # http://localhost:5173, recarrega sozinho ao editar
 npm run build    # gera a versão de produção em dist/
 ```
 
+## Testes
+
+| Comando | O que roda |
+|---|---|
+| `npm test` | Testes unitários (Vitest): simulação, cálculo da linha e aceitação do gerador sem browser |
+| `npm run test:watch` | Os mesmos, rodando de novo a cada alteração |
+| `npm run test:e2e` | Testes E2E (Playwright) no Chromium; sobe o Vite sozinho na porta 4174 |
+
+Na primeira vez, baixe o navegador do Playwright com `npx playwright install chromium`. O CI (GitHub Actions) roda tipos, testes, build, E2E e o `docker build` a cada push e pull request.
+
 ## Atalhos
 
 | Atalho | Ação |
