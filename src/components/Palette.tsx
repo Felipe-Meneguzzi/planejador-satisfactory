@@ -1,5 +1,5 @@
 import { useMemo, useState, type DragEvent } from 'react';
-import { ALL_RECIPES, BELTS, BELT_TIERS, EXTRACTORS, ITEMS, MACHINES, MACHINE_IDS, MINER_TIERS, PIPES, PIPE_TIERS, PURITIES, RECIPES, RESOURCES, recipesFor, withUnit } from '../game/data';
+import { ALL_RECIPES, BELTS, BELT_TIERS, EXTRACTORS, GENERATORS, GENERATOR_IDS, ITEMS, MACHINES, MACHINE_IDS, MINER_TIERS, PIPES, PIPE_TIERS, PURITIES, RECIPES, RESOURCES, recipesFor, withUnit } from '../game/data';
 import type { BeltTier, ExtractorKind, FactoryData, ItemId, PipeTier, Purity } from '../game/types';
 import { fmt } from '../format';
 
@@ -66,10 +66,38 @@ const fluidEntries: PaletteEntry[] = [
   { key: 'pipe-merge', label: 'Junção (junta)', sub: 'Pipeline Junction · 3 canos → 1', icon: '💧', color: '#3b6f99', data: { kind: 'merger', fluid: true } },
 ];
 
+/** Combustível inicial de cada gerador (o mais comum); os outros ficam no seletor do node */
+const DEFAULT_FUEL: Record<string, ItemId> = {
+  'biomass-burner': 'solid-biofuel',
+  'coal-powered-generator': 'coal',
+  'fuel-powered-generator': 'fuel',
+  'nuclear-power-plant': 'uranium-fuel-rod',
+};
+
+const generatorEntry = (id: string, fuel?: ItemId): PaletteEntry => {
+  const g = GENERATORS[id];
+  const f = g.fuels.find((x) => x.item === (fuel ?? DEFAULT_FUEL[id])) ?? g.fuels[0];
+  const sub = g.geothermal
+    ? `${fmt(g.geothermal.impure.avg)}–${fmt(g.geothermal.pure.avg)} MW conforme a pureza`
+    : g.boost
+      ? `${fmt(g.power)} MW + ${fmt(g.boost.unfueled * 100)}–${fmt(g.boost.fueled * 100)}% na rede`
+      : `${fmt(g.power)} MW · ${withUnit(fmt(f.rate), f.item)} ${ITEMS[f.item].name}${g.water ? ` + ${withUnit(fmt(g.water), 'water')} Water` : ''}`;
+  return {
+    key: `generator-${id}-${f?.item ?? ''}`,
+    label: g.name,
+    sub,
+    icon: g.icon,
+    color: g.color,
+    data: { kind: 'generator', generator: id, ...(f ? { fuel: f.item } : {}), clock: 100, ...(g.geothermal ? { purity: 'normal' as Purity } : {}) },
+  };
+};
+const generatorEntries = GENERATOR_IDS.map((id) => generatorEntry(id));
+
 const GROUPS: { title: string; entries: PaletteEntry[] }[] = [
   { title: 'Nós de recurso', entries: (['impure', 'normal', 'pure'] as Purity[]).map((p) => minerEntry(p)) },
   { title: 'Fluidos', entries: fluidEntries },
   { title: 'Máquinas', entries: machineEntries },
+  { title: 'Energia', entries: generatorEntries },
   {
     title: 'Logística',
     entries: [
@@ -103,7 +131,13 @@ function search(q: string): PaletteEntry[] {
   const fluidSources = (Object.keys(EXTRACTORS) as ExtractorKind[]).flatMap((k) =>
     EXTRACTORS[k].resources.filter((id) => norm(ITEMS[id].name).includes(t)).map((id) => extractorEntry(k, id, ITEMS[id].name)),
   );
-  return [...ores, ...fluidSources, ...recipes];
+  // geradores pelo nome ou pelo combustível (ex.: "coal" acha o Coal-Powered Generator com Coal)
+  const generators = GENERATOR_IDS.flatMap((id) => {
+    const g = GENERATORS[id];
+    if (norm(g.name).includes(t)) return [generatorEntry(id)];
+    return g.fuels.filter((f) => !g.optionalFuel && norm(ITEMS[f.item].name).includes(t)).map((f) => generatorEntry(id, f.item));
+  });
+  return [...ores, ...fluidSources, ...generators, ...recipes];
 }
 
 export const DND_TYPE = 'application/x-satisplanner';

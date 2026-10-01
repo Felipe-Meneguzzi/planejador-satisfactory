@@ -1,5 +1,5 @@
 import raw from './gamedata.json';
-import type { BeltItem, BeltTier, ExtractorKind, ItemId, MachineData, MachineId, MinerTier, PipeTier, Purity } from './types';
+import type { BeltItem, BeltTier, ExtractorKind, GeneratorData, GeneratorId, ItemId, MachineData, MachineId, MinerTier, PipeTier, Purity } from './types';
 
 /*
  * Dados do jogo vêm de gamedata.json (extraído do wiki oficial, satisfactory.wiki.gg).
@@ -314,8 +314,6 @@ export const getRecipe = (d: MachineData): Recipe => {
 
 /* ---------- energia ---------- */
 
-export type GeneratorId = string;
-
 export interface FuelInfo {
   item: ItemId;
   /** MJ por item (sólido) ou por m³ (fluido); 0 = não gera energia (Alien Power Matrix) */
@@ -395,6 +393,23 @@ export const fuelOf = (generator: GeneratorId, fuel?: ItemId): FuelInfo | undefi
   const g = GENERATORS[generator];
   return g?.fuels.find((f) => f.item === fuel) ?? g?.fuels[0];
 };
+/** o clock muda alguma coisa nesse gerador */
+export const generatorClockable = (d: GeneratorData) => !!GENERATORS[d.generator]?.overclockable;
+
+export const WATER: ItemId = 'water';
+
+/**
+ * Portas do gerador, com taxas a 100%: in-0 = combustível, in-1 = água (quando usa),
+ * out-0 = resíduo (Nuclear Power Plant com barra de urânio/plutônio).
+ */
+export function generatorPorts(d: GeneratorData): { inputs: { item: ItemId; rate: number; optional?: boolean }[]; outputs: { item: ItemId; rate: number }[] } {
+  const g = GENERATORS[d.generator];
+  if (!g) return { inputs: [], outputs: [] };
+  const f = fuelOf(d.generator, d.fuel);
+  const inputs: { item: ItemId; rate: number; optional?: boolean }[] = f ? [{ item: f.item, rate: f.rate, ...(g.optionalFuel ? { optional: true } : {}) }] : [];
+  if (g.water) inputs.push({ item: WATER, rate: g.water });
+  return { inputs, outputs: f?.waste ? [{ ...f.waste }] : [] };
+}
 
 /* ---------- poço de recurso ---------- */
 

@@ -1585,3 +1585,21 @@ button.primary {
   margin: 0 0 4px;
   font-size: 12px;
 }
+
+/* ---------- energia ---------- */
+
+.fnode-power.gen {
+  color: #b8ffd9;
+  opacity: 1;
+}
+.gen-output {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+.gen-output b {
+  color: var(--ok);
+}
+.gen-output small {
+  color: var(--muted);
+}

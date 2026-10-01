@@ -17,7 +17,7 @@ import {
   type Edge,
   type NodeChange,
 } from '@xyflow/react';
-import { GAME_VERSION, MACHINES } from './game/data';
+import { GAME_VERSION, GENERATORS, MACHINES } from './game/data';
 import { mediumsMatch, portMedium } from './game/ports';
 import type { BeltEdge, BeltTier, FactoryData, FactoryNode, PipeTier } from './game/types';
 import { fmt } from './format';
@@ -66,6 +66,7 @@ const minimapColor = (n: FactoryNode) => {
   if ((d.kind === 'splitter' || d.kind === 'merger') && d.fluid) return '#3b6f99';
   if (d.kind === 'machine') return MACHINES[d.machine].color;
   if (d.kind === 'sink') return '#2f7a52';
+  if (d.kind === 'generator') return GENERATORS[d.generator]?.color ?? '#555b66';
   return '#555b66';
 };
 
@@ -397,7 +398,7 @@ function Planner() {
 
   /* ---------- minimizar ---------- */
 
-  const collapsible = (n: FactoryNode) => n.data.kind === 'machine' || n.data.kind === 'miner';
+  const collapsible = (n: FactoryNode) => n.data.kind === 'machine' || n.data.kind === 'miner' || n.data.kind === 'generator';
   const anyExpanded = nodes.some((n) => collapsible(n) && !(n.data as { collapsed?: boolean }).collapsed);
   const toggleCollapseAll = () => {
     // Com seleção, age só nos selecionados; sem seleção, em tudo

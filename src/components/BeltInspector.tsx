@@ -1,4 +1,4 @@
-import { BELTS, BELT_TIERS, EXTRACTORS, ITEMS, MACHINES, PIPES, PIPE_TIERS, getRecipe } from '../game/data';
+import { BELTS, BELT_TIERS, EXTRACTORS, GENERATORS, ITEMS, MACHINES, PIPES, PIPE_TIERS, generatorPorts, getRecipe } from '../game/data';
 import type { BeltEdge, BeltItem, BeltRouting, BeltTier, FactoryNode, PipeTier } from '../game/types';
 import { fmt } from '../format';
 import type { EdgeResult, Issue } from '../sim/simulate';
@@ -25,13 +25,15 @@ export function nodeLabel(n?: FactoryNode): string {
       return d.fluid ? 'Junção (junta)' : 'Mesclador';
     case 'sink':
       return 'Armazém';
+    case 'generator':
+      return GENERATORS[d.generator]?.name ?? 'Gerador';
   }
 }
 
-/** Qual item a porta do node espera/entrega (só máquinas têm porta "tipada") */
+/** Qual item a porta do node espera/entrega (só máquinas e geradores têm porta "tipada") */
 function portItem(n: FactoryNode | undefined, handle?: string | null): string | undefined {
-  if (!n || n.data.kind !== 'machine' || !handle) return;
-  const r = getRecipe(n.data);
+  if (!n || (n.data.kind !== 'machine' && n.data.kind !== 'generator') || !handle) return;
+  const r = n.data.kind === 'machine' ? getRecipe(n.data) : generatorPorts(n.data);
   const idx = Number(handle.split('-')[1]);
   const p = handle.startsWith('in') ? r.inputs[idx] : r.outputs[idx];
   return p && ITEMS[p.item].name;

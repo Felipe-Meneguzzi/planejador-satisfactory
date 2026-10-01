@@ -36,7 +36,22 @@ export type ExtractorData = {
 export type SplitterData = { kind: 'splitter'; fluid?: boolean; rotation?: Rotation };
 export type MergerData = { kind: 'merger'; fluid?: boolean; rotation?: Rotation };
 export type SinkData = { kind: 'sink'; rotation?: Rotation };
-export type FactoryData = MinerData | ExtractorData | MachineData | SplitterData | MergerData | SinkData;
+/** slug do nome oficial do gerador, ex.: 'coal-powered-generator' */
+export type GeneratorId = string;
+/**
+ * Gerador de energia. `fuel` = combustível escolhido (entre os aceitos por ele);
+ * `purity` = pureza do gêiser (só Geothermal Generator).
+ */
+export type GeneratorData = {
+  kind: 'generator';
+  generator: GeneratorId;
+  fuel?: ItemId;
+  clock: number;
+  purity?: Purity;
+  rotation?: Rotation;
+  collapsed?: boolean;
+};
+export type FactoryData = MinerData | ExtractorData | MachineData | SplitterData | MergerData | SinkData | GeneratorData;
 
 export type MinerNode = Node<MinerData, 'miner'>;
 export type ExtractorNode = Node<ExtractorData, 'extractor'>;
@@ -44,7 +59,8 @@ export type MachineNode = Node<MachineData, 'machine'>;
 export type SplitterNode = Node<SplitterData, 'splitter'>;
 export type MergerNode = Node<MergerData, 'merger'>;
 export type SinkNode = Node<SinkData, 'sink'>;
-export type FactoryNode = MinerNode | ExtractorNode | MachineNode | SplitterNode | MergerNode | SinkNode;
+export type GeneratorNode = Node<GeneratorData, 'generator'>;
+export type FactoryNode = MinerNode | ExtractorNode | MachineNode | SplitterNode | MergerNode | SinkNode | GeneratorNode;
 
 /** 'grid' = ângulos retos alinhados ao grid; 'curve' = curva livre. Sem valor = segue o padrão global */
 export type BeltRouting = 'grid' | 'curve';

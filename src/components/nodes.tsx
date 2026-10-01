@@ -1,10 +1,11 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { Handle, Position, useNodeId, useReactFlow, useUpdateNodeInternals, type NodeProps } from '@xyflow/react';
-import { AMPLIFICATION, EXTRACTORS, ITEMS, MACHINES, MINER_TIERS, PURITIES, RECIPES, RESOURCES, WELL_PRESSURIZER_NAME, WELL_PRESSURIZER_POWER, extractorClockable, getRecipe, isFluid, recipesFor } from '../game/data';
+import { AMPLIFICATION, EXTRACTORS, GENERATORS, ITEMS, MACHINES, MINER_TIERS, PURITIES, RECIPES, RESOURCES, WELL_PRESSURIZER_NAME, WELL_PRESSURIZER_POWER, extractorClockable, fuelOf, generatorPorts, getRecipe, isFluid, recipesFor } from '../game/data';
 import type {
   BeltItem,
   ExtractorKind,
   ExtractorNode,
+  GeneratorNode,
   ItemId,
   MachineNode,
   MergerNode,
@@ -18,7 +19,7 @@ import type {
 import { fmt } from '../format';
 import { GRID, snapUp } from '../grid';
 import { useSim } from '../sim/SimContext';
-import { CLOCK_MAX, CLOCK_MIN, ampOf, clampClock, extractorRate, minerRate, shardsFor, sloopsOf, type Issue } from '../sim/simulate';
+import { CLOCK_MAX, CLOCK_MIN, ampOf, clampClock, extractorRate, generatorClock, generatorNominal, minerRate, shardsFor, sloopsOf, type Issue } from '../sim/simulate';
 
 export const itemColor = (item: BeltItem) => (item && item !== 'mixed' ? ITEMS[item].color : item === 'mixed' ? '#d46ad8' : '#5b616b');
 
@@ -111,6 +112,8 @@ function NodeCard(props: {
   selected?: boolean;
   issues: Issue[];
   power?: number;
+  /** MW gerados (geradores) */
+  generated?: number;
   className?: string;
   /** girar 90° no sentido horário */
   onRotate?: () => void;
@@ -156,6 +159,11 @@ function NodeCard(props: {
           </span>
           {collapsed && flagged.length > 0 && <span className={`issue-count ${worst}`}>{flagged.length}</span>}
           {props.power !== undefined && <span className="fnode-power">⚡ {fmt(props.power)} MW</span>}
+          {props.generated !== undefined && (
+            <span className="fnode-power gen" title="Energia gerada">
+              ⚡ +{fmt(props.generated)} MW
+            </span>
+          )}
           {props.onToggleCollapse && (
             <button className="rotate-btn nodrag" onClick={props.onToggleCollapse} title={collapsed ? 'Expandir' : 'Minimizar'}>
               {collapsed ? '▸' : '▾'}
@@ -241,9 +249,9 @@ function NumInput(props: { value: number; min: number; max: number; decimals?: n
 
 /**
  * Igual à tela de clock do jogo: slider, clock em % e produção alvo por minuto.
- * `baseRate` = produção do item principal a 100%.
+ * `baseRate` = produção do item principal a 100% (ou, com `unit`, outra grandeza: MW do gerador).
  */
-function ClockControl(props: { clock: number; baseRate: number; item: ItemId; onChange: (clock: number) => void }) {
+function ClockControl(props: { clock: number; baseRate: number; item?: ItemId; unit?: string; label?: string; onChange: (clock: number) => void }) {
   const { clock, baseRate, onChange } = props;
   const c = clampClock(clock);
   const shards = shardsFor(c);
@@ -268,15 +276,15 @@ function ClockControl(props: { clock: number; baseRate: number; item: ItemId; on
         onChange={(e) => onChange(Number(e.target.value))}
       />
       <div className="clock-row">
-        <span className="field-label">Produzir</span>
+        <span className="field-label">{props.label ?? 'Produzir'}</span>
         <NumInput
           value={(baseRate * c) / 100}
           min={(baseRate * CLOCK_MIN) / 100}
           max={(baseRate * CLOCK_MAX) / 100}
           onChange={(rate) => onChange((rate / baseRate) * 100)}
         />
-        <span className="unit" title={ITEMS[props.item].name}>
-          {isFluid(props.item) ? 'm³/min' : '/min'}
+        <span className="unit" title={props.item && ITEMS[props.item].name}>
+          {props.unit ?? (isFluid(props.item) ? 'm³/min' : '/min')}
         </span>
       </div>
     </div>
@@ -702,6 +710,133 @@ export function MachineNodeView({ id, data, selected }: NodeProps<MachineNode>) 
 }
 
 /*
+ * Gerador de energia: combustível (e água) entram pela esquerda, resíduo sai pela direita.
+ * Geothermal não tem entrada; Alien Power Augmenter tem a entrada opcional de Alien Power Matrix.
+ */
+export function GeneratorNodeView({ id, data, selected }: NodeProps<GeneratorNode>) {
+  const { updateNodeData, setEdges } = useReactFlow();
+  const { r, issues } = useNodeSim(id);
+  const g = GENERATORS[data.generator];
+  const ports = generatorPorts(data);
+  const fuel = fuelOf(data.generator, data.fuel);
+  const nominal = generatorNominal(data);
+  const generated = r?.generated ?? 0;
+  useRemeasureOnChange(id, `${fuel?.item}|${ports.outputs.length}`);
+  const collapsed = !!data.collapsed;
+  const rotate = useRotation(id, data.rotation, collapsed);
+  const inSide = rotatePos(Position.Left, data.rotation);
+  const outSide = rotatePos(Position.Right, data.rotation);
+  const stripped = collapsed || isVertical(inSide);
+  if (!g) return null;
+  const strips = stripped && (
+    <>
+      <PortStrip side={inSide} ports={ports.inputs.map((p, i) => ({ type: 'in', handle: `in-${i}`, title: ITEMS[p.item].name, fluid: isFluid(p.item) }))} />
+      <PortStrip side={outSide} ports={ports.outputs.map((p, i) => ({ type: 'out', handle: `out-${i}`, title: ITEMS[p.item].name, fluid: isFluid(p.item) }))} />
+    </>
+  );
+
+  const changeFuel = (item: ItemId) => {
+    updateNodeData(id, { fuel: item });
+    // barra sem resíduo (Ficsonium) some com a saída: a conexão dela sai junto
+    if (!fuelOf(data.generator, item)?.waste) setEdges((es) => es.filter((e) => e.source !== id));
+  };
+
+  const purity = data.purity ?? 'normal';
+  const geo = g.geothermal?.[purity];
+  const line = geo ? `Gêiser ${PURITIES[purity].name.toLowerCase()}` : fuel ? ITEMS[fuel.item].name : '';
+  const card = {
+    icon: g.icon,
+    title: g.name,
+    color: g.color,
+    selected,
+    issues,
+    generated,
+    className: 'generator',
+    onRotate: rotate,
+    strips,
+    collapsed,
+    onToggleCollapse: () => updateNodeData(id, { collapsed: !collapsed }),
+  };
+  if (collapsed)
+    return (
+      <NodeCard {...card}>
+        <CollapsedSummary
+          line={<span className="collapsed-recipe" title={line}>{line}</span>}
+          chips={g.overclockable && clockChip(data.clock)}
+          outputs={ports.outputs.map((p, i) => ({ item: p.item, actual: r?.outputs[i]?.actual ?? 0, max: r?.outputs[i]?.max ?? p.rate }))}
+          util={r?.util ?? 0}
+        />
+      </NodeCard>
+    );
+  return (
+    <NodeCard {...card}>
+      {g.fuels.length > 1 && (
+        <Field label="Combust.">
+          <select className="nodrag" value={fuel?.item} onChange={(e) => changeFuel(e.target.value)}>
+            {g.fuels.map((f) => (
+              <option key={f.item} value={f.item}>
+                {ITEMS[f.item].name}
+              </option>
+            ))}
+          </select>
+        </Field>
+      )}
+      {g.geothermal && (
+        <Field label="Pureza">
+          <Seg value={purity} options={PURITY_OPTIONS} onChange={(p) => updateNodeData(id, { purity: p })} />
+        </Field>
+      )}
+      {g.overclockable && (
+        <ClockControl clock={data.clock} baseRate={g.power} unit="MW" label="Gerar" onChange={(clock) => updateNodeData(id, { clock })} />
+      )}
+      {geo && (
+        <div className="note">
+          Oscila entre {fmt(geo.min)} e {fmt(geo.max)} MW (ciclo de 1 min); a conta usa a média, {fmt(geo.avg)} MW. Sem overclock.
+        </div>
+      )}
+      {g.boost && (
+        <div className="note">
+          {fmt(g.power)} MW próprios + bônus de +{fmt(g.boost.unfueled * 100)}% em toda a rede (+{fmt(g.boost.fueled * 100)}% com {fmt(fuel?.rate ?? 0)}/min de{' '}
+          {fuel && ITEMS[fuel.item].name}). Sem overclock.
+        </div>
+      )}
+      {data.generator === 'biomass-burner' && (
+        <div className="note">Simplificação: queima sempre no clock escolhido. No jogo ele queima menos quando a rede pede menos.</div>
+      )}
+      {ports.inputs.length + ports.outputs.length > 0 && (
+        <PortBlock>
+          {Array.from({ length: Math.max(ports.inputs.length, ports.outputs.length) }, (_, i) => {
+            const inp = ports.inputs[i];
+            const out = ports.outputs[i];
+            const inCell = inp ? (
+              <PortCell key="in" type="in" handle={`in-${i}`} side={inSide} stripped={stripped} item={inp.item} port={r?.inputs[i]} fallbackMax={(inp.rate * generatorClock(data)) / 100} />
+            ) : (
+              <div key="in" className="port-cell empty" />
+            );
+            const outCell = out ? (
+              <PortCell key="out" type="out" handle={`out-${i}`} side={outSide} stripped={stripped} item={out.item} port={r?.outputs[i]} fallbackMax={(out.rate * generatorClock(data)) / 100} />
+            ) : (
+              <div key="out" className="port-cell empty" />
+            );
+            return (
+              <div key={i} className="port-pair">
+                {inSide === Position.Right ? [outCell, inCell] : [inCell, outCell]}
+              </div>
+            );
+          })}
+        </PortBlock>
+      )}
+      <div className="gen-output">
+        <span className="field-label">Gerando</span>
+        <b>{fmt(generated)}</b>
+        <small> / {fmt(nominal)} MW</small>
+      </div>
+      <UtilBar value={r?.util ?? 0} />
+    </NodeCard>
+  );
+}
+
+/*
  * Divisor e Mesclador são cubos, como no jogo:
  *  - Divisor: entrada atrás (esquerda), saídas nas outras 3 faces (cima, frente/direita, baixo)
  *  - Mesclador: entradas em 3 faces (cima, esquerda, baixo), saída na frente (direita)
@@ -805,4 +940,5 @@ export const nodeTypes = {
   splitter: SplitterNodeView,
   merger: MergerNodeView,
   sink: SinkNodeView,
+  generator: GeneratorNodeView,
 };

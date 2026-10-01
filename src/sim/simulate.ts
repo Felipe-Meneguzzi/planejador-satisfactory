@@ -1,5 +1,5 @@
-import { AMPLIFICATION, BELTS, BELT_TIERS, EXTRACTORS, ITEMS, MACHINES, MINER_TIERS, OVERCLOCK, PIPES, PIPE_TIERS, PURITIES, extractorClockable, getRecipe, isFluid, withUnit } from '../game/data';
-import type { BeltItem, BeltTier, ExtractorData, FactoryData, ItemId, MachineData, MinerData, PipeTier } from '../game/types';
+import { AMPLIFICATION, BELTS, BELT_TIERS, EXTRACTORS, GENERATORS, ITEMS, MACHINES, MINER_TIERS, OVERCLOCK, PIPES, PIPE_TIERS, PURITIES, extractorClockable, generatorClockable, generatorPorts, getRecipe, isFluid, withUnit } from '../game/data';
+import type { BeltItem, BeltTier, ExtractorData, FactoryData, GeneratorData, ItemId, MachineData, MinerData, PipeTier } from '../game/types';
 import { fmt } from '../format';
 
 /*
@@ -50,7 +50,10 @@ export interface PortResult {
 }
 export interface NodeResult {
   util: number;
+  /** consumo em MW */
   power: number;
+  /** geração em MW (geradores; sem o bônus do Alien Power Augmenter) */
+  generated?: number;
   inputs: PortResult[];
   outputs: PortResult[];
 }
@@ -102,6 +105,19 @@ export const extractorRate = (d: ExtractorData) => {
 };
 /** Consumo de energia com overclock/underclock */
 export const powerAt = (base: number, clock: number) => base * Math.pow(clampClock(clock) / 100, OVERCLOCK.powerExponent);
+
+/** Clock efetivo do gerador (Geothermal e Alien Power Augmenter não aceitam: ficam em 100%) */
+export const generatorClock = (d: GeneratorData) => (generatorClockable(d) ? clampClock(d.clock) : 100);
+/**
+ * Geração nominal do gerador em MW no clock atual, com combustível e água sobrando.
+ * Gerador a combustível escala 1:1 com o clock; o geotérmico usa a média da pureza do gêiser.
+ */
+export const generatorNominal = (d: GeneratorData) => {
+  const g = GENERATORS[d.generator];
+  if (!g) return 0;
+  if (g.geothermal) return g.geothermal[d.purity ?? 'normal'].avg;
+  return (g.power * generatorClock(d)) / 100;
+};
 
 /** Somersloops efetivos (limitados aos slots da máquina) */
 export const sloopsOf = (d: MachineData) => Math.max(0, Math.min(MACHINES[d.machine]?.sloopSlots ?? 0, Math.floor(d.sloops ?? 0)));
@@ -169,6 +185,8 @@ export function simulate(nodes: SimNode[], edges: SimEdge[]): SimResult {
         return [d.resource];
       case 'machine':
         return getRecipe(d).outputs.map((o) => o.item);
+      case 'generator':
+        return generatorPorts(d).outputs.map((o) => o.item);
       case 'splitter': {
         const it = inB(n.id, 0)?.item ?? null;
         return [it, it, it];
@@ -233,6 +251,24 @@ export function simulate(nodes: SimNode[], edges: SimEdge[]): SimResult {
         ins.forEach((p, i) => {
           if (!p.b) return;
           setD(p.b, isWrong(p.b.item, p.item) ? 0 : p.need * Math.min(minOf(outR), minExcept(inR, i)));
+        });
+        outs.forEach((p, j) => {
+          if (p.b) setS(p.b, p.max * Math.min(minOf(inR), minExcept(outR, j)));
+        });
+        break;
+      }
+      case 'generator': {
+        // igual a uma máquina: combustível e água entram, resíduo sai (o que faltar limita o resto)
+        const gp = generatorPorts(d);
+        const k = generatorClock(d) / 100;
+        const ins = gp.inputs.map((p, i) => ({ need: p.rate * k, item: p.item, optional: !!p.optional, b: inB(n.id, i) }));
+        const outs = gp.outputs.map((p, i) => ({ max: p.rate * k, b: outB(n.id, i) }));
+        // insumo opcional (Alien Power Matrix) não trava o gerador: só puxa o que ele queima
+        const inR = ins.map((p) => (p.optional ? 1 : !p.b || isWrong(p.b.item, p.item) ? 0 : Math.min(1, p.b.s / p.need)));
+        const outR = outs.map((p) => (!p.b ? 1 : Math.min(1, p.b.d / p.max)));
+        ins.forEach((p, i) => {
+          if (!p.b) return;
+          setD(p.b, isWrong(p.b.item, p.item) ? 0 : p.optional ? p.need : p.need * Math.min(minOf(outR), minExcept(inR, i)));
         });
         outs.forEach((p, j) => {
           if (p.b) setS(p.b, p.max * Math.min(minOf(inR), minExcept(outR, j)));
@@ -304,8 +340,9 @@ export function simulate(nodes: SimNode[], edges: SimEdge[]): SimResult {
     const tgt = nodeById.get(e.target)!.data;
     const flow = flowOf(b);
     let status: EdgeStatus = flow > EPS ? 'ok' : 'idle';
+    const inIdx = Number(e.targetHandle?.split('-')[1]);
     const expected =
-      tgt.kind === 'machine' ? getRecipe(tgt).inputs[Number(e.targetHandle?.split('-')[1])]?.item : undefined;
+      tgt.kind === 'machine' ? getRecipe(tgt).inputs[inIdx]?.item : tgt.kind === 'generator' ? generatorPorts(tgt).inputs[inIdx]?.item : undefined;
     const need = Math.min(b.rawS, b.rawD);
     const u = (v: number) => withUnit(fmt(v), b.item);
     const what = b.pipe ? 'Cano' : 'Esteira';
@@ -319,7 +356,7 @@ export function simulate(nodes: SimNode[], edges: SimEdge[]): SimResult {
         'wrong',
         b.item === 'mixed'
           ? `${what} com ${b.pipe ? 'fluidos' : 'itens'} misturados entrando numa máquina`
-          : `${itemName(b.item)} não serve aqui — a máquina espera ${ITEMS[expected].name}`,
+          : `${itemName(b.item)} não serve aqui — ${tgt.kind === 'generator' ? 'o gerador' : 'a máquina'} espera ${ITEMS[expected].name}`,
       );
     } else if (need > b.cap + EPS) {
       status = 'bottleneck';
@@ -441,6 +478,52 @@ export function simulate(nodes: SimNode[], edges: SimEdge[]): SimResult {
                 `Subproduto sem destino: ${uu(x.max * util, x.item)} de ${ITEMS[x.item].name} — no jogo a máquina para quando o estoque interno encher`,
               );
             else add('info', 'node', n.id, `free${i}`, `Saída livre: ${uu(x.max * util, x.item)} de ${ITEMS[x.item].name}`);
+          }
+        });
+        break;
+      }
+      case 'generator': {
+        const g = GENERATORS[d.generator];
+        if (!g) break;
+        const gp = generatorPorts(d);
+        const k = generatorClock(d) / 100;
+        const nominal = generatorNominal(d);
+        const ins = gp.inputs.map((p, i) => ({ need: p.rate * k, item: p.item, optional: !!p.optional, b: inB(n.id, i) }));
+        const outs = gp.outputs.map((p, i) => ({ max: p.rate * k, item: p.item, b: outB(n.id, i) }));
+        const supply = (x: (typeof ins)[number]) => (!x.b || isWrong(x.b.item, x.item) ? 0 : Math.min(1, x.b.s / x.need));
+        const inR = ins.map((x) => (x.optional ? 1 : supply(x)));
+        const outR = outs.map((x) => (!x.b ? 1 : Math.min(1, x.b.d / x.max)));
+        const util = Math.min(minOf(inR), minOf(outR));
+        const generated = nominal * util;
+        nodeResults[n.id] = {
+          util,
+          power: 0,
+          generated,
+          inputs: ins.map((x, i) => port(`in-${i}`, x.item, x.need, x.b)),
+          outputs: outs.map((x, i) => port(`out-${i}`, x.item, x.max, x.b, x.b ? undefined : x.max * util)),
+        };
+        const uu = (v: number, item: ItemId) => withUnit(fmt(v), item);
+        const short = `gera ${fmt(generated)} de ${fmt(nominal)} MW`;
+        ins.forEach((x, i) => {
+          const name = ITEMS[x.item].name;
+          if (x.optional) {
+            // Alien Power Augmenter: sem a matriz o bônus cai de +30% pra +10%
+            if (x.b && !isWrong(x.b.item, x.item) && x.b.s < x.need - EPS && x.b.s > EPS)
+              add('warning', 'node', n.id, `starve${i}`, `Falta ${name}: recebe ${fmt(x.b.s)} de ${uu(x.need, x.item)} — o bônus na rede fica parcial`);
+            else if (!x.b || x.b.s <= EPS) add('info', 'node', n.id, `nofuel${i}`, `Sem ${name}: bônus de +${fmt(g.boost!.unfueled * 100)}% na rede (abastecido seria +${fmt(g.boost!.fueled * 100)}%)`);
+          } else if (!x.b) {
+            add('warning', 'node', n.id, `in${i}`, `Falta ${name}: entrada sem ${isFluid(x.item) ? 'cano' : 'esteira'} — precisa de ${uu(x.need, x.item)} (${short})`);
+          } else if (!isWrong(x.b.item, x.item) && x.b.s < x.need - EPS) {
+            add('warning', 'node', n.id, `starve${i}`, `Falta ${name}: recebe ${fmt(x.b.s)} de ${uu(x.need, x.item)} (${Math.round((x.b.s / x.need) * 100)}%) — ${short}`);
+          }
+        });
+        outs.forEach((x, i) => {
+          const name = ITEMS[x.item].name;
+          if (!x.b && x.max * util > EPS) {
+            addTo(loose, x.item, x.max * util);
+            add('warning', 'node', n.id, `free${i}`, `Resíduo sem destino: ${uu(x.max * util, x.item)} de ${name} — no jogo a usina para quando o estoque interno encher`);
+          } else if (x.b && x.b.d < x.max - EPS && minOf(inR) > EPS) {
+            add('warning', 'node', n.id, `jam${i}`, `Resíduo entupido: a saída de ${name} só escoa ${fmt(x.b.d)} de ${uu(x.max, x.item)} — ${short}`);
           }
         });
         break;

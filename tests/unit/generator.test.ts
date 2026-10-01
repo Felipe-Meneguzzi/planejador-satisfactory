@@ -46,6 +46,7 @@ function sizeOf(n: FactoryNode): { w: number; h: number } {
       return { w: 240, h: 100 + 20 * (getRecipe(d).outputs.length - 1) };
     case 'miner':
     case 'extractor':
+    case 'generator':
       return { w: 240, h: 100 };
     case 'splitter':
     case 'merger':
