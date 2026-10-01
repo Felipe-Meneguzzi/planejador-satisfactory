@@ -1243,6 +1243,132 @@ button.primary {
   color: var(--err);
 }
 
+/* ---------- gerador: modo otimizado ---------- */
+
+.pl-field[hidden] {
+  display: none;
+}
+.opt-settings {
+  padding-right: 8px;
+  max-width: 640px;
+}
+.opt-settings .seg button {
+  padding: 5px 8px;
+  font-size: 12px;
+}
+.opt-hint {
+  font-size: 12px;
+  margin: 8px 0;
+}
+.opt-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 4px 14px;
+  margin: 8px 0;
+}
+.opt-grid .opt-hint {
+  grid-column: 1 / -1;
+  margin: 0 0 4px;
+}
+.opt-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+.opt-row span:not(.dot) {
+  flex: 1;
+}
+.opt-row input {
+  width: 80px;
+  padding: 3px 6px;
+}
+.opt-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  grid-column: 1 / -1;
+}
+.opt-alts {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+.opt-alts-bar {
+  display: flex;
+  gap: 6px;
+}
+.opt-alts-bar input {
+  flex: 1;
+  padding: 5px 8px;
+}
+.opt-list {
+  max-height: 300px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px;
+}
+.opt-alt {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 4px;
+  font-size: 12px;
+  border-radius: 4px;
+}
+.opt-alt:hover {
+  background: var(--panel-2);
+}
+.opt-alt-name {
+  flex: 1;
+}
+.opt-weights {
+  margin-top: 14px;
+}
+.opt-weights summary {
+  cursor: pointer;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+.opt-results table.prod {
+  font-size: 12px;
+}
+.opt-results td + td {
+  white-space: nowrap;
+}
+.planner-top .seg button {
+  white-space: nowrap;
+}
+.opt-results small {
+  font-size: 11px;
+}
+.opt-max {
+  margin: 12px 0 0;
+  font-size: 13px;
+}
+.opt-sub td {
+  font-size: 11px;
+  color: var(--muted);
+}
+.opt-sub td:first-child {
+  padding-left: 12px;
+}
+.gain {
+  color: var(--ok);
+}
+.loss {
+  color: var(--warn);
+}
+.opt-verdict {
+  font-size: 12px;
+  margin: 12px 0 0;
+}
+
 /* ---------- esteira selecionada ---------- */
 
 .belt-item-name {
