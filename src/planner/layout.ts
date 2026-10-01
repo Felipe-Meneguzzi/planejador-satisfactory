@@ -17,6 +17,8 @@ import type { ByproductLane, Group, Lane, Plan } from './plan';
  *  - Entre faixas, as esteiras sobem pra um "corredor" de trilhos acima de tudo (um trilho
  *    por esteira), andam na horizontal e descem até o destino. Nada cruza máquina.
  *  - Fluidos usam cano e junções de cano no lugar de esteira, divisor e mesclador.
+ *  - Insumos que não dá pra produzir (coletáveis) viram Entradas externas à esquerda de tudo,
+ *    uma por faixa, com a vazão que a faixa pede.
  *  - Poço de recurso: cada satélite ocupa a "vaga" de uma máquina na coleta. O node do poço
  *    fica na vaga do 1º satélite dele e cada cano de satélite desce, ao lado do poço, até a
  *    vaga do seu mesclador. O satélite de cima vira mais longe do poço, então os canos de um
@@ -432,6 +434,15 @@ export function layoutPlan(plan: Plan, mode: DistributionMode, maxBelt: BeltTier
       prevFlow = remaining.reduce((a, l) => a + l.demand, 0);
     }
   }
+
+  // insumos de fora (coletáveis etc.): uma Entrada externa por faixa, com a vazão exata da faixa,
+  // lado a lado à esquerda de tudo, minimizada e com a saída por cima (sobe pro corredor como as outras)
+  const extLanes = plan.external.flatMap((e) => e.lanes);
+  extLanes.forEach((lane, i) => {
+    const x = -(extLanes.length - i) * (MACH_W + 40);
+    const id = addNode({ kind: 'inbound', item: lane.item, rate: lane.demand, rotation: 270, collapsed: true }, x, 0);
+    pieces.push({ from: { node: id, handle: 'out-0', side: 'top', pt: { x: x + stripOffset(0, 1, MACH_W), y: 0 } }, to: entries.get(lane.id), flow: lane.demand, item: lane.item });
+  });
 
   const allTops = [...bands.map((b) => b.top), sinkBand.top, ...routerTops];
   const corridor = Math.min(...allTops) - 40;

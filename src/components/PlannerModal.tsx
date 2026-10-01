@@ -138,7 +138,7 @@ export function PlannerModal(props: { onClose: () => void; onGenerate: (plan: Pl
           <span className="tree-item">{ITEMS[item].name}</span>
           <span className="tree-rate">{withUnit(fmt(rate), item)}</span>
           {external ? (
-            <span className="tree-ext">⚠ fornecer de fora</span>
+            <span className="tree-ext" title="Vira uma Entrada externa na linha gerada">📥 fornecer de fora</span>
           ) : (
             <select value={choice} onChange={(e) => set({ choices: { ...st.choices, [item]: e.target.value } })}>
               {isResource(item) && <option value={MINE}>{isFluid(item) ? `💧 Extrair (${fluidSourceName(extractorFor(item)!)})` : '⛏ Minerar'}</option>}
@@ -371,8 +371,9 @@ export function PlannerModal(props: { onClose: () => void; onGenerate: (plan: Pl
                   <>
                     <h3>Fornecer de fora</h3>
                     {plan.external.map((e) => (
-                      <p key={e.item} className="pl-warn">
-                        ⚠ {ITEMS[e.item].name}: {withUnit(fmt(e.demand), e.item)} — não dá pra produzir em máquina (coletável/drop); a entrada fica aberta pra você ligar.
+                      <p key={e.item} className="pl-note">
+                        <span className="dot" style={{ background: itemColor(e.item) }} />
+                        {ITEMS[e.item].name}: {withUnit(fmt(e.demand), e.item)} — não dá pra produzir em máquina (coletável/drop): vira uma Entrada externa com essa vazão (dá pra ligar numa Saída externa de outra fábrica).
                       </p>
                     ))}
                   </>

@@ -38,6 +38,10 @@ const CASES: [item: string, rate: number][] = [
   // Nitrogen Gas vem de poço de recurso (pressurizador + satélites)
   ['nitric-acid', 30],
   ['nitrogen-gas', 1500],
+  // insumos "de fora" (coletáveis/resíduos) viram Entradas externas com a vazão da faixa
+  ['fabric', 10],
+  ['power-shard', 10],
+  ['encased-plutonium-cell', 10],
 ];
 const MODES: DistributionMode[] = ['manifold', 'tree'];
 
@@ -68,8 +72,12 @@ function sizeOf(n: FactoryNode): { w: number; h: number } {
 const generate = (item: string, rate: number, mode: DistributionMode): Layout => {
   const plan = planLine({ item, rate, choices: {}, ores: {}, maxClock: 100, maxBelt: MAX_BELT, maxPipe: MAX_PIPE });
   expect(plan.error).toBeUndefined();
-  expect(plan.external).toEqual([]);
-  return layoutPlan(plan, mode, MAX_BELT, MAX_PIPE, { x: 0, y: 0 });
+  const layout = layoutPlan(plan, mode, MAX_BELT, MAX_PIPE, { x: 0, y: 0 });
+  // uma Entrada externa por faixa de insumo de fora, com a vazão exata dela
+  const inbound = layout.nodes.flatMap((n) => (n.data.kind === 'inbound' ? [n.data] : []));
+  const lanes = plan.external.flatMap((e) => e.lanes);
+  expect(inbound.map((d) => [d.item, d.rate])).toEqual(lanes.map((l) => [l.item, l.demand]));
+  return layout;
 };
 
 const simulateLayout = ({ nodes, edges }: Layout) =>
