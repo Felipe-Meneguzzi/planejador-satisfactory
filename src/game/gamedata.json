@@ -1,6 +1,6 @@
 {
   "version": "1.2.4.0",
-  "dataNotes": "Receitas/itens/potências extraídos de Template:DocsRecipes.json (rev. 2026-09-01), Template:DocsItems.json e Template:DocsBuildings.json (rev. '1.2 stable' 2026-06-02). Nenhuma mudança de balanceamento relevante nas patch notes 1.1.x–1.2.4.0. O wiki não usa o prefixo 'Alternate: ' no nome; foi adicionado aqui para receitas com alternate=true (nome original = sem o prefixo). 'event: FICSMAS' marca receitas sazonais. 'variablePower' (MW) substitui o consumo fixo da máquina nessa receita.",
+  "dataNotes": "Receitas/itens/potências extraídos de Template:DocsRecipes.json (rev. 2026-09-01), Template:DocsItems.json e Template:DocsBuildings.json (rev. '1.2 stable' 2026-06-02). Nenhuma mudança de balanceamento relevante nas patch notes 1.1.x–1.2.4.0. O wiki não usa o prefixo 'Alternate: ' no nome; foi adicionado aqui para receitas com alternate=true (nome original = sem o prefixo). 'event: FICSMAS' marca receitas sazonais. 'variablePower' (MW) substitui o consumo fixo da máquina nessa receita. Fluidos (1.2.4.0): Template:DocsRecipes/Items/Buildings.json + páginas Pipelines, Water/Oil Extractor, Resource Well; quantidades de fluido em m³.",
   "sources": [
     "https://satisfactory.wiki.gg/wiki/Template:DocsRecipes.json",
     "https://satisfactory.wiki.gg/wiki/Template:DocsItems.json",
@@ -20,7 +20,22 @@
     "https://satisfactory.wiki.gg/wiki/Patch_1.2.0.0",
     "https://satisfactory.wiki.gg/wiki/Patch_1.2.2.2",
     "https://satisfactory.wiki.gg/wiki/Patch_1.2.4.0",
-    "https://satisfactory.wiki.gg/wiki/Production_amplifier"
+    "https://satisfactory.wiki.gg/wiki/Production_amplifier",
+    "https://satisfactory.wiki.gg/wiki/Fluids",
+    "https://satisfactory.wiki.gg/wiki/Pipelines",
+    "https://satisfactory.wiki.gg/wiki/Water_Extractor",
+    "https://satisfactory.wiki.gg/wiki/Oil_Extractor",
+    "https://satisfactory.wiki.gg/wiki/Resource_Well_Pressurizer",
+    "https://satisfactory.wiki.gg/wiki/Resource_Well",
+    "https://satisfactory.wiki.gg/wiki/Refinery",
+    "https://satisfactory.wiki.gg/wiki/Blender",
+    "https://satisfactory.wiki.gg/wiki/Packager",
+    "https://satisfactory.wiki.gg/wiki/Particle_Accelerator",
+    "https://satisfactory.wiki.gg/wiki/Converter",
+    "https://satisfactory.wiki.gg/wiki/Quantum_Encoder",
+    "https://satisfactory.wiki.gg/wiki/Template:OverclockingInfo",
+    "https://satisfactory.wiki.gg/wiki/Patch_1.1.1.0",
+    "https://satisfactory.wiki.gg/wiki/Patch_1.2.3.0"
   ],
   "belts": [
     {
@@ -141,6 +156,84 @@
       "power": 55,
       "inputs": 4,
       "outputs": 1,
+      "somersloopSlots": 4
+    },
+    {
+      "name": "Refinery",
+      "power": 30,
+      "inputs": 2,
+      "outputs": 2,
+      "solidInputs": 1,
+      "fluidInputs": 1,
+      "solidOutputs": 1,
+      "fluidOutputs": 1,
+      "somersloopSlots": 2
+    },
+    {
+      "name": "Blender",
+      "power": 75,
+      "inputs": 4,
+      "outputs": 2,
+      "solidInputs": 2,
+      "fluidInputs": 2,
+      "solidOutputs": 1,
+      "fluidOutputs": 1,
+      "somersloopSlots": 4
+    },
+    {
+      "name": "Packager",
+      "power": 10,
+      "inputs": 2,
+      "outputs": 2,
+      "solidInputs": 1,
+      "fluidInputs": 1,
+      "solidOutputs": 1,
+      "fluidOutputs": 1,
+      "somersloopSlots": 0
+    },
+    {
+      "name": "Particle Accelerator",
+      "power": 875.0,
+      "variablePower": {
+        "min": 250,
+        "max": 1500
+      },
+      "inputs": 3,
+      "outputs": 1,
+      "solidInputs": 2,
+      "fluidInputs": 1,
+      "solidOutputs": 1,
+      "fluidOutputs": 0,
+      "somersloopSlots": 4
+    },
+    {
+      "name": "Converter",
+      "power": 250.0,
+      "variablePower": {
+        "min": 100,
+        "max": 400
+      },
+      "inputs": 2,
+      "outputs": 2,
+      "solidInputs": 2,
+      "fluidInputs": 0,
+      "solidOutputs": 1,
+      "fluidOutputs": 1,
+      "somersloopSlots": 2
+    },
+    {
+      "name": "Quantum Encoder",
+      "power": 1000.0,
+      "variablePower": {
+        "min": 0,
+        "max": 2000
+      },
+      "inputs": 4,
+      "outputs": 2,
+      "solidInputs": 3,
+      "fluidInputs": 1,
+      "solidOutputs": 1,
+      "fluidOutputs": 1,
       "somersloopSlots": 4
     }
   ],
@@ -4146,10 +4239,3188 @@
           "amount": 3
         }
       ]
+    },
+    {
+      "name": "Fuel",
+      "alternate": false,
+      "machine": "Refinery",
+      "duration": 6,
+      "inputs": [
+        {
+          "item": "Crude Oil",
+          "amount": 6
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Fuel",
+          "amount": 4
+        },
+        {
+          "item": "Polymer Resin",
+          "amount": 3
+        }
+      ],
+      "className": "Recipe_LiquidFuel_C"
+    },
+    {
+      "name": "Plastic",
+      "alternate": false,
+      "machine": "Refinery",
+      "duration": 6,
+      "inputs": [
+        {
+          "item": "Crude Oil",
+          "amount": 3
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Plastic",
+          "amount": 2
+        },
+        {
+          "item": "Heavy Oil Residue",
+          "amount": 1
+        }
+      ],
+      "className": "Recipe_Plastic_C"
+    },
+    {
+      "name": "Rubber",
+      "alternate": false,
+      "machine": "Refinery",
+      "duration": 6,
+      "inputs": [
+        {
+          "item": "Crude Oil",
+          "amount": 3
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Rubber",
+          "amount": 2
+        },
+        {
+          "item": "Heavy Oil Residue",
+          "amount": 2
+        }
+      ],
+      "className": "Recipe_Rubber_C"
+    },
+    {
+      "name": "Residual Fuel",
+      "alternate": false,
+      "machine": "Refinery",
+      "duration": 6,
+      "inputs": [
+        {
+          "item": "Heavy Oil Residue",
+          "amount": 6
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Fuel",
+          "amount": 4
+        }
+      ],
+      "className": "Recipe_ResidualFuel_C"
+    },
+    {
+      "name": "Petroleum Coke",
+      "alternate": false,
+      "machine": "Refinery",
+      "duration": 6,
+      "inputs": [
+        {
+          "item": "Heavy Oil Residue",
+          "amount": 4
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Petroleum Coke",
+          "amount": 12
+        }
+      ],
+      "className": "Recipe_PetroleumCoke_C"
+    },
+    {
+      "name": "Residual Rubber",
+      "alternate": false,
+      "machine": "Refinery",
+      "duration": 6,
+      "inputs": [
+        {
+          "item": "Polymer Resin",
+          "amount": 4
+        },
+        {
+          "item": "Water",
+          "amount": 4
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Rubber",
+          "amount": 2
+        }
+      ],
+      "className": "Recipe_ResidualRubber_C"
+    },
+    {
+      "name": "Residual Plastic",
+      "alternate": false,
+      "machine": "Refinery",
+      "duration": 6,
+      "inputs": [
+        {
+          "item": "Polymer Resin",
+          "amount": 6
+        },
+        {
+          "item": "Water",
+          "amount": 2
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Plastic",
+          "amount": 2
+        }
+      ],
+      "className": "Recipe_ResidualPlastic_C"
+    },
+    {
+      "name": "Ionized Fuel",
+      "alternate": false,
+      "machine": "Refinery",
+      "duration": 24,
+      "inputs": [
+        {
+          "item": "Rocket Fuel",
+          "amount": 16
+        },
+        {
+          "item": "Power Shard",
+          "amount": 1
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Ionized Fuel",
+          "amount": 16
+        },
+        {
+          "item": "Compacted Coal",
+          "amount": 2
+        }
+      ],
+      "className": "Recipe_IonizedFuel_C"
+    },
+    {
+      "name": "Alumina Solution",
+      "alternate": false,
+      "machine": "Refinery",
+      "duration": 6,
+      "inputs": [
+        {
+          "item": "Bauxite",
+          "amount": 12
+        },
+        {
+          "item": "Water",
+          "amount": 18
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Alumina Solution",
+          "amount": 12
+        },
+        {
+          "item": "Silica",
+          "amount": 5
+        }
+      ],
+      "className": "Recipe_AluminaSolution_C"
+    },
+    {
+      "name": "Aluminum Scrap",
+      "alternate": false,
+      "machine": "Refinery",
+      "duration": 1,
+      "inputs": [
+        {
+          "item": "Alumina Solution",
+          "amount": 4
+        },
+        {
+          "item": "Coal",
+          "amount": 2
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Aluminum Scrap",
+          "amount": 6
+        },
+        {
+          "item": "Water",
+          "amount": 2
+        }
+      ],
+      "className": "Recipe_AluminumScrap_C"
+    },
+    {
+      "name": "Turbofuel",
+      "alternate": false,
+      "machine": "Refinery",
+      "duration": 16,
+      "inputs": [
+        {
+          "item": "Fuel",
+          "amount": 6
+        },
+        {
+          "item": "Compacted Coal",
+          "amount": 4
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Turbofuel",
+          "amount": 5
+        }
+      ],
+      "className": "Recipe_Alternate_Turbofuel_C"
+    },
+    {
+      "name": "Liquid Biofuel",
+      "alternate": false,
+      "machine": "Refinery",
+      "duration": 4,
+      "inputs": [
+        {
+          "item": "Solid Biofuel",
+          "amount": 6
+        },
+        {
+          "item": "Water",
+          "amount": 3
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Liquid Biofuel",
+          "amount": 4
+        }
+      ],
+      "className": "Recipe_LiquidBiofuel_C"
+    },
+    {
+      "name": "Smokeless Powder",
+      "alternate": false,
+      "machine": "Refinery",
+      "duration": 6,
+      "inputs": [
+        {
+          "item": "Black Powder",
+          "amount": 2
+        },
+        {
+          "item": "Heavy Oil Residue",
+          "amount": 1
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Smokeless Powder",
+          "amount": 2
+        }
+      ],
+      "className": "Recipe_GunpowderMK2_C"
+    },
+    {
+      "name": "Polyester Fabric",
+      "alternate": false,
+      "machine": "Refinery",
+      "duration": 2,
+      "inputs": [
+        {
+          "item": "Polymer Resin",
+          "amount": 1
+        },
+        {
+          "item": "Water",
+          "amount": 1
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Fabric",
+          "amount": 1
+        }
+      ],
+      "className": "Recipe_Alternate_PolyesterFabric_C"
+    },
+    {
+      "name": "Sulfuric Acid",
+      "alternate": false,
+      "machine": "Refinery",
+      "duration": 6,
+      "inputs": [
+        {
+          "item": "Sulfur",
+          "amount": 5
+        },
+        {
+          "item": "Water",
+          "amount": 5
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Sulfuric Acid",
+          "amount": 5
+        }
+      ],
+      "className": "Recipe_SulfuricAcid_C"
+    },
+    {
+      "name": "Alternate: Recycled Plastic",
+      "alternate": true,
+      "machine": "Refinery",
+      "duration": 12,
+      "inputs": [
+        {
+          "item": "Rubber",
+          "amount": 6
+        },
+        {
+          "item": "Fuel",
+          "amount": 6
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Plastic",
+          "amount": 12
+        }
+      ],
+      "className": "Recipe_Alternate_Plastic_1_C"
+    },
+    {
+      "name": "Alternate: Quartz Purification",
+      "alternate": true,
+      "machine": "Refinery",
+      "duration": 12,
+      "inputs": [
+        {
+          "item": "Raw Quartz",
+          "amount": 24
+        },
+        {
+          "item": "Nitric Acid",
+          "amount": 2
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Quartz Crystal",
+          "amount": 15
+        },
+        {
+          "item": "Dissolved Silica",
+          "amount": 12
+        }
+      ],
+      "className": "Recipe_Alternate_Quartz_Purified_C"
+    },
+    {
+      "name": "Alternate: Leached Iron Ingot",
+      "alternate": true,
+      "machine": "Refinery",
+      "duration": 6,
+      "inputs": [
+        {
+          "item": "Iron Ore",
+          "amount": 5
+        },
+        {
+          "item": "Sulfuric Acid",
+          "amount": 1
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Iron Ingot",
+          "amount": 10
+        }
+      ],
+      "className": "Recipe_Alternate_IronIngot_Leached_C"
+    },
+    {
+      "name": "Alternate: Leached Copper Ingot",
+      "alternate": true,
+      "machine": "Refinery",
+      "duration": 12,
+      "inputs": [
+        {
+          "item": "Copper Ore",
+          "amount": 9
+        },
+        {
+          "item": "Sulfuric Acid",
+          "amount": 5
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Copper Ingot",
+          "amount": 22
+        }
+      ],
+      "className": "Recipe_Alternate_CopperIngot_Leached_C"
+    },
+    {
+      "name": "Alternate: Leached Caterium Ingot",
+      "alternate": true,
+      "machine": "Refinery",
+      "duration": 10,
+      "inputs": [
+        {
+          "item": "Caterium Ore",
+          "amount": 9
+        },
+        {
+          "item": "Sulfuric Acid",
+          "amount": 5
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Caterium Ingot",
+          "amount": 6
+        }
+      ],
+      "className": "Recipe_Alternate_CateriumIngot_Leached_C"
+    },
+    {
+      "name": "Alternate: Sloppy Alumina",
+      "alternate": true,
+      "machine": "Refinery",
+      "duration": 3,
+      "inputs": [
+        {
+          "item": "Bauxite",
+          "amount": 10
+        },
+        {
+          "item": "Water",
+          "amount": 10
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Alumina Solution",
+          "amount": 12
+        }
+      ],
+      "className": "Recipe_Alternate_SloppyAlumina_C"
+    },
+    {
+      "name": "Alternate: Wet Concrete",
+      "alternate": true,
+      "machine": "Refinery",
+      "duration": 3,
+      "inputs": [
+        {
+          "item": "Limestone",
+          "amount": 6
+        },
+        {
+          "item": "Water",
+          "amount": 5
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Concrete",
+          "amount": 4
+        }
+      ],
+      "className": "Recipe_Alternate_WetConcrete_C"
+    },
+    {
+      "name": "Alternate: Turbo Heavy Fuel",
+      "alternate": true,
+      "machine": "Refinery",
+      "duration": 8,
+      "inputs": [
+        {
+          "item": "Heavy Oil Residue",
+          "amount": 5
+        },
+        {
+          "item": "Compacted Coal",
+          "amount": 4
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Turbofuel",
+          "amount": 4
+        }
+      ],
+      "className": "Recipe_Alternate_TurboHeavyFuel_C"
+    },
+    {
+      "name": "Alternate: Steamed Copper Sheet",
+      "alternate": true,
+      "machine": "Refinery",
+      "duration": 8,
+      "inputs": [
+        {
+          "item": "Copper Ingot",
+          "amount": 3
+        },
+        {
+          "item": "Water",
+          "amount": 3
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Copper Sheet",
+          "amount": 3
+        }
+      ],
+      "className": "Recipe_Alternate_SteamedCopperSheet_C"
+    },
+    {
+      "name": "Alternate: Recycled Rubber",
+      "alternate": true,
+      "machine": "Refinery",
+      "duration": 12,
+      "inputs": [
+        {
+          "item": "Plastic",
+          "amount": 6
+        },
+        {
+          "item": "Fuel",
+          "amount": 6
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Rubber",
+          "amount": 12
+        }
+      ],
+      "className": "Recipe_Alternate_RecycledRubber_C"
+    },
+    {
+      "name": "Alternate: Pure Quartz Crystal",
+      "alternate": true,
+      "machine": "Refinery",
+      "duration": 8,
+      "inputs": [
+        {
+          "item": "Raw Quartz",
+          "amount": 9
+        },
+        {
+          "item": "Water",
+          "amount": 5
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Quartz Crystal",
+          "amount": 7
+        }
+      ],
+      "className": "Recipe_Alternate_PureQuartzCrystal_C"
+    },
+    {
+      "name": "Alternate: Pure Iron Ingot",
+      "alternate": true,
+      "machine": "Refinery",
+      "duration": 12,
+      "inputs": [
+        {
+          "item": "Iron Ore",
+          "amount": 7
+        },
+        {
+          "item": "Water",
+          "amount": 4
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Iron Ingot",
+          "amount": 13
+        }
+      ],
+      "className": "Recipe_Alternate_PureIronIngot_C"
+    },
+    {
+      "name": "Alternate: Pure Copper Ingot",
+      "alternate": true,
+      "machine": "Refinery",
+      "duration": 24,
+      "inputs": [
+        {
+          "item": "Copper Ore",
+          "amount": 6
+        },
+        {
+          "item": "Water",
+          "amount": 4
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Copper Ingot",
+          "amount": 15
+        }
+      ],
+      "className": "Recipe_Alternate_PureCopperIngot_C"
+    },
+    {
+      "name": "Alternate: Pure Caterium Ingot",
+      "alternate": true,
+      "machine": "Refinery",
+      "duration": 5,
+      "inputs": [
+        {
+          "item": "Caterium Ore",
+          "amount": 2
+        },
+        {
+          "item": "Water",
+          "amount": 2
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Caterium Ingot",
+          "amount": 1
+        }
+      ],
+      "className": "Recipe_Alternate_PureCateriumIngot_C"
+    },
+    {
+      "name": "Alternate: Polymer Resin",
+      "alternate": true,
+      "machine": "Refinery",
+      "duration": 6,
+      "inputs": [
+        {
+          "item": "Crude Oil",
+          "amount": 6
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Polymer Resin",
+          "amount": 13
+        },
+        {
+          "item": "Heavy Oil Residue",
+          "amount": 2
+        }
+      ],
+      "className": "Recipe_Alternate_PolymerResin_C"
+    },
+    {
+      "name": "Alternate: Heavy Oil Residue",
+      "alternate": true,
+      "machine": "Refinery",
+      "duration": 6,
+      "inputs": [
+        {
+          "item": "Crude Oil",
+          "amount": 3
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Heavy Oil Residue",
+          "amount": 4
+        },
+        {
+          "item": "Polymer Resin",
+          "amount": 2
+        }
+      ],
+      "className": "Recipe_Alternate_HeavyOilResidue_C"
+    },
+    {
+      "name": "Alternate: Electrode Aluminum Scrap",
+      "alternate": true,
+      "machine": "Refinery",
+      "duration": 4,
+      "inputs": [
+        {
+          "item": "Alumina Solution",
+          "amount": 12
+        },
+        {
+          "item": "Petroleum Coke",
+          "amount": 4
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Aluminum Scrap",
+          "amount": 20
+        },
+        {
+          "item": "Water",
+          "amount": 7
+        }
+      ],
+      "className": "Recipe_Alternate_ElectroAluminumScrap_C"
+    },
+    {
+      "name": "Alternate: Diluted Packaged Fuel",
+      "alternate": true,
+      "machine": "Refinery",
+      "duration": 2,
+      "inputs": [
+        {
+          "item": "Heavy Oil Residue",
+          "amount": 1
+        },
+        {
+          "item": "Packaged Water",
+          "amount": 2
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Packaged Fuel",
+          "amount": 2
+        }
+      ],
+      "className": "Recipe_Alternate_DilutedPackagedFuel_C"
+    },
+    {
+      "name": "Alternate: Coated Cable",
+      "alternate": true,
+      "machine": "Refinery",
+      "duration": 8,
+      "inputs": [
+        {
+          "item": "Wire",
+          "amount": 5
+        },
+        {
+          "item": "Heavy Oil Residue",
+          "amount": 2
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Cable",
+          "amount": 9
+        }
+      ],
+      "className": "Recipe_Alternate_CoatedCable_C"
+    },
+    {
+      "name": "Nitric Acid",
+      "alternate": false,
+      "machine": "Blender",
+      "duration": 6,
+      "inputs": [
+        {
+          "item": "Nitrogen Gas",
+          "amount": 12
+        },
+        {
+          "item": "Water",
+          "amount": 3
+        },
+        {
+          "item": "Iron Plate",
+          "amount": 1
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Nitric Acid",
+          "amount": 3
+        }
+      ],
+      "className": "Recipe_NitricAcid_C"
+    },
+    {
+      "name": "Non-Fissile Uranium",
+      "alternate": false,
+      "machine": "Blender",
+      "duration": 24,
+      "inputs": [
+        {
+          "item": "Uranium Waste",
+          "amount": 15
+        },
+        {
+          "item": "Silica",
+          "amount": 10
+        },
+        {
+          "item": "Nitric Acid",
+          "amount": 6
+        },
+        {
+          "item": "Sulfuric Acid",
+          "amount": 6
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Non-Fissile Uranium",
+          "amount": 20
+        },
+        {
+          "item": "Water",
+          "amount": 6
+        }
+      ],
+      "className": "Recipe_NonFissileUranium_C"
+    },
+    {
+      "name": "Biochemical Sculptor",
+      "alternate": false,
+      "machine": "Blender",
+      "duration": 120,
+      "inputs": [
+        {
+          "item": "Assembly Director System",
+          "amount": 1
+        },
+        {
+          "item": "Ficsite Trigon",
+          "amount": 80
+        },
+        {
+          "item": "Water",
+          "amount": 20
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Biochemical Sculptor",
+          "amount": 4
+        }
+      ],
+      "className": "Recipe_SpaceElevatorPart_10_C",
+      "variablePower": {
+        "min": 500,
+        "max": 1500
+      }
+    },
+    {
+      "name": "Rocket Fuel",
+      "alternate": false,
+      "machine": "Blender",
+      "duration": 6,
+      "inputs": [
+        {
+          "item": "Turbofuel",
+          "amount": 6
+        },
+        {
+          "item": "Nitric Acid",
+          "amount": 1
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Rocket Fuel",
+          "amount": 10
+        },
+        {
+          "item": "Compacted Coal",
+          "amount": 1
+        }
+      ],
+      "className": "Recipe_RocketFuel_C"
+    },
+    {
+      "name": "Cooling System",
+      "alternate": false,
+      "machine": "Blender",
+      "duration": 10,
+      "inputs": [
+        {
+          "item": "Heat Sink",
+          "amount": 2
+        },
+        {
+          "item": "Rubber",
+          "amount": 2
+        },
+        {
+          "item": "Water",
+          "amount": 5
+        },
+        {
+          "item": "Nitrogen Gas",
+          "amount": 25
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Cooling System",
+          "amount": 1
+        }
+      ],
+      "className": "Recipe_CoolingSystem_C"
+    },
+    {
+      "name": "Fused Modular Frame",
+      "alternate": false,
+      "machine": "Blender",
+      "duration": 40,
+      "inputs": [
+        {
+          "item": "Heavy Modular Frame",
+          "amount": 1
+        },
+        {
+          "item": "Aluminum Casing",
+          "amount": 50
+        },
+        {
+          "item": "Nitrogen Gas",
+          "amount": 25
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Fused Modular Frame",
+          "amount": 1
+        }
+      ],
+      "className": "Recipe_FusedModularFrame_C"
+    },
+    {
+      "name": "Encased Uranium Cell",
+      "alternate": false,
+      "machine": "Blender",
+      "duration": 12,
+      "inputs": [
+        {
+          "item": "Uranium",
+          "amount": 10
+        },
+        {
+          "item": "Concrete",
+          "amount": 3
+        },
+        {
+          "item": "Sulfuric Acid",
+          "amount": 8
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Encased Uranium Cell",
+          "amount": 5
+        },
+        {
+          "item": "Sulfuric Acid",
+          "amount": 2
+        }
+      ],
+      "className": "Recipe_UraniumCell_C"
+    },
+    {
+      "name": "Turbo Rifle Ammo",
+      "alternate": false,
+      "machine": "Blender",
+      "duration": 12,
+      "inputs": [
+        {
+          "item": "Rifle Ammo",
+          "amount": 25
+        },
+        {
+          "item": "Aluminum Casing",
+          "amount": 3
+        },
+        {
+          "item": "Turbofuel",
+          "amount": 3
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Turbo Rifle Ammo",
+          "amount": 50
+        }
+      ],
+      "className": "Recipe_CartridgeChaos_C"
+    },
+    {
+      "name": "Battery",
+      "alternate": false,
+      "machine": "Blender",
+      "duration": 3,
+      "inputs": [
+        {
+          "item": "Sulfuric Acid",
+          "amount": 2.5
+        },
+        {
+          "item": "Alumina Solution",
+          "amount": 2
+        },
+        {
+          "item": "Aluminum Casing",
+          "amount": 1
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Battery",
+          "amount": 1
+        },
+        {
+          "item": "Water",
+          "amount": 1.5
+        }
+      ],
+      "className": "Recipe_Battery_C"
+    },
+    {
+      "name": "Alternate: Distilled Silica",
+      "alternate": true,
+      "machine": "Blender",
+      "duration": 6,
+      "inputs": [
+        {
+          "item": "Dissolved Silica",
+          "amount": 12
+        },
+        {
+          "item": "Limestone",
+          "amount": 5
+        },
+        {
+          "item": "Water",
+          "amount": 10
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Silica",
+          "amount": 27
+        },
+        {
+          "item": "Water",
+          "amount": 8
+        }
+      ],
+      "className": "Recipe_Alternate_Silica_Distilled_C"
+    },
+    {
+      "name": "Alternate: Turbo Blend Fuel",
+      "alternate": true,
+      "machine": "Blender",
+      "duration": 8,
+      "inputs": [
+        {
+          "item": "Fuel",
+          "amount": 2
+        },
+        {
+          "item": "Heavy Oil Residue",
+          "amount": 4
+        },
+        {
+          "item": "Sulfur",
+          "amount": 3
+        },
+        {
+          "item": "Petroleum Coke",
+          "amount": 3
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Turbofuel",
+          "amount": 6
+        }
+      ],
+      "className": "Recipe_Alternate_TurboBlendFuel_C"
+    },
+    {
+      "name": "Alternate: Instant Scrap",
+      "alternate": true,
+      "machine": "Blender",
+      "duration": 6,
+      "inputs": [
+        {
+          "item": "Bauxite",
+          "amount": 15
+        },
+        {
+          "item": "Coal",
+          "amount": 10
+        },
+        {
+          "item": "Sulfuric Acid",
+          "amount": 5
+        },
+        {
+          "item": "Water",
+          "amount": 6
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Aluminum Scrap",
+          "amount": 30
+        },
+        {
+          "item": "Water",
+          "amount": 5
+        }
+      ],
+      "className": "Recipe_Alternate_InstantScrap_C"
+    },
+    {
+      "name": "Alternate: Heat-Fused Frame",
+      "alternate": true,
+      "machine": "Blender",
+      "duration": 20,
+      "inputs": [
+        {
+          "item": "Heavy Modular Frame",
+          "amount": 1
+        },
+        {
+          "item": "Aluminum Ingot",
+          "amount": 50
+        },
+        {
+          "item": "Nitric Acid",
+          "amount": 8
+        },
+        {
+          "item": "Fuel",
+          "amount": 10
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Fused Modular Frame",
+          "amount": 1
+        }
+      ],
+      "className": "Recipe_Alternate_HeatFusedFrame_C"
+    },
+    {
+      "name": "Alternate: Fertile Uranium",
+      "alternate": true,
+      "machine": "Blender",
+      "duration": 12,
+      "inputs": [
+        {
+          "item": "Uranium",
+          "amount": 5
+        },
+        {
+          "item": "Uranium Waste",
+          "amount": 5
+        },
+        {
+          "item": "Nitric Acid",
+          "amount": 3
+        },
+        {
+          "item": "Sulfuric Acid",
+          "amount": 5
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Non-Fissile Uranium",
+          "amount": 20
+        },
+        {
+          "item": "Water",
+          "amount": 8
+        }
+      ],
+      "className": "Recipe_Alternate_FertileUranium_C"
+    },
+    {
+      "name": "Alternate: Diluted Fuel",
+      "alternate": true,
+      "machine": "Blender",
+      "duration": 6,
+      "inputs": [
+        {
+          "item": "Heavy Oil Residue",
+          "amount": 5
+        },
+        {
+          "item": "Water",
+          "amount": 10
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Fuel",
+          "amount": 10
+        }
+      ],
+      "className": "Recipe_Alternate_DilutedFuel_C"
+    },
+    {
+      "name": "Alternate: Cooling Device",
+      "alternate": true,
+      "machine": "Blender",
+      "duration": 24,
+      "inputs": [
+        {
+          "item": "Heat Sink",
+          "amount": 4
+        },
+        {
+          "item": "Motor",
+          "amount": 1
+        },
+        {
+          "item": "Nitrogen Gas",
+          "amount": 24
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Cooling System",
+          "amount": 2
+        }
+      ],
+      "className": "Recipe_Alternate_CoolingDevice_C"
+    },
+    {
+      "name": "Alternate: Nitro Rocket Fuel",
+      "alternate": true,
+      "machine": "Blender",
+      "duration": 2.4,
+      "inputs": [
+        {
+          "item": "Fuel",
+          "amount": 4
+        },
+        {
+          "item": "Nitrogen Gas",
+          "amount": 3
+        },
+        {
+          "item": "Sulfur",
+          "amount": 4
+        },
+        {
+          "item": "Coal",
+          "amount": 2
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Rocket Fuel",
+          "amount": 6
+        },
+        {
+          "item": "Compacted Coal",
+          "amount": 1
+        }
+      ],
+      "className": "Recipe_Alternate_RocketFuel_Nitro_C"
+    },
+    {
+      "name": "Packaged Nitric Acid",
+      "alternate": false,
+      "machine": "Packager",
+      "duration": 2,
+      "inputs": [
+        {
+          "item": "Nitric Acid",
+          "amount": 1
+        },
+        {
+          "item": "Empty Fluid Tank",
+          "amount": 1
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Packaged Nitric Acid",
+          "amount": 1
+        }
+      ],
+      "className": "Recipe_PackagedNitricAcid_C"
+    },
+    {
+      "name": "Unpackage Nitric Acid",
+      "alternate": false,
+      "machine": "Packager",
+      "duration": 3,
+      "inputs": [
+        {
+          "item": "Packaged Nitric Acid",
+          "amount": 1
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Nitric Acid",
+          "amount": 1
+        },
+        {
+          "item": "Empty Fluid Tank",
+          "amount": 1
+        }
+      ],
+      "className": "Recipe_UnpackageNitricAcid_C"
+    },
+    {
+      "name": "Packaged Rocket Fuel",
+      "alternate": false,
+      "machine": "Packager",
+      "duration": 1,
+      "inputs": [
+        {
+          "item": "Rocket Fuel",
+          "amount": 2
+        },
+        {
+          "item": "Empty Fluid Tank",
+          "amount": 1
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Packaged Rocket Fuel",
+          "amount": 1
+        }
+      ],
+      "className": "Recipe_PackagedRocketFuel_C"
+    },
+    {
+      "name": "Unpackage Rocket Fuel",
+      "alternate": false,
+      "machine": "Packager",
+      "duration": 1,
+      "inputs": [
+        {
+          "item": "Packaged Rocket Fuel",
+          "amount": 1
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Rocket Fuel",
+          "amount": 2
+        },
+        {
+          "item": "Empty Fluid Tank",
+          "amount": 1
+        }
+      ],
+      "className": "Recipe_UnpackageRocketFuel_C"
+    },
+    {
+      "name": "Packaged Ionized Fuel",
+      "alternate": false,
+      "machine": "Packager",
+      "duration": 3,
+      "inputs": [
+        {
+          "item": "Ionized Fuel",
+          "amount": 4
+        },
+        {
+          "item": "Empty Fluid Tank",
+          "amount": 2
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Packaged Ionized Fuel",
+          "amount": 2
+        }
+      ],
+      "className": "Recipe_PackagedIonizedFuel_C"
+    },
+    {
+      "name": "Unpackage Ionized Fuel",
+      "alternate": false,
+      "machine": "Packager",
+      "duration": 3,
+      "inputs": [
+        {
+          "item": "Packaged Ionized Fuel",
+          "amount": 2
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Ionized Fuel",
+          "amount": 4
+        },
+        {
+          "item": "Empty Fluid Tank",
+          "amount": 2
+        }
+      ],
+      "className": "Recipe_UnpackageIonizedFuel_C"
+    },
+    {
+      "name": "Packaged Nitrogen Gas",
+      "alternate": false,
+      "machine": "Packager",
+      "duration": 1,
+      "inputs": [
+        {
+          "item": "Nitrogen Gas",
+          "amount": 4
+        },
+        {
+          "item": "Empty Fluid Tank",
+          "amount": 1
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Packaged Nitrogen Gas",
+          "amount": 1
+        }
+      ],
+      "className": "Recipe_PackagedNitrogen_C"
+    },
+    {
+      "name": "Unpackage Nitrogen Gas",
+      "alternate": false,
+      "machine": "Packager",
+      "duration": 1,
+      "inputs": [
+        {
+          "item": "Packaged Nitrogen Gas",
+          "amount": 1
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Nitrogen Gas",
+          "amount": 4
+        },
+        {
+          "item": "Empty Fluid Tank",
+          "amount": 1
+        }
+      ],
+      "className": "Recipe_UnpackageNitrogen_C"
+    },
+    {
+      "name": "Packaged Alumina Solution",
+      "alternate": false,
+      "machine": "Packager",
+      "duration": 1,
+      "inputs": [
+        {
+          "item": "Alumina Solution",
+          "amount": 2
+        },
+        {
+          "item": "Empty Canister",
+          "amount": 2
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Packaged Alumina Solution",
+          "amount": 2
+        }
+      ],
+      "className": "Recipe_PackagedAlumina_C"
+    },
+    {
+      "name": "Unpackage Alumina Solution",
+      "alternate": false,
+      "machine": "Packager",
+      "duration": 1,
+      "inputs": [
+        {
+          "item": "Packaged Alumina Solution",
+          "amount": 2
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Alumina Solution",
+          "amount": 2
+        },
+        {
+          "item": "Empty Canister",
+          "amount": 2
+        }
+      ],
+      "className": "Recipe_UnpackageAlumina_C"
+    },
+    {
+      "name": "Packaged Fuel",
+      "alternate": false,
+      "machine": "Packager",
+      "duration": 3,
+      "inputs": [
+        {
+          "item": "Fuel",
+          "amount": 2
+        },
+        {
+          "item": "Empty Canister",
+          "amount": 2
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Packaged Fuel",
+          "amount": 2
+        }
+      ],
+      "className": "Recipe_Fuel_C"
+    },
+    {
+      "name": "Packaged Turbofuel",
+      "alternate": false,
+      "machine": "Packager",
+      "duration": 6,
+      "inputs": [
+        {
+          "item": "Turbofuel",
+          "amount": 2
+        },
+        {
+          "item": "Empty Canister",
+          "amount": 2
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Packaged Turbofuel",
+          "amount": 2
+        }
+      ],
+      "className": "Recipe_PackagedTurboFuel_C"
+    },
+    {
+      "name": "Unpackage Fuel",
+      "alternate": false,
+      "machine": "Packager",
+      "duration": 2,
+      "inputs": [
+        {
+          "item": "Packaged Fuel",
+          "amount": 2
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Fuel",
+          "amount": 2
+        },
+        {
+          "item": "Empty Canister",
+          "amount": 2
+        }
+      ],
+      "className": "Recipe_UnpackageFuel_C"
+    },
+    {
+      "name": "Unpackage Turbofuel",
+      "alternate": false,
+      "machine": "Packager",
+      "duration": 6,
+      "inputs": [
+        {
+          "item": "Packaged Turbofuel",
+          "amount": 2
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Turbofuel",
+          "amount": 2
+        },
+        {
+          "item": "Empty Canister",
+          "amount": 2
+        }
+      ],
+      "className": "Recipe_UnpackageTurboFuel_C"
+    },
+    {
+      "name": "Packaged Liquid Biofuel",
+      "alternate": false,
+      "machine": "Packager",
+      "duration": 3,
+      "inputs": [
+        {
+          "item": "Liquid Biofuel",
+          "amount": 2
+        },
+        {
+          "item": "Empty Canister",
+          "amount": 2
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Packaged Liquid Biofuel",
+          "amount": 2
+        }
+      ],
+      "className": "Recipe_PackagedBiofuel_C"
+    },
+    {
+      "name": "Unpackage Liquid Biofuel",
+      "alternate": false,
+      "machine": "Packager",
+      "duration": 2,
+      "inputs": [
+        {
+          "item": "Packaged Liquid Biofuel",
+          "amount": 2
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Liquid Biofuel",
+          "amount": 2
+        },
+        {
+          "item": "Empty Canister",
+          "amount": 2
+        }
+      ],
+      "className": "Recipe_UnpackageBioFuel_C"
+    },
+    {
+      "name": "Packaged Oil",
+      "alternate": false,
+      "machine": "Packager",
+      "duration": 4,
+      "inputs": [
+        {
+          "item": "Crude Oil",
+          "amount": 2
+        },
+        {
+          "item": "Empty Canister",
+          "amount": 2
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Packaged Oil",
+          "amount": 2
+        }
+      ],
+      "className": "Recipe_PackagedCrudeOil_C"
+    },
+    {
+      "name": "Unpackage Oil",
+      "alternate": false,
+      "machine": "Packager",
+      "duration": 2,
+      "inputs": [
+        {
+          "item": "Packaged Oil",
+          "amount": 2
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Crude Oil",
+          "amount": 2
+        },
+        {
+          "item": "Empty Canister",
+          "amount": 2
+        }
+      ],
+      "className": "Recipe_UnpackageOil_C"
+    },
+    {
+      "name": "Packaged Heavy Oil Residue",
+      "alternate": false,
+      "machine": "Packager",
+      "duration": 4,
+      "inputs": [
+        {
+          "item": "Heavy Oil Residue",
+          "amount": 2
+        },
+        {
+          "item": "Empty Canister",
+          "amount": 2
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Packaged Heavy Oil Residue",
+          "amount": 2
+        }
+      ],
+      "className": "Recipe_PackagedOilResidue_C"
+    },
+    {
+      "name": "Unpackage Heavy Oil Residue",
+      "alternate": false,
+      "machine": "Packager",
+      "duration": 6,
+      "inputs": [
+        {
+          "item": "Packaged Heavy Oil Residue",
+          "amount": 2
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Heavy Oil Residue",
+          "amount": 2
+        },
+        {
+          "item": "Empty Canister",
+          "amount": 2
+        }
+      ],
+      "className": "Recipe_UnpackageOilResidue_C"
+    },
+    {
+      "name": "Packaged Water",
+      "alternate": false,
+      "machine": "Packager",
+      "duration": 2,
+      "inputs": [
+        {
+          "item": "Water",
+          "amount": 2
+        },
+        {
+          "item": "Empty Canister",
+          "amount": 2
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Packaged Water",
+          "amount": 2
+        }
+      ],
+      "className": "Recipe_PackagedWater_C"
+    },
+    {
+      "name": "Unpackage Water",
+      "alternate": false,
+      "machine": "Packager",
+      "duration": 1,
+      "inputs": [
+        {
+          "item": "Packaged Water",
+          "amount": 2
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Water",
+          "amount": 2
+        },
+        {
+          "item": "Empty Canister",
+          "amount": 2
+        }
+      ],
+      "className": "Recipe_UnpackageWater_C"
+    },
+    {
+      "name": "Packaged Sulfuric Acid",
+      "alternate": false,
+      "machine": "Packager",
+      "duration": 3,
+      "inputs": [
+        {
+          "item": "Sulfuric Acid",
+          "amount": 2
+        },
+        {
+          "item": "Empty Canister",
+          "amount": 2
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Packaged Sulfuric Acid",
+          "amount": 2
+        }
+      ],
+      "className": "Recipe_PackagedSulfuricAcid_C"
+    },
+    {
+      "name": "Unpackage Sulfuric Acid",
+      "alternate": false,
+      "machine": "Packager",
+      "duration": 1,
+      "inputs": [
+        {
+          "item": "Packaged Sulfuric Acid",
+          "amount": 1
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Sulfuric Acid",
+          "amount": 1
+        },
+        {
+          "item": "Empty Canister",
+          "amount": 1
+        }
+      ],
+      "className": "Recipe_UnpackageSulfuricAcid_C"
+    },
+    {
+      "name": "Plutonium Pellet",
+      "alternate": false,
+      "machine": "Particle Accelerator",
+      "duration": 60,
+      "inputs": [
+        {
+          "item": "Non-Fissile Uranium",
+          "amount": 100
+        },
+        {
+          "item": "Uranium Waste",
+          "amount": 25
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Plutonium Pellet",
+          "amount": 30
+        }
+      ],
+      "className": "Recipe_Plutonium_C",
+      "variablePower": {
+        "min": 250,
+        "max": 750
+      }
+    },
+    {
+      "name": "Nuclear Pasta",
+      "alternate": false,
+      "machine": "Particle Accelerator",
+      "duration": 120,
+      "inputs": [
+        {
+          "item": "Copper Powder",
+          "amount": 200
+        },
+        {
+          "item": "Pressure Conversion Cube",
+          "amount": 1
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Nuclear Pasta",
+          "amount": 1
+        }
+      ],
+      "className": "Recipe_SpaceElevatorPart_9_C",
+      "variablePower": {
+        "min": 500,
+        "max": 1500
+      }
+    },
+    {
+      "name": "Diamonds",
+      "alternate": false,
+      "machine": "Particle Accelerator",
+      "duration": 2,
+      "inputs": [
+        {
+          "item": "Coal",
+          "amount": 20
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Diamonds",
+          "amount": 1
+        }
+      ],
+      "className": "Recipe_Diamond_C",
+      "variablePower": {
+        "min": 250,
+        "max": 750
+      }
+    },
+    {
+      "name": "Dark Matter Crystal",
+      "alternate": false,
+      "machine": "Particle Accelerator",
+      "duration": 2,
+      "inputs": [
+        {
+          "item": "Diamonds",
+          "amount": 1
+        },
+        {
+          "item": "Dark Matter Residue",
+          "amount": 5
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Dark Matter Crystal",
+          "amount": 1
+        }
+      ],
+      "className": "Recipe_DarkMatter_C",
+      "variablePower": {
+        "min": 500,
+        "max": 1500
+      }
+    },
+    {
+      "name": "Ficsonium",
+      "alternate": false,
+      "machine": "Particle Accelerator",
+      "duration": 6,
+      "inputs": [
+        {
+          "item": "Plutonium Waste",
+          "amount": 1
+        },
+        {
+          "item": "Singularity Cell",
+          "amount": 1
+        },
+        {
+          "item": "Dark Matter Residue",
+          "amount": 20
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Ficsonium",
+          "amount": 1
+        }
+      ],
+      "className": "Recipe_Ficsonium_C",
+      "variablePower": {
+        "min": 500,
+        "max": 1500
+      }
+    },
+    {
+      "name": "Alternate: Instant Plutonium Cell",
+      "alternate": true,
+      "machine": "Particle Accelerator",
+      "duration": 120,
+      "inputs": [
+        {
+          "item": "Non-Fissile Uranium",
+          "amount": 150
+        },
+        {
+          "item": "Aluminum Casing",
+          "amount": 20
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Encased Plutonium Cell",
+          "amount": 20
+        }
+      ],
+      "className": "Recipe_Alternate_InstantPlutoniumCell_C",
+      "variablePower": {
+        "min": 250,
+        "max": 750
+      }
+    },
+    {
+      "name": "Alternate: Turbo Diamonds",
+      "alternate": true,
+      "machine": "Particle Accelerator",
+      "duration": 3,
+      "inputs": [
+        {
+          "item": "Coal",
+          "amount": 30
+        },
+        {
+          "item": "Packaged Turbofuel",
+          "amount": 2
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Diamonds",
+          "amount": 3
+        }
+      ],
+      "className": "Recipe_Alternate_Diamond_Turbo_C",
+      "variablePower": {
+        "min": 250,
+        "max": 750
+      }
+    },
+    {
+      "name": "Alternate: Petroleum Diamonds",
+      "alternate": true,
+      "machine": "Particle Accelerator",
+      "duration": 2,
+      "inputs": [
+        {
+          "item": "Petroleum Coke",
+          "amount": 24
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Diamonds",
+          "amount": 1
+        }
+      ],
+      "className": "Recipe_Alternate_Diamond_Petroleum_C",
+      "variablePower": {
+        "min": 250,
+        "max": 750
+      }
+    },
+    {
+      "name": "Alternate: Oil-Based Diamonds",
+      "alternate": true,
+      "machine": "Particle Accelerator",
+      "duration": 3,
+      "inputs": [
+        {
+          "item": "Crude Oil",
+          "amount": 10
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Diamonds",
+          "amount": 2
+        }
+      ],
+      "className": "Recipe_Alternate_Diamond_OilBased_C",
+      "variablePower": {
+        "min": 250,
+        "max": 750
+      }
+    },
+    {
+      "name": "Alternate: Cloudy Diamonds",
+      "alternate": true,
+      "machine": "Particle Accelerator",
+      "duration": 3,
+      "inputs": [
+        {
+          "item": "Coal",
+          "amount": 12
+        },
+        {
+          "item": "Limestone",
+          "amount": 24
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Diamonds",
+          "amount": 1
+        }
+      ],
+      "className": "Recipe_Alternate_Diamond_Cloudy_C",
+      "variablePower": {
+        "min": 250,
+        "max": 750
+      }
+    },
+    {
+      "name": "Alternate: Dark Matter Trap",
+      "alternate": true,
+      "machine": "Particle Accelerator",
+      "duration": 2,
+      "inputs": [
+        {
+          "item": "Time Crystal",
+          "amount": 1
+        },
+        {
+          "item": "Dark Matter Residue",
+          "amount": 5
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Dark Matter Crystal",
+          "amount": 2
+        }
+      ],
+      "className": "Recipe_Alternate_DarkMatter_Trap_C",
+      "variablePower": {
+        "min": 500,
+        "max": 1500
+      }
+    },
+    {
+      "name": "Alternate: Dark Matter Crystallization",
+      "alternate": true,
+      "machine": "Particle Accelerator",
+      "duration": 3,
+      "inputs": [
+        {
+          "item": "Dark Matter Residue",
+          "amount": 10
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Dark Matter Crystal",
+          "amount": 1
+        }
+      ],
+      "className": "Recipe_Alternate_DarkMatter_Crystallization_C",
+      "variablePower": {
+        "min": 500,
+        "max": 1500
+      }
+    },
+    {
+      "name": "Time Crystal",
+      "alternate": false,
+      "machine": "Converter",
+      "duration": 10,
+      "inputs": [
+        {
+          "item": "Diamonds",
+          "amount": 2
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Time Crystal",
+          "amount": 1
+        }
+      ],
+      "className": "Recipe_TimeCrystal_C",
+      "variablePower": {
+        "min": 100,
+        "max": 400
+      }
+    },
+    {
+      "name": "Coal (Iron)",
+      "alternate": false,
+      "machine": "Converter",
+      "duration": 6,
+      "inputs": [
+        {
+          "item": "Reanimated SAM",
+          "amount": 1
+        },
+        {
+          "item": "Iron Ore",
+          "amount": 18
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Coal",
+          "amount": 12
+        }
+      ],
+      "className": "Recipe_Coal_Iron_C",
+      "variablePower": {
+        "min": 100,
+        "max": 400
+      }
+    },
+    {
+      "name": "Coal (Limestone)",
+      "alternate": false,
+      "machine": "Converter",
+      "duration": 6,
+      "inputs": [
+        {
+          "item": "Reanimated SAM",
+          "amount": 1
+        },
+        {
+          "item": "Limestone",
+          "amount": 36
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Coal",
+          "amount": 12
+        }
+      ],
+      "className": "Recipe_Coal_Limestone_C",
+      "variablePower": {
+        "min": 100,
+        "max": 400
+      }
+    },
+    {
+      "name": "Copper Ore (Quartz)",
+      "alternate": false,
+      "machine": "Converter",
+      "duration": 6,
+      "inputs": [
+        {
+          "item": "Reanimated SAM",
+          "amount": 1
+        },
+        {
+          "item": "Raw Quartz",
+          "amount": 10
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Copper Ore",
+          "amount": 12
+        }
+      ],
+      "className": "Recipe_Copper_Quartz_C",
+      "variablePower": {
+        "min": 100,
+        "max": 400
+      }
+    },
+    {
+      "name": "Iron Ore (Limestone)",
+      "alternate": false,
+      "machine": "Converter",
+      "duration": 6,
+      "inputs": [
+        {
+          "item": "Reanimated SAM",
+          "amount": 1
+        },
+        {
+          "item": "Limestone",
+          "amount": 24
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Iron Ore",
+          "amount": 12
+        }
+      ],
+      "className": "Recipe_Iron_Limestone_C",
+      "variablePower": {
+        "min": 100,
+        "max": 400
+      }
+    },
+    {
+      "name": "Raw Quartz (Coal)",
+      "alternate": false,
+      "machine": "Converter",
+      "duration": 6,
+      "inputs": [
+        {
+          "item": "Reanimated SAM",
+          "amount": 1
+        },
+        {
+          "item": "Coal",
+          "amount": 24
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Raw Quartz",
+          "amount": 12
+        }
+      ],
+      "className": "Recipe_Quartz_Coal_C",
+      "variablePower": {
+        "min": 100,
+        "max": 400
+      }
+    },
+    {
+      "name": "Ficsite Ingot (Iron)",
+      "alternate": false,
+      "machine": "Converter",
+      "duration": 6,
+      "inputs": [
+        {
+          "item": "Reanimated SAM",
+          "amount": 4
+        },
+        {
+          "item": "Iron Ingot",
+          "amount": 24
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Ficsite Ingot",
+          "amount": 1
+        }
+      ],
+      "className": "Recipe_FicsiteIngot_Iron_C",
+      "variablePower": {
+        "min": 100,
+        "max": 400
+      }
+    },
+    {
+      "name": "Ficsite Ingot (Aluminum)",
+      "alternate": false,
+      "machine": "Converter",
+      "duration": 2,
+      "inputs": [
+        {
+          "item": "Reanimated SAM",
+          "amount": 2
+        },
+        {
+          "item": "Aluminum Ingot",
+          "amount": 4
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Ficsite Ingot",
+          "amount": 1
+        }
+      ],
+      "className": "Recipe_FicsiteIngot_AL_C",
+      "variablePower": {
+        "min": 100,
+        "max": 400
+      }
+    },
+    {
+      "name": "Ficsite Ingot (Caterium)",
+      "alternate": false,
+      "machine": "Converter",
+      "duration": 4,
+      "inputs": [
+        {
+          "item": "Reanimated SAM",
+          "amount": 3
+        },
+        {
+          "item": "Caterium Ingot",
+          "amount": 4
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Ficsite Ingot",
+          "amount": 1
+        }
+      ],
+      "className": "Recipe_FicsiteIngot_CAT_C",
+      "variablePower": {
+        "min": 100,
+        "max": 400
+      }
+    },
+    {
+      "name": "Bauxite (Copper)",
+      "alternate": false,
+      "machine": "Converter",
+      "duration": 6,
+      "inputs": [
+        {
+          "item": "Reanimated SAM",
+          "amount": 1
+        },
+        {
+          "item": "Copper Ore",
+          "amount": 18
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Bauxite",
+          "amount": 12
+        }
+      ],
+      "className": "Recipe_Bauxite_Copper_C",
+      "variablePower": {
+        "min": 100,
+        "max": 400
+      }
+    },
+    {
+      "name": "Nitrogen Gas (Bauxite)",
+      "alternate": false,
+      "machine": "Converter",
+      "duration": 6,
+      "inputs": [
+        {
+          "item": "Reanimated SAM",
+          "amount": 1
+        },
+        {
+          "item": "Bauxite",
+          "amount": 10
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Nitrogen Gas",
+          "amount": 12
+        }
+      ],
+      "className": "Recipe_Nitrogen_Bauxite_C",
+      "variablePower": {
+        "min": 100,
+        "max": 400
+      }
+    },
+    {
+      "name": "Raw Quartz (Bauxite)",
+      "alternate": false,
+      "machine": "Converter",
+      "duration": 6,
+      "inputs": [
+        {
+          "item": "Reanimated SAM",
+          "amount": 1
+        },
+        {
+          "item": "Bauxite",
+          "amount": 10
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Raw Quartz",
+          "amount": 12
+        }
+      ],
+      "className": "Recipe_Quartz_Bauxite_C",
+      "variablePower": {
+        "min": 100,
+        "max": 400
+      }
+    },
+    {
+      "name": "Caterium Ore (Copper)",
+      "alternate": false,
+      "machine": "Converter",
+      "duration": 6,
+      "inputs": [
+        {
+          "item": "Reanimated SAM",
+          "amount": 1
+        },
+        {
+          "item": "Copper Ore",
+          "amount": 15
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Caterium Ore",
+          "amount": 12
+        }
+      ],
+      "className": "Recipe_Caterium_Copper_C",
+      "variablePower": {
+        "min": 100,
+        "max": 400
+      }
+    },
+    {
+      "name": "Caterium Ore (Quartz)",
+      "alternate": false,
+      "machine": "Converter",
+      "duration": 6,
+      "inputs": [
+        {
+          "item": "Reanimated SAM",
+          "amount": 1
+        },
+        {
+          "item": "Raw Quartz",
+          "amount": 12
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Caterium Ore",
+          "amount": 12
+        }
+      ],
+      "className": "Recipe_Caterium_Quartz_C",
+      "variablePower": {
+        "min": 100,
+        "max": 400
+      }
+    },
+    {
+      "name": "Nitrogen Gas (Caterium)",
+      "alternate": false,
+      "machine": "Converter",
+      "duration": 6,
+      "inputs": [
+        {
+          "item": "Reanimated SAM",
+          "amount": 1
+        },
+        {
+          "item": "Caterium Ore",
+          "amount": 12
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Nitrogen Gas",
+          "amount": 12
+        }
+      ],
+      "className": "Recipe_Nitrogen_Caterium_C",
+      "variablePower": {
+        "min": 100,
+        "max": 400
+      }
+    },
+    {
+      "name": "Bauxite (Caterium)",
+      "alternate": false,
+      "machine": "Converter",
+      "duration": 6,
+      "inputs": [
+        {
+          "item": "Reanimated SAM",
+          "amount": 1
+        },
+        {
+          "item": "Caterium Ore",
+          "amount": 15
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Bauxite",
+          "amount": 12
+        }
+      ],
+      "className": "Recipe_Bauxite_Caterium_C",
+      "variablePower": {
+        "min": 100,
+        "max": 400
+      }
+    },
+    {
+      "name": "Copper Ore (Sulfur)",
+      "alternate": false,
+      "machine": "Converter",
+      "duration": 6,
+      "inputs": [
+        {
+          "item": "Reanimated SAM",
+          "amount": 1
+        },
+        {
+          "item": "Sulfur",
+          "amount": 12
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Copper Ore",
+          "amount": 12
+        }
+      ],
+      "className": "Recipe_Copper_Sulfur_C",
+      "variablePower": {
+        "min": 100,
+        "max": 400
+      }
+    },
+    {
+      "name": "Limestone (Sulfur)",
+      "alternate": false,
+      "machine": "Converter",
+      "duration": 6,
+      "inputs": [
+        {
+          "item": "Reanimated SAM",
+          "amount": 1
+        },
+        {
+          "item": "Sulfur",
+          "amount": 2
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Limestone",
+          "amount": 12
+        }
+      ],
+      "className": "Recipe_Limestone_Sulfur_C",
+      "variablePower": {
+        "min": 100,
+        "max": 400
+      }
+    },
+    {
+      "name": "Sulfur (Coal)",
+      "alternate": false,
+      "machine": "Converter",
+      "duration": 6,
+      "inputs": [
+        {
+          "item": "Reanimated SAM",
+          "amount": 1
+        },
+        {
+          "item": "Coal",
+          "amount": 20
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Sulfur",
+          "amount": 12
+        }
+      ],
+      "className": "Recipe_Sulfur_Coal_C",
+      "variablePower": {
+        "min": 100,
+        "max": 400
+      }
+    },
+    {
+      "name": "Sulfur (Iron)",
+      "alternate": false,
+      "machine": "Converter",
+      "duration": 6,
+      "inputs": [
+        {
+          "item": "Reanimated SAM",
+          "amount": 1
+        },
+        {
+          "item": "Iron Ore",
+          "amount": 30
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Sulfur",
+          "amount": 12
+        }
+      ],
+      "className": "Recipe_Sulfur_Iron_C",
+      "variablePower": {
+        "min": 100,
+        "max": 400
+      }
+    },
+    {
+      "name": "Uranium Ore (Bauxite)",
+      "alternate": false,
+      "machine": "Converter",
+      "duration": 6,
+      "inputs": [
+        {
+          "item": "Reanimated SAM",
+          "amount": 1
+        },
+        {
+          "item": "Bauxite",
+          "amount": 48
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Uranium",
+          "amount": 12
+        }
+      ],
+      "className": "Recipe_Uranium_Bauxite_C",
+      "variablePower": {
+        "min": 100,
+        "max": 400
+      }
+    },
+    {
+      "name": "Dark Matter Residue",
+      "alternate": false,
+      "machine": "Converter",
+      "duration": 6,
+      "inputs": [
+        {
+          "item": "Reanimated SAM",
+          "amount": 5
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Dark Matter Residue",
+          "amount": 10
+        }
+      ],
+      "className": "Recipe_DarkEnergy_C",
+      "variablePower": {
+        "min": 100,
+        "max": 400
+      }
+    },
+    {
+      "name": "Excited Photonic Matter",
+      "alternate": false,
+      "machine": "Converter",
+      "duration": 3,
+      "inputs": [],
+      "outputs": [
+        {
+          "item": "Excited Photonic Matter",
+          "amount": 10
+        }
+      ],
+      "className": "Recipe_QuantumEnergy_C",
+      "variablePower": {
+        "min": 100,
+        "max": 400
+      }
+    },
+    {
+      "name": "Alternate: Dark-Ion Fuel",
+      "alternate": true,
+      "machine": "Converter",
+      "duration": 3,
+      "inputs": [
+        {
+          "item": "Packaged Rocket Fuel",
+          "amount": 12
+        },
+        {
+          "item": "Dark Matter Crystal",
+          "amount": 4
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Ionized Fuel",
+          "amount": 10
+        },
+        {
+          "item": "Compacted Coal",
+          "amount": 2
+        }
+      ],
+      "className": "Recipe_Alternate_IonizedFuel_Dark_C",
+      "variablePower": {
+        "min": 100,
+        "max": 400
+      }
+    },
+    {
+      "name": "Alternate: Pink Diamonds",
+      "alternate": true,
+      "machine": "Converter",
+      "duration": 4,
+      "inputs": [
+        {
+          "item": "Coal",
+          "amount": 8
+        },
+        {
+          "item": "Quartz Crystal",
+          "amount": 3
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Diamonds",
+          "amount": 1
+        }
+      ],
+      "className": "Recipe_Alternate_Diamond_Pink_C",
+      "variablePower": {
+        "min": 100,
+        "max": 400
+      }
+    },
+    {
+      "name": "Synthetic Power Shard",
+      "alternate": false,
+      "machine": "Quantum Encoder",
+      "duration": 12,
+      "inputs": [
+        {
+          "item": "Time Crystal",
+          "amount": 2
+        },
+        {
+          "item": "Dark Matter Crystal",
+          "amount": 2
+        },
+        {
+          "item": "Quartz Crystal",
+          "amount": 12
+        },
+        {
+          "item": "Excited Photonic Matter",
+          "amount": 12
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Power Shard",
+          "amount": 1
+        },
+        {
+          "item": "Dark Matter Residue",
+          "amount": 12
+        }
+      ],
+      "className": "Recipe_SyntheticPowerShard_C",
+      "variablePower": {
+        "min": 0,
+        "max": 2000
+      }
+    },
+    {
+      "name": "Superposition Oscillator",
+      "alternate": false,
+      "machine": "Quantum Encoder",
+      "duration": 12,
+      "inputs": [
+        {
+          "item": "Dark Matter Crystal",
+          "amount": 6
+        },
+        {
+          "item": "Crystal Oscillator",
+          "amount": 1
+        },
+        {
+          "item": "Alclad Aluminum Sheet",
+          "amount": 9
+        },
+        {
+          "item": "Excited Photonic Matter",
+          "amount": 25
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Superposition Oscillator",
+          "amount": 1
+        },
+        {
+          "item": "Dark Matter Residue",
+          "amount": 25
+        }
+      ],
+      "className": "Recipe_SuperpositionOscillator_C",
+      "variablePower": {
+        "min": 0,
+        "max": 2000
+      }
+    },
+    {
+      "name": "Neural-Quantum Processor",
+      "alternate": false,
+      "machine": "Quantum Encoder",
+      "duration": 20,
+      "inputs": [
+        {
+          "item": "Time Crystal",
+          "amount": 5
+        },
+        {
+          "item": "Supercomputer",
+          "amount": 1
+        },
+        {
+          "item": "Ficsite Trigon",
+          "amount": 15
+        },
+        {
+          "item": "Excited Photonic Matter",
+          "amount": 25
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Neural-Quantum Processor",
+          "amount": 1
+        },
+        {
+          "item": "Dark Matter Residue",
+          "amount": 25
+        }
+      ],
+      "className": "Recipe_TemporalProcessor_C",
+      "variablePower": {
+        "min": 0,
+        "max": 2000
+      }
+    },
+    {
+      "name": "AI Expansion Server",
+      "alternate": false,
+      "machine": "Quantum Encoder",
+      "duration": 15,
+      "inputs": [
+        {
+          "item": "Magnetic Field Generator",
+          "amount": 1
+        },
+        {
+          "item": "Neural-Quantum Processor",
+          "amount": 1
+        },
+        {
+          "item": "Superposition Oscillator",
+          "amount": 1
+        },
+        {
+          "item": "Excited Photonic Matter",
+          "amount": 25
+        }
+      ],
+      "outputs": [
+        {
+          "item": "AI Expansion Server",
+          "amount": 1
+        },
+        {
+          "item": "Dark Matter Residue",
+          "amount": 25
+        }
+      ],
+      "className": "Recipe_SpaceElevatorPart_12_C",
+      "variablePower": {
+        "min": 0,
+        "max": 2000
+      }
+    },
+    {
+      "name": "Alien Power Matrix",
+      "alternate": false,
+      "machine": "Quantum Encoder",
+      "duration": 24,
+      "inputs": [
+        {
+          "item": "SAM Fluctuator",
+          "amount": 5
+        },
+        {
+          "item": "Power Shard",
+          "amount": 3
+        },
+        {
+          "item": "Superposition Oscillator",
+          "amount": 3
+        },
+        {
+          "item": "Excited Photonic Matter",
+          "amount": 24
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Alien Power Matrix",
+          "amount": 1
+        },
+        {
+          "item": "Dark Matter Residue",
+          "amount": 24
+        }
+      ],
+      "className": "Recipe_AlienPowerFuel_C",
+      "variablePower": {
+        "min": 0,
+        "max": 2000
+      }
+    },
+    {
+      "name": "Ficsonium Fuel Rod",
+      "alternate": false,
+      "machine": "Quantum Encoder",
+      "duration": 24,
+      "inputs": [
+        {
+          "item": "Ficsonium",
+          "amount": 2
+        },
+        {
+          "item": "Electromagnetic Control Rod",
+          "amount": 2
+        },
+        {
+          "item": "Ficsite Trigon",
+          "amount": 40
+        },
+        {
+          "item": "Excited Photonic Matter",
+          "amount": 20
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Ficsonium Fuel Rod",
+          "amount": 1
+        },
+        {
+          "item": "Dark Matter Residue",
+          "amount": 20
+        }
+      ],
+      "className": "Recipe_FicsoniumFuelRod_C",
+      "variablePower": {
+        "min": 0,
+        "max": 2000
+      }
     }
   ],
   "amplification": {
     "powerExponent": 2,
     "notes": "output × (1 + filled/total); power × (1 + filled/total)^2 × (clock/100)^1.321928. Miners/extractors não aceitam."
+  },
+  "fluids": [
+    {
+      "name": "Water",
+      "form": "liquid"
+    },
+    {
+      "name": "Crude Oil",
+      "form": "liquid"
+    },
+    {
+      "name": "Heavy Oil Residue",
+      "form": "liquid"
+    },
+    {
+      "name": "Fuel",
+      "form": "liquid"
+    },
+    {
+      "name": "Turbofuel",
+      "form": "liquid"
+    },
+    {
+      "name": "Liquid Biofuel",
+      "form": "liquid"
+    },
+    {
+      "name": "Alumina Solution",
+      "form": "liquid"
+    },
+    {
+      "name": "Sulfuric Acid",
+      "form": "liquid"
+    },
+    {
+      "name": "Nitric Acid",
+      "form": "liquid"
+    },
+    {
+      "name": "Dissolved Silica",
+      "form": "liquid"
+    },
+    {
+      "name": "Nitrogen Gas",
+      "form": "gas"
+    },
+    {
+      "name": "Rocket Fuel",
+      "form": "gas"
+    },
+    {
+      "name": "Ionized Fuel",
+      "form": "gas"
+    },
+    {
+      "name": "Excited Photonic Matter",
+      "form": "gas"
+    },
+    {
+      "name": "Dark Matter Residue",
+      "form": "gas"
+    }
+  ],
+  "pipes": [
+    {
+      "tier": 1,
+      "rate": 300
+    },
+    {
+      "tier": 2,
+      "rate": 600
+    }
+  ],
+  "extractors": {
+    "water": {
+      "name": "Water Extractor",
+      "resource": "Water",
+      "rate": 120,
+      "power": 20,
+      "overclockable": true
+    },
+    "oil": {
+      "name": "Oil Extractor",
+      "resource": "Crude Oil",
+      "rates": {
+        "impure": 60,
+        "normal": 120,
+        "pure": 240
+      },
+      "power": 40,
+      "overclockable": true
+    },
+    "well": {
+      "name": "Resource Well Extractor",
+      "resources": [
+        "Water",
+        "Crude Oil",
+        "Nitrogen Gas"
+      ],
+      "rates": {
+        "impure": 30,
+        "normal": 60,
+        "pure": 120
+      },
+      "power": 0,
+      "overclockable": false,
+      "pressurizerName": "Resource Well Pressurizer",
+      "pressurizerPower": 150
+    }
   }
 }
