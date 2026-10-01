@@ -1,8 +1,8 @@
 import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { BELTS, BELT_TIERS, ITEMS, MACHINES, MINER_TIERS, PURITIES, RECIPES } from '../game/data';
-import type { BeltTier, ItemId, MinerTier, Purity } from '../game/types';
+import { BELTS, BELT_TIERS, EXTRACTORS, ITEMS, MACHINES, MINER_TIERS, PIPES, PIPE_TIERS, PURITIES, RECIPES, isFluid, withUnit } from '../game/data';
+import type { BeltTier, ItemId, MinerTier, PipeTier, Purity } from '../game/types';
 import { fmt } from '../format';
-import { MINE, PLANNABLE_ITEMS, choiceOf, defaultOre, isResource, planLine, recipesProducing, type OreSetting, type Plan } from '../planner/plan';
+import { MINE, PLANNABLE_ITEMS, choiceOf, defaultOre, extractorFor, isResource, planLine, recipesProducing, type OreSetting, type Plan } from '../planner/plan';
 import type { DistributionMode } from '../planner/layout';
 import { itemColor } from './nodes';
 
@@ -13,11 +13,12 @@ interface PlannerSettings {
   ores: Record<ItemId, OreSetting>;
   maxClock: number;
   maxBelt: BeltTier;
+  maxPipe: PipeTier;
   mode: DistributionMode;
 }
 
 const KEY = 'satisplanner:planner';
-const DEFAULTS: PlannerSettings = { item: 'iron-plate', rate: 30, choices: {}, ores: {}, maxClock: 100, maxBelt: 3, mode: 'manifold' };
+const DEFAULTS: PlannerSettings = { item: 'iron-plate', rate: 30, choices: {}, ores: {}, maxClock: 100, maxBelt: 3, maxPipe: 1, mode: 'manifold' };
 
 /** Preferências da janela (só conveniência; se o storage falhar, usa o padrão) */
 function loadSettings(): PlannerSettings {
@@ -35,7 +36,7 @@ function loadSettings(): PlannerSettings {
 
 const pct = (v: number) => `${fmt(Number(v.toFixed(4)))}%`;
 
-export function PlannerModal(props: { onClose: () => void; onGenerate: (plan: Plan, mode: DistributionMode, maxBelt: BeltTier) => void }) {
+export function PlannerModal(props: { onClose: () => void; onGenerate: (plan: Plan, mode: DistributionMode, maxBelt: BeltTier, maxPipe: PipeTier) => void }) {
   const [st, setSt] = useState<PlannerSettings>(loadSettings);
   const [itemText, setItemText] = useState(ITEMS[st.item]?.name ?? '');
   const [collapsedRows, setCollapsedRows] = useState<Set<string>>(new Set());
@@ -66,18 +67,38 @@ export function PlannerModal(props: { onClose: () => void; onGenerate: (plan: Pl
   const machineCounts = useMemo(() => {
     const m = new Map<string, number>();
     for (const g of plan.groups) {
-      const k = g.kind === 'miner' ? `Mineradora ${MINER_TIERS[g.ore!.tier].name}` : MACHINES[g.machine!].name;
+      const k = g.kind === 'miner' ? `Mineradora ${MINER_TIERS[g.ore!.tier].name}` : g.kind === 'extractor' ? EXTRACTORS[g.extractor!].name : MACHINES[g.machine!].name;
       m.set(k, (m.get(k) ?? 0) + g.count);
     }
     return [...m.entries()];
   }, [plan]);
-  const ores = useMemo(() => [...new Set(plan.groups.filter((g) => g.kind === 'miner').map((g) => g.item))], [plan]);
-  const beltMax = useMemo(() => {
-    const flows = plan.groups.flatMap((g) => [g.demand, ...g.inputLanes.flat().map((l) => l.demand)]);
-    const top = Math.max(0, ...flows);
-    return BELT_TIERS.find((t) => BELTS[t].rate >= top - 1e-6);
+  const ores = useMemo(() => [...new Set(plan.groups.filter((g) => g.kind === 'miner' || g.kind === 'extractor').map((g) => g.item))], [plan]);
+  /** maior Mk de esteira e de cano que a linha usa */
+  const maxUsed = useMemo(() => {
+    const flows = plan.groups.flatMap((g) => [
+      { item: g.item, v: g.demand },
+      ...g.inputLanes.flat().map((l) => ({ item: l.item, v: l.demand })),
+      ...g.byproducts.map((b) => ({ item: b.item, v: b.amount })),
+    ]);
+    const top = (fluid: boolean) => Math.max(0, ...flows.filter((f) => isFluid(f.item) === fluid).map((f) => f.v));
+    const solid = top(false);
+    const fluid = top(true);
+    return {
+      belt: solid > 0 ? BELT_TIERS.find((t) => BELTS[t].rate >= solid - 1e-6) : undefined,
+      pipe: fluid > 0 ? PIPE_TIERS.find((t) => PIPES[t].rate >= fluid - 1e-6) : undefined,
+    };
   }, [plan]);
-  const lines = plan.sinks.length;
+  const lines = plan.sinks.filter((s) => s.lane).length;
+  /** subprodutos somados por item */
+  const byproducts = useMemo(() => {
+    const m = new Map<ItemId, { amount: number; sinks: number }>();
+    for (const g of plan.groups)
+      for (const b of g.byproducts) {
+        const cur = m.get(b.item) ?? { amount: 0, sinks: 0 };
+        m.set(b.item, { amount: cur.amount + b.amount, sinks: cur.sinks + 1 });
+      }
+    return [...m.entries()];
+  }, [plan]);
 
   /* ---------- árvore ---------- */
 
@@ -110,12 +131,12 @@ export function PlannerModal(props: { onClose: () => void; onGenerate: (plan: Pl
           </button>
           <span className="dot" style={{ background: itemColor(item) }} />
           <span className="tree-item">{ITEMS[item].name}</span>
-          <span className="tree-rate">{fmt(rate)}/min</span>
+          <span className="tree-rate">{withUnit(fmt(rate), item)}</span>
           {external ? (
             <span className="tree-ext">⚠ fornecer de fora</span>
           ) : (
             <select value={choice} onChange={(e) => set({ choices: { ...st.choices, [item]: e.target.value } })}>
-              {isResource(item) && <option value={MINE}>⛏ Minerar</option>}
+              {isResource(item) && <option value={MINE}>{isFluid(item) ? `💧 Extrair (${EXTRACTORS[extractorFor(item)!].name})` : '⛏ Minerar'}</option>}
               {options.some((r) => !r.alternate) && (
                 <optgroup label="Padrão">
                   {options.filter((r) => !r.alternate).map((r) => (
@@ -208,6 +229,16 @@ export function PlannerModal(props: { onClose: () => void; onGenerate: (plan: Pl
               ))}
             </select>
           </label>
+          <label className="pl-field">
+            <span>Cano máx. liberado</span>
+            <select value={st.maxPipe} onChange={(e) => set({ maxPipe: Number(e.target.value) as PipeTier })}>
+              {PIPE_TIERS.map((t) => (
+                <option key={t} value={t}>
+                  {PIPES[t].name} ({PIPES[t].rate} m³/min)
+                </option>
+              ))}
+            </select>
+          </label>
           <div className="pl-field">
             <span>Distribuição</span>
             <div className="seg">
@@ -253,8 +284,14 @@ export function PlannerModal(props: { onClose: () => void; onGenerate: (plan: Pl
                     </tr>
                     <tr>
                       <td>Maior esteira usada</td>
-                      <td>{beltMax ? BELTS[beltMax].name : '—'}</td>
+                      <td>{maxUsed.belt ? BELTS[maxUsed.belt].name : '—'}</td>
                     </tr>
+                    {maxUsed.pipe && (
+                      <tr>
+                        <td>Maior cano usado</td>
+                        <td>{PIPES[maxUsed.pipe].name}</td>
+                      </tr>
+                    )}
                     {lines > 1 && (
                       <tr>
                         <td>Linhas paralelas</td>
@@ -266,36 +303,55 @@ export function PlannerModal(props: { onClose: () => void; onGenerate: (plan: Pl
 
                 {ores.length > 0 && (
                   <>
-                    <h3>Minério</h3>
+                    <h3>Extração</h3>
                     {ores.map((item) => {
                       const gs = groupsByItem.get(item) ?? [];
+                      const ext = gs[0]?.extractor;
+                      const info = ext ? EXTRACTORS[ext] : undefined;
                       return (
                         <div key={item} className="ore-row">
                           <div className="ore-name">
                             <span className="dot" style={{ background: itemColor(item) }} />
                             {ITEMS[item].name}
-                            <small>{fmt(gs.reduce((a, g) => a + g.demand, 0))}/min</small>
+                            <small>{withUnit(fmt(gs.reduce((a, g) => a + g.demand, 0)), item)}</small>
                           </div>
-                          <div className="seg">
-                            {(Object.keys(PURITIES) as Purity[]).map((p) => (
-                              <button key={p} className={ore(item).purity === p ? 'active' : ''} onClick={() => setOre(item, { purity: p })}>
-                                {PURITIES[p].name}
-                              </button>
-                            ))}
-                          </div>
-                          <div className="seg">
-                            {([1, 2, 3] as MinerTier[]).map((t) => (
-                              <button key={t} className={ore(item).tier === t ? 'active' : ''} onClick={() => setOre(item, { tier: t })}>
-                                {MINER_TIERS[t].name}
-                              </button>
-                            ))}
-                          </div>
+                          {(!info || info.usesPurity) && (
+                            <div className="seg">
+                              {(Object.keys(PURITIES) as Purity[]).map((p) => (
+                                <button key={p} className={ore(item).purity === p ? 'active' : ''} onClick={() => setOre(item, { purity: p })}>
+                                  {PURITIES[p].name}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                          {!info && (
+                            <div className="seg">
+                              {([1, 2, 3] as MinerTier[]).map((t) => (
+                                <button key={t} className={ore(item).tier === t ? 'active' : ''} onClick={() => setOre(item, { tier: t })}>
+                                  {MINER_TIERS[t].name}
+                                </button>
+                              ))}
+                            </div>
+                          )}
                           <small className="muted">
-                            {gs.reduce((a, g) => a + g.count, 0)} mineradora(s) @ {gs.map((g) => pct(g.clock)).join(' / ')}
+                            {gs.reduce((a, g) => a + g.count, 0)}× {info ? info.name : 'mineradora'} @ {gs.map((g) => pct(g.clock)).join(' / ')}
+                            {info?.clockByPressurizer ? ' (clock do pressurizador; consumo dele fora da conta)' : ''}
                           </small>
                         </div>
                       );
                     })}
+                  </>
+                )}
+
+                {byproducts.length > 0 && (
+                  <>
+                    <h3>Subprodutos</h3>
+                    {byproducts.map(([item, b]) => (
+                      <p key={item} className="pl-note">
+                        <span className="dot" style={{ background: itemColor(item) }} />
+                        {ITEMS[item].name}: {withUnit(fmt(b.amount), item)} → {b.sinks} armazém(ns) próprio(s)
+                      </p>
+                    ))}
                   </>
                 )}
 
@@ -304,7 +360,7 @@ export function PlannerModal(props: { onClose: () => void; onGenerate: (plan: Pl
                     <h3>Fornecer de fora</h3>
                     {plan.external.map((e) => (
                       <p key={e.item} className="pl-warn">
-                        ⚠ {ITEMS[e.item].name}: {fmt(e.demand)}/min — não dá pra produzir aqui (fluido ou coletável); a entrada fica aberta pra você ligar.
+                        ⚠ {ITEMS[e.item].name}: {withUnit(fmt(e.demand), e.item)} — não dá pra produzir em máquina (coletável/drop); a entrada fica aberta pra você ligar.
                       </p>
                     ))}
                   </>
@@ -317,7 +373,7 @@ export function PlannerModal(props: { onClose: () => void; onGenerate: (plan: Pl
         <footer className="modal-foot">
           <span className="muted">Todas as máquinas de cada etapa ficam no mesmo clock. A linha entra minimizada e selecionada; Ctrl+Z desfaz.</span>
           <button onClick={props.onClose}>Cancelar</button>
-          <button className="primary" disabled={!!plan.error || !plan.groups.length} onClick={() => props.onGenerate(plan, st.mode, st.maxBelt)}>
+          <button className="primary" disabled={!!plan.error || !plan.groups.length} onClick={() => props.onGenerate(plan, st.mode, st.maxBelt, st.maxPipe)}>
             Gerar ▶
           </button>
         </footer>

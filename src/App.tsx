@@ -331,7 +331,7 @@ function Planner() {
   /* ---------- gerador de linha ---------- */
 
   const generateLine = useCallback(
-    (plan: Plan, mode: DistributionMode, maxBelt: BeltTier) => {
+    (plan: Plan, mode: DistributionMode, maxBelt: BeltTier, maxPipe: PipeTier) => {
       // à direita do que já existe, alinhado ao topo
       const current = getNodes();
       const origin = current.length
@@ -340,7 +340,7 @@ function Planner() {
             y: Math.min(...current.map((n) => n.position.y)),
           }
         : { x: 0, y: 0 };
-      const { nodes: newNodes, edges: newEdges } = layoutPlan(plan, mode, maxBelt, origin);
+      const { nodes: newNodes, edges: newEdges } = layoutPlan(plan, mode, maxBelt, maxPipe, origin);
       setNodes((ns) => [...ns.map((n) => (n.selected ? { ...n, selected: false } : n)), ...newNodes.map((n) => ({ ...n, selected: true }))]);
       setEdges((es) => [...es.map((e) => (e.selected ? { ...e, selected: false } : e)), ...newEdges]);
       setPlannerOpen(false);

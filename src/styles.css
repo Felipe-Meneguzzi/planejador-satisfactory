@@ -1442,3 +1442,8 @@ button.primary {
   outline: 2px solid #8fd0ff;
   outline-offset: -4px;
 }
+
+.pl-note {
+  font-size: 12px;
+  margin: 4px 0;
+}
