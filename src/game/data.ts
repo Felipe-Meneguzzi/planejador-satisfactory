@@ -167,19 +167,23 @@ export interface ExtractorInfo {
   name: string;
   resources: ItemId[];
   usesPurity: boolean;
-  /** aceita overclock (o extrator de poço não: quem tem clock é o pressurizador) */
+  /** aceita overclock no próprio extrator */
   overclockable: boolean;
+  /** o clock vem do pressurizador do poço (vale pra todos os extratores dele) */
+  clockByPressurizer: boolean;
   rate: (purity: Purity) => number;
   /** MW a 100% (o poço é alimentado pelo pressurizador, que entra separado) */
   power: number;
 }
 const ex = data.extractors;
 export const EXTRACTORS: Record<ExtractorKind, ExtractorInfo> = {
-  water: { kind: 'water', name: ex.water.name, resources: [slug(ex.water.resource)], usesPurity: false, overclockable: ex.water.overclockable, rate: () => ex.water.rate, power: ex.water.power },
-  oil: { kind: 'oil', name: ex.oil.name, resources: [slug(ex.oil.resource)], usesPurity: true, overclockable: ex.oil.overclockable, rate: (p) => ex.oil.rates[p], power: ex.oil.power },
-  well: { kind: 'well', name: ex.well.name, resources: ex.well.resources.map(slug), usesPurity: true, overclockable: ex.well.overclockable, rate: (p) => ex.well.rates[p], power: ex.well.power },
+  water: { kind: 'water', name: ex.water.name, resources: [slug(ex.water.resource)], usesPurity: false, overclockable: ex.water.overclockable, clockByPressurizer: false, rate: () => ex.water.rate, power: ex.water.power },
+  oil: { kind: 'oil', name: ex.oil.name, resources: [slug(ex.oil.resource)], usesPurity: true, overclockable: ex.oil.overclockable, clockByPressurizer: false, rate: (p) => ex.oil.rates[p], power: ex.oil.power },
+  well: { kind: 'well', name: ex.well.name, resources: ex.well.resources.map(slug), usesPurity: true, overclockable: ex.well.overclockable, clockByPressurizer: true, rate: (p) => ex.well.rates[p], power: ex.well.power },
 };
 export const WELL_PRESSURIZER_NAME = ex.well.pressurizerName;
+/** dá pra mudar o clock (no extrator, ou no pressurizador no caso do poço) */
+export const extractorClockable = (k: ExtractorKind) => EXTRACTORS[k].overclockable || EXTRACTORS[k].clockByPressurizer;
 /** consumo do pressurizador de poço (um por poço, alimenta todos os extratores dele) */
 export const WELL_PRESSURIZER_POWER = ex.well.pressurizerPower;
 

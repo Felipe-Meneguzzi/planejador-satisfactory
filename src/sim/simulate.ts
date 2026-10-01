@@ -1,4 +1,4 @@
-import { AMPLIFICATION, BELTS, BELT_TIERS, EXTRACTORS, ITEMS, MACHINES, MINER_TIERS, OVERCLOCK, PIPES, PIPE_TIERS, PURITIES, getRecipe, isFluid, withUnit } from '../game/data';
+import { AMPLIFICATION, BELTS, BELT_TIERS, EXTRACTORS, ITEMS, MACHINES, MINER_TIERS, OVERCLOCK, PIPES, PIPE_TIERS, PURITIES, extractorClockable, getRecipe, isFluid, withUnit } from '../game/data';
 import type { BeltItem, BeltTier, ExtractorData, FactoryData, ItemId, MachineData, MinerData, PipeTier } from '../game/types';
 import { fmt } from '../format';
 
@@ -96,7 +96,7 @@ export const minerRate = (d: MinerData) =>
 /** Vazão de um extrator de fluido (m³/min) no clock atual */
 export const extractorRate = (d: ExtractorData) => {
   const info = EXTRACTORS[d.extractor];
-  return (info.rate(d.purity) * (info.overclockable ? clampClock(d.clock) : 100)) / 100;
+  return (info.rate(d.purity) * (extractorClockable(d.extractor) ? clampClock(d.clock) : 100)) / 100;
 };
 /** Consumo de energia com overclock/underclock */
 export const powerAt = (base: number, clock: number) => base * Math.pow(clampClock(clock) / 100, OVERCLOCK.powerExponent);

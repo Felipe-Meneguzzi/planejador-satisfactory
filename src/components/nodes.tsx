@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { Handle, Position, useNodeId, useReactFlow, useUpdateNodeInternals, type NodeProps } from '@xyflow/react';
-import { AMPLIFICATION, EXTRACTORS, ITEMS, MACHINES, MINER_TIERS, PURITIES, RECIPES, RESOURCES, WELL_PRESSURIZER_NAME, WELL_PRESSURIZER_POWER, getRecipe, isFluid, recipesFor } from '../game/data';
+import { AMPLIFICATION, EXTRACTORS, ITEMS, MACHINES, MINER_TIERS, PURITIES, RECIPES, RESOURCES, WELL_PRESSURIZER_NAME, WELL_PRESSURIZER_POWER, extractorClockable, getRecipe, isFluid, recipesFor } from '../game/data';
 import type {
   BeltItem,
   ExtractorKind,
@@ -569,10 +569,10 @@ export function ExtractorNodeView({ id, data, selected }: NodeProps<ExtractorNod
       )}
       {data.extractor === 'well' && (
         <div className="note">
-          Fica num nó-satélite do poço e não tem clock nem consumo próprio: quem consome ({fmt(WELL_PRESSURIZER_POWER)} MW) e faz overclock é o {WELL_PRESSURIZER_NAME}, que não entra na conta.
+          Fica num nó-satélite do poço e não consome energia. O clock aqui é o do {WELL_PRESSURIZER_NAME} (vale pra todos os extratores do poço); o consumo dele ({fmt(WELL_PRESSURIZER_POWER)} MW) não entra na conta.
         </div>
       )}
-      {info.overclockable && (
+      {extractorClockable(data.extractor) && (
         <ClockControl clock={data.clock} baseRate={info.rate(data.purity)} item={data.resource} onChange={(clock) => updateNodeData(id, { clock })} />
       )}
       <PortBlock>
