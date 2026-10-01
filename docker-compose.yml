@@ -1,0 +1,9 @@
+services:
+  planejador:
+    build: .
+    image: planejador-satisfactory
+    container_name: planejador-satisfactory
+    ports:
+      # troque a porta com PORT=3000 docker compose up -d
+      - "${PORT:-8080}:80"
+    restart: unless-stopped
