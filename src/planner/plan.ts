@@ -1,4 +1,4 @@
-import { BELTS, MACHINES, MINER_TIERS, PURITIES, RECIPES, RESOURCES, type Recipe } from '../game/data';
+import { BELTS, MACHINES, MINER_TIERS, PURITIES, RECIPES, RESOURCES, isFluid, type Recipe } from '../game/data';
 import type { BeltTier, ItemId, MachineId, MinerTier, Purity } from '../game/types';
 import { powerAt, shardsFor } from '../sim/simulate';
 
@@ -90,8 +90,12 @@ export interface Plan {
 
 /* ---------- receitas por item ---------- */
 
+/** Por enquanto o gerador só monta linhas de sólidos: receitas com fluido ficam de fora
+ *  (o item vira "fornecer de fora"). */
+const solidOnly = (r: Recipe) => ![...r.inputs, ...r.outputs].some((p) => isFluid(p.item));
+
 const byMainOutput = new Map<ItemId, Recipe[]>();
-for (const r of Object.values(RECIPES)) {
+for (const r of Object.values(RECIPES).filter(solidOnly)) {
   const k = r.outputs[0].item;
   if (!byMainOutput.has(k)) byMainOutput.set(k, []);
   byMainOutput.get(k)!.push(r);
@@ -112,7 +116,7 @@ export function defaultChoice(item: ItemId): string | undefined {
 export function choiceOf(item: ItemId, choices: Record<ItemId, string>): string | undefined {
   const c = choices[item];
   if (c === MINE && isResource(item)) return MINE;
-  if (c && RECIPES[c]?.outputs[0].item === item) return c;
+  if (c && RECIPES[c]?.outputs[0].item === item && solidOnly(RECIPES[c])) return c;
   return defaultChoice(item);
 }
 
