@@ -338,12 +338,37 @@ details summary {
   border-color: var(--err);
 }
 .fnode-header {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 6px;
+  /* mesma altura de quando os botões ficavam na linha (20px + padding): a altura do card
+     minimizado não muda (o gerador de linha depende dela) */
+  min-height: 32px;
   padding: 6px 10px;
   border-radius: 7px 7px 0 0;
   color: #fff;
+}
+/* minimizar/girar: escondidos até passar o mouse ou selecionar, por cima do fim do cabeçalho
+   (com o fundo dele), pra não roubar espaço do nome */
+.fnode-actions {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px 0 10px;
+  background: inherit;
+  border-radius: 0 7px 0 0;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+.react-flow__node:hover .fnode-actions,
+.react-flow__node.selected .fnode-actions,
+.fnode-actions:focus-within {
+  opacity: 1;
 }
 .fnode-title {
   font-weight: 600;
@@ -360,9 +385,10 @@ details summary {
   margin-left: 6px;
 }
 .fnode-power {
+  flex-shrink: 0;
   white-space: nowrap;
-  font-size: 11px;
-  opacity: 0.9;
+  font-size: 10px;
+  opacity: 0.85;
 }
 .fnode-body {
   padding: 8px 10px;
@@ -911,6 +937,13 @@ input.num {
 .mini-chip.alt {
   color: #c792ff;
   border-color: #c792ff66;
+}
+.mini-chip.power {
+  margin-left: auto;
+  white-space: nowrap;
+}
+.mini-chip.power.gen {
+  color: #b8ffd9;
 }
 .mini-chip.sloop {
   color: #e7a0ff;
