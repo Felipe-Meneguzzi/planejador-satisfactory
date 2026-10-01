@@ -18,7 +18,7 @@ const SETTLE_MS = 350;
 const keyOf = (nodes: FactoryNode[], edges: BeltEdge[]) =>
   JSON.stringify([
     nodes.map((n) => [n.id, n.type, n.position.x, n.position.y, n.data]),
-    edges.map((e) => [e.id, e.source, e.sourceHandle, e.target, e.targetHandle, e.data]),
+    edges.map((e) => [e.id, e.type, e.source, e.sourceHandle, e.target, e.targetHandle, e.data]),
   ]);
 
 const clean = (nodes: FactoryNode[], edges: BeltEdge[]): Snapshot =>

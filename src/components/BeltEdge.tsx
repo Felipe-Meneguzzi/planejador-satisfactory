@@ -1,7 +1,7 @@
 import { createPortal } from 'react-dom';
 import { BaseEdge, Position, getBezierPath, getSmoothStepPath, useReactFlow, type EdgeProps } from '@xyflow/react';
-import { BELTS, BELT_TIERS, ITEMS } from '../game/data';
-import type { BeltEdge, BeltTier } from '../game/types';
+import { BELTS, BELT_TIERS, ITEMS, PIPES, PIPE_TIERS } from '../game/data';
+import type { BeltEdge, BeltTier, PipeTier } from '../game/types';
 import { fmt } from '../format';
 import { GRID } from '../grid';
 import { useLabelRoot, useSettings } from '../state/settings';
@@ -111,8 +111,15 @@ function bendsPath(p: EdgeProps<BeltEdge>, s: Pt, t: Pt, bends: number[]): [stri
   return [d, last.x, last.y];
 }
 
-export function BeltEdgeView(props: EdgeProps<BeltEdge>) {
-  const { id, data, selected } = props;
+/** cor da borda do cano quando está tudo certo (aço) */
+const PIPE_RIM = '#8fa3b8';
+
+/**
+ * Conexão entre máquinas. Esteira (sólidos): linha fina na cor do item com os itens andando.
+ * Cano (fluidos): tubo grosso com borda metálica e o fluido correndo por dentro.
+ */
+function ConveyanceEdge(props: EdgeProps<BeltEdge> & { pipe: boolean }) {
+  const { id, data, selected, pipe } = props;
   const sim = useSim();
   const r = sim.edges[id];
   const issues = sim.byTarget[id] ?? [];
@@ -126,20 +133,37 @@ export function BeltEdgeView(props: EdgeProps<BeltEdge>) {
   const planned = routing === 'grid' && data?.bends && a && Math.abs(a[0] - sp.x) < 1.5 && Math.abs(a[1] - sp.y) < 1.5 && Math.abs(a[2] - tp.x) < 1.5 && Math.abs(a[3] - tp.y) < 1.5;
   const [path, lx, ly] = planned ? bendsPath(props, sp, tp, data!.bends!) : routing === 'grid' ? gridPath(props, sp, tp) : getBezierPath(props);
   const tier = data?.tier ?? 1;
+  const tiers = pipe ? PIPE_TIERS : BELT_TIERS;
+  const tierInfo = (t: number) => (pipe ? PIPES[t as PipeTier] : BELTS[t as BeltTier]) ?? (pipe ? PIPES[1] : BELTS[1]);
+  const cap = r?.cap ?? tierInfo(tier).rate;
   const status = r?.status ?? 'idle';
-  const color = status === 'ok' ? itemColor(r.item) : STATUS_COLOR[status];
+  const itemCol = itemColor(r?.item ?? null);
+  const color = status === 'ok' ? itemCol : STATUS_COLOR[status];
   const moving = !!r && r.flow > 1e-6;
+  const unit = pipe ? ' m³' : '';
+  const itemText = r?.item === 'mixed' ? (pipe ? 'fluidos misturados' : 'misturado') : r?.item ? ITEMS[r.item].name : 'vazi' + (pipe ? 'o' : 'a');
 
   return (
     <>
-      <BaseEdge id={id} path={path} style={{ stroke: color, strokeWidth: selected ? 6 : 4 }} />
-      {moving && <path d={path} className="belt-items" style={{ animationDuration: `${(1.1 / Math.sqrt(tier)).toFixed(2)}s` }} />}
+      {pipe ? (
+        <>
+          {/* borda do tubo: aço quando ok, cor do problema quando não */}
+          <BaseEdge id={id} path={path} style={{ stroke: status === 'ok' || status === 'idle' ? PIPE_RIM : color, strokeWidth: selected ? 13 : 11, strokeLinecap: 'round' }} />
+          <path d={path} className="pipe-core" style={{ stroke: status === 'idle' ? '#2a2f37' : itemCol }} />
+          {moving && <path d={path} className="pipe-flow" style={{ animationDuration: `${(2.4 / tier).toFixed(2)}s` }} />}
+        </>
+      ) : (
+        <>
+          <BaseEdge id={id} path={path} style={{ stroke: color, strokeWidth: selected ? 6 : 4 }} />
+          {moving && <path d={path} className="belt-items" style={{ animationDuration: `${(1.1 / Math.sqrt(tier)).toFixed(2)}s` }} />}
+        </>
+      )}
       {/* faixa invisível só pra dica ao passar o mouse (útil com os rótulos desligados) */}
       <path d={path} className="belt-hover" data-planned={planned ? '1' : undefined}>
         <title>
           {[
-            `Esteira ${BELTS[tier].name} · ${r?.item === 'mixed' ? 'misturado' : r?.item ? ITEMS[r.item].name : 'vazia'}`,
-            `${fmt(r?.flow ?? 0)} / ${fmt(r?.cap ?? BELTS[tier].rate)} por min`,
+            `${pipe ? 'Cano' : 'Esteira'} ${tierInfo(tier).name} · ${itemText}`,
+            `${fmt(r?.flow ?? 0)} / ${fmt(cap)}${unit} por min`,
             ...issues.map((i) => i.message),
           ].join('\n')}
         </title>
@@ -148,38 +172,44 @@ export function BeltEdgeView(props: EdgeProps<BeltEdge>) {
         labelRoot &&
         createPortal(
           <div
-            className={`belt-label nodrag nopan ${status} ${selected ? 'selected' : ''}`}
+            className={`belt-label nodrag nopan ${pipe ? 'pipe' : ''} ${status} ${selected ? 'selected' : ''}`}
             style={{ transform: `translate(-50%, -50%) translate(${lx}px, ${ly}px)`, borderColor: color }}
             title={issues.map((i) => i.message).join('\n') || undefined}
           >
-            <select value={tier} onChange={(e) => updateEdgeData(id, { tier: Number(e.target.value) as BeltTier })}>
-              {BELT_TIERS.map((t) => (
+            {pipe && <span className="pipe-icon">💧</span>}
+            <select value={tier} onChange={(e) => updateEdgeData(id, { tier: Number(e.target.value) as BeltTier })} title={pipe ? 'Cano' : 'Esteira'}>
+              {tiers.map((t) => (
                 <option key={t} value={t}>
-                  {BELTS[t].name}
+                  {tierInfo(t).name}
                 </option>
               ))}
             </select>
             <button
               className="belt-route"
               onClick={() => updateEdgeData(id, { routing: routing === 'grid' ? 'curve' : 'grid' })}
-              title={routing === 'grid' ? 'Esta esteira segue o grid — clique pra fazer curva' : 'Esta esteira faz curva — clique pra seguir o grid'}
+              title={routing === 'grid' ? 'Segue o grid — clique pra fazer curva' : 'Faz curva — clique pra seguir o grid'}
             >
               {routing === 'grid' ? '┐' : '∿'}
             </button>
             <span className="belt-rate">
-              <span className="dot" style={{ background: itemColor(r?.item ?? null) }} />
-              {selected && <span className="belt-item-name">{r?.item === 'mixed' ? 'Misturado' : r?.item ? ITEMS[r.item].name : 'Vazia'}</span>}
+              <span className="dot" style={{ background: itemCol }} />
+              {selected && <span className="belt-item-name">{itemText}</span>}
               {fmt(r?.flow ?? 0)}
-              <small>/{fmt(r?.cap ?? BELTS[tier].rate)}</small>
+              <small>
+                /{fmt(cap)}
+                {unit}
+              </small>
             </span>
             {(status === 'bottleneck' || status === 'wrong-item') && <span className="belt-flag">!</span>}
             {status === 'excess' && <span className="belt-flag warn">!</span>}
-          </div>
-,
+          </div>,
           labelRoot,
         )}
     </>
   );
 }
 
-export const edgeTypes = { belt: BeltEdgeView };
+export const BeltEdgeView = (props: EdgeProps<BeltEdge>) => <ConveyanceEdge {...props} pipe={false} />;
+export const PipeEdgeView = (props: EdgeProps<BeltEdge>) => <ConveyanceEdge {...props} pipe />;
+
+export const edgeTypes = { belt: BeltEdgeView, pipe: PipeEdgeView };

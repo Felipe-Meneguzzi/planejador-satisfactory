@@ -17,8 +17,9 @@ import {
   type Edge,
   type NodeChange,
 } from '@xyflow/react';
-import { BELTS, BELT_TIERS, GAME_VERSION, MACHINES } from './game/data';
-import type { BeltEdge, BeltTier, FactoryData, FactoryNode } from './game/types';
+import { GAME_VERSION, MACHINES } from './game/data';
+import { mediumsMatch, portMedium } from './game/ports';
+import type { BeltEdge, BeltTier, FactoryData, FactoryNode, PipeTier } from './game/types';
 import { fmt } from './format';
 import { GRID } from './grid';
 
@@ -51,6 +52,8 @@ export default function App() {
 const minimapColor = (n: FactoryNode) => {
   const d = n.data;
   if (d.kind === 'miner') return '#7d5236';
+  if (d.kind === 'extractor') return '#1f5f8b';
+  if ((d.kind === 'splitter' || d.kind === 'merger') && d.fluid) return '#3b6f99';
   if (d.kind === 'machine') return MACHINES[d.machine].color;
   if (d.kind === 'sink') return '#2f7a52';
   return '#555b66';
@@ -92,6 +95,7 @@ function Planner() {
   const [nodes, setNodes, onNodesChange] = useNodesState<FactoryNode>(initial.nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState<BeltEdge>(initial.edges);
   const [defaultTier, setDefaultTier] = useState<BeltTier>(initial.defaultTier);
+  const [defaultPipeTier, setDefaultPipeTier] = useState<PipeTier>(initial.defaultPipeTier ?? 1);
   const [gridBelts, setGridBelts] = useState(initial.gridBelts ?? true);
   const [beltLabels, setBeltLabels] = useState(initial.beltLabels ?? true);
   const settings = useMemo(() => ({ gridBelts, beltLabels }), [gridBelts, beltLabels]);
@@ -117,13 +121,21 @@ function Planner() {
   // Só recalcula quando muda algo que afeta o fluxo (arrastar node não recalcula)
   const simKey = JSON.stringify([
     nodes.map((n) => [n.id, n.data]),
-    edges.map((e) => [e.id, e.source, e.sourceHandle, e.target, e.targetHandle, e.data?.tier]),
+    edges.map((e) => [e.id, e.type, e.source, e.sourceHandle, e.target, e.targetHandle, e.data?.tier]),
   ]);
   const sim = useMemo(
     () =>
       simulate(
         nodes.map((n) => ({ id: n.id, data: n.data })),
-        edges.map((e) => ({ id: e.id, source: e.source, sourceHandle: e.sourceHandle, target: e.target, targetHandle: e.targetHandle, tier: e.data?.tier ?? 1 })),
+        edges.map((e) => ({
+          id: e.id,
+          source: e.source,
+          sourceHandle: e.sourceHandle,
+          target: e.target,
+          targetHandle: e.targetHandle,
+          tier: e.data?.tier ?? 1,
+          medium: e.type === 'pipe' ? ('pipe' as const) : ('belt' as const),
+        })),
       ),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [simKey],
@@ -207,21 +219,37 @@ function Planner() {
   }, [nodesReady, fitView]);
 
   useEffect(() => {
-    const t = setTimeout(() => saveState({ version: 1, nodes, edges, defaultTier, gridBelts, beltLabels }), 300);
+    const t = setTimeout(() => saveState({ version: 1, nodes, edges, defaultTier, defaultPipeTier, gridBelts, beltLabels }), 300);
     return () => clearTimeout(t);
-  }, [nodes, edges, defaultTier, gridBelts, beltLabels]);
+  }, [nodes, edges, defaultTier, defaultPipeTier, gridBelts, beltLabels]);
 
   /* ---------- conexões ---------- */
 
+  /** meio da porta de origem: fluido vira cano, sólido vira esteira */
+  const sourceMedium = useCallback(
+    (c: Connection | Edge) => {
+      const n = getNode(c.source);
+      return n ? portMedium(n.data, c.sourceHandle) : 'solid';
+    },
+    [getNode],
+  );
+
   const isValidConnection = useCallback(
-    (c: Connection | Edge) =>
-      c.source !== c.target &&
-      !!c.sourceHandle?.startsWith('out') &&
-      !!c.targetHandle?.startsWith('in') &&
-      !edges.some(
-        (e) => (e.source === c.source && e.sourceHandle === c.sourceHandle) || (e.target === c.target && e.targetHandle === c.targetHandle),
-      ),
-    [edges],
+    (c: Connection | Edge) => {
+      const src = getNode(c.source);
+      const tgt = getNode(c.target);
+      return (
+        !!src &&
+        !!tgt &&
+        c.source !== c.target &&
+        !!c.sourceHandle?.startsWith('out') &&
+        !!c.targetHandle?.startsWith('in') &&
+        // fluido só liga em fluido (cano); sólido só em sólido (esteira)
+        mediumsMatch(portMedium(src.data, c.sourceHandle), portMedium(tgt.data, c.targetHandle)) &&
+        !edges.some((e) => (e.source === c.source && e.sourceHandle === c.sourceHandle) || (e.target === c.target && e.targetHandle === c.targetHandle))
+      );
+    },
+    [edges, getNode],
   );
 
   const onConnect = useCallback(
@@ -231,9 +259,10 @@ function Planner() {
           (e) => (e.source === c.source && e.sourceHandle === c.sourceHandle) || (e.target === c.target && e.targetHandle === c.targetHandle),
         );
         if (taken) return eds;
-        return [...eds, { ...c, id: newId('b'), type: 'belt', data: { tier: defaultTier } }];
+        const pipe = sourceMedium(c) === 'fluid';
+        return [...eds, { ...c, id: newId('b'), type: pipe ? 'pipe' : 'belt', data: { tier: pipe ? defaultPipeTier : defaultTier } }];
       }),
-    [setEdges, defaultTier],
+    [setEdges, defaultTier, defaultPipeTier, sourceMedium],
   );
 
   /* ---------- adicionar nodes ---------- */
@@ -325,17 +354,18 @@ function Planner() {
 
   /* ---------- toolbar ---------- */
 
-  const replaceAll = (s: { nodes: FactoryNode[]; edges: BeltEdge[]; defaultTier: BeltTier; gridBelts?: boolean; beltLabels?: boolean }) => {
+  const replaceAll = (s: { nodes: FactoryNode[]; edges: BeltEdge[]; defaultTier: BeltTier; defaultPipeTier?: PipeTier; gridBelts?: boolean; beltLabels?: boolean }) => {
     setNodes(s.nodes);
     setEdges(s.edges);
     setDefaultTier(s.defaultTier);
     if (s.gridBelts !== undefined) setGridBelts(s.gridBelts);
+    if (s.defaultPipeTier !== undefined) setDefaultPipeTier(s.defaultPipeTier);
     if (s.beltLabels !== undefined) setBeltLabels(s.beltLabels);
     setTimeout(() => (s.nodes.length ? fitView({ padding: 0.15, maxZoom: 1, duration: 300 }) : setViewport({ x: 0, y: 0, zoom: 1 })), 50);
   };
 
   const exportJson = () => {
-    const blob = new Blob([JSON.stringify(sanitize({ version: 1, nodes, edges, defaultTier, gridBelts, beltLabels }), null, 2)], { type: 'application/json' });
+    const blob = new Blob([JSON.stringify(sanitize({ version: 1, nodes, edges, defaultTier, defaultPipeTier, gridBelts, beltLabels }), null, 2)], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = `fabrica-${new Date().toISOString().slice(0, 10)}.json`;
@@ -402,16 +432,6 @@ function Planner() {
               ↷
             </button>
           </div>
-          <label className="belt-default" title="Mk usado nas esteiras novas">
-            Esteira
-            <select value={defaultTier} onChange={(e) => setDefaultTier(Number(e.target.value) as BeltTier)}>
-              {BELT_TIERS.map((t) => (
-                <option key={t} value={t}>
-                  {BELTS[t].name} ({BELTS[t].rate}/min)
-                </option>
-              ))}
-            </select>
-          </label>
           <button
             className={`toggle ${gridBelts ? 'on' : ''}`}
             onClick={() => setGridBelts((g) => !g)}
@@ -442,7 +462,16 @@ function Planner() {
       </datalist>
 
       <div className="main">
-        <Palette onAdd={addNode} version={GAME_VERSION} onOpenPlanner={() => setPlannerOpen(true)} />
+        <Palette
+          onAdd={addNode}
+          version={GAME_VERSION}
+          onOpenPlanner={() => setPlannerOpen(true)}
+          defaults={{ belt: defaultTier, pipe: defaultPipeTier }}
+          onDefaults={(d) => {
+            if (d.belt) setDefaultTier(d.belt);
+            if (d.pipe) setDefaultPipeTier(d.pipe);
+          }}
+        />
         <div className="canvas" ref={canvasRef} onDragOver={onDragOver} onDrop={onDrop} {...clipboard.trackMouse}>
           <SettingsContext.Provider value={settings}>
           <LabelRootContext.Provider value={labelRoot}>

@@ -1,6 +1,6 @@
 import { useMemo, useState, type DragEvent } from 'react';
-import { ALL_RECIPES, ITEMS, MACHINES, MACHINE_IDS, MINER_TIERS, PURITIES, RECIPES, RESOURCES, recipesFor } from '../game/data';
-import type { FactoryData, Purity } from '../game/types';
+import { ALL_RECIPES, BELTS, BELT_TIERS, EXTRACTORS, ITEMS, MACHINES, MACHINE_IDS, MINER_TIERS, PIPES, PIPE_TIERS, PURITIES, RECIPES, RESOURCES, recipesFor, withUnit } from '../game/data';
+import type { BeltTier, ExtractorKind, FactoryData, ItemId, PipeTier, Purity } from '../game/types';
 import { fmt } from '../format';
 
 export interface PaletteEntry {
@@ -30,6 +30,8 @@ const DEFAULT_RECIPE: Record<string, string> = {
   constructor: 'iron-plate',
   assembler: 'reinforced-iron-plate',
   manufacturer: 'computer',
+  refinery: 'plastic',
+  packager: 'packaged-water',
 };
 
 const machineEntries: PaletteEntry[] = MACHINE_IDS.map((id) => {
@@ -37,15 +39,36 @@ const machineEntries: PaletteEntry[] = MACHINE_IDS.map((id) => {
   return {
     key: `machine-${id}`,
     label: m.name,
-    sub: `${recipesFor(id).length} receitas · ${fmt(m.power)} MW`,
+    sub: `${recipesFor(id).length} receitas · ${m.variablePower ? `${fmt(m.variablePower.min)}–${fmt(m.variablePower.max)}` : fmt(m.power)} MW`,
     icon: m.icon,
     color: m.color,
     data: { kind: 'machine', machine: id, recipe: (RECIPES[DEFAULT_RECIPE[id]] ? DEFAULT_RECIPE[id] : recipesFor(id)[0]?.id) ?? '', clock: 100 },
   };
 });
 
+const FLUID_COLOR = '#1f5f8b';
+const extractorEntry = (extractor: ExtractorKind, resource: ItemId, label: string): PaletteEntry => {
+  const info = EXTRACTORS[extractor];
+  return {
+    key: `extractor-${extractor}-${resource}`,
+    label,
+    sub: `${info.name} · ${fmt(info.rate('normal'))} m³/min${info.usesPurity ? ' (normal)' : ''}`,
+    icon: extractor === 'water' ? '💧' : extractor === 'oil' ? '🛢️' : '🕳️',
+    color: FLUID_COLOR,
+    data: { kind: 'extractor', extractor, resource, purity: 'normal', clock: 100 },
+  };
+};
+const fluidEntries: PaletteEntry[] = [
+  extractorEntry('water', EXTRACTORS.water.resources[0], 'Água'),
+  extractorEntry('oil', EXTRACTORS.oil.resources[0], 'Petróleo'),
+  extractorEntry('well', EXTRACTORS.well.resources.find((r) => r === 'nitrogen-gas') ?? EXTRACTORS.well.resources[0], 'Poço de recurso'),
+  { key: 'pipe-split', label: 'Junção (divide)', sub: 'Pipeline Junction · 1 cano → 3', icon: '💧', color: '#3b6f99', data: { kind: 'splitter', fluid: true } },
+  { key: 'pipe-merge', label: 'Junção (junta)', sub: 'Pipeline Junction · 3 canos → 1', icon: '💧', color: '#3b6f99', data: { kind: 'merger', fluid: true } },
+];
+
 const GROUPS: { title: string; entries: PaletteEntry[] }[] = [
   { title: 'Nós de recurso', entries: (['impure', 'normal', 'pure'] as Purity[]).map((p) => minerEntry(p)) },
+  { title: 'Fluidos', entries: fluidEntries },
   { title: 'Máquinas', entries: machineEntries },
   {
     title: 'Logística',
@@ -68,7 +91,7 @@ function search(q: string): PaletteEntry[] {
       return {
         key: `recipe-${r.id}`,
         label: r.name,
-        sub: `${m.name} · ${r.outputs.map((o) => `${fmt(o.rate)} ${ITEMS[o.item].name}`).join(' + ')}/min`,
+        sub: `${m.name} · ${r.outputs.map((o) => `${withUnit(fmt(o.rate), o.item)} ${ITEMS[o.item].name}`).join(' + ')}`,
         icon: m.icon,
         color: m.color,
         data: { kind: 'machine', machine: r.machine, recipe: r.id, clock: 100 },
@@ -76,12 +99,29 @@ function search(q: string): PaletteEntry[] {
     },
   );
   const ores = RESOURCES.filter((id) => norm(ITEMS[id].name).includes(t)).map((id) => minerEntry('normal', id));
-  return [...ores, ...recipes];
+  // fluidos extraídos (água, petróleo, nitrogênio...) viram o extrator certo
+  const fluidSources = (Object.keys(EXTRACTORS) as ExtractorKind[]).flatMap((k) =>
+    EXTRACTORS[k].resources.filter((id) => norm(ITEMS[id].name).includes(t)).map((id) => extractorEntry(k, id, ITEMS[id].name)),
+  );
+  return [...ores, ...fluidSources, ...recipes];
 }
 
 export const DND_TYPE = 'application/x-satisplanner';
 
-export function Palette({ onAdd, version, onOpenPlanner }: { onAdd: (data: FactoryData) => void; version: string; onOpenPlanner: () => void }) {
+export function Palette({
+  onAdd,
+  version,
+  onOpenPlanner,
+  defaults,
+  onDefaults,
+}: {
+  onAdd: (data: FactoryData) => void;
+  version: string;
+  onOpenPlanner: () => void;
+  /** Mk usado nas conexões novas */
+  defaults: { belt: BeltTier; pipe: PipeTier };
+  onDefaults: (d: { belt?: BeltTier; pipe?: PipeTier }) => void;
+}) {
   const [query, setQuery] = useState('');
   const results = useMemo(() => (query.trim() ? search(query) : null), [query]);
 
@@ -112,6 +152,28 @@ export function Palette({ onAdd, version, onOpenPlanner }: { onAdd: (data: Facto
       <button className="planner-btn" onClick={onOpenPlanner} title="Escolha um produto e a quantidade: monta a linha inteira com 100% de eficiência">
         🏭 Gerar linha
       </button>
+      <div className="palette-defaults" title="Mk usado quando você cria uma conexão nova">
+        <label>
+          Esteira
+          <select value={defaults.belt} onChange={(e) => onDefaults({ belt: Number(e.target.value) as BeltTier })}>
+            {BELT_TIERS.map((t) => (
+              <option key={t} value={t}>
+                {BELTS[t].name} ({BELTS[t].rate})
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Cano
+          <select value={defaults.pipe} onChange={(e) => onDefaults({ pipe: Number(e.target.value) as PipeTier })}>
+            {PIPE_TIERS.map((t) => (
+              <option key={t} value={t}>
+                {PIPES[t].name} ({PIPES[t].rate})
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
       <input
         className="palette-search"
         placeholder="Buscar receita, item ou minério…"

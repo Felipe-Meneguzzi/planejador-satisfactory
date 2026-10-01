@@ -1,4 +1,4 @@
-import type { BeltEdge, BeltTier, FactoryNode } from '../game/types';
+import type { BeltEdge, BeltTier, FactoryNode, PipeTier } from '../game/types';
 
 const KEY = 'satisplanner:v1';
 
@@ -7,6 +7,8 @@ export interface SavedState {
   nodes: FactoryNode[];
   edges: BeltEdge[];
   defaultTier: BeltTier;
+  /** Mk dos canos novos */
+  defaultPipeTier?: PipeTier;
   /** padrão das esteiras: seguir o grid com ângulos retos */
   gridBelts?: boolean;
   /** mostrar rótulos nas esteiras */
@@ -22,12 +24,13 @@ export function sanitize(raw: unknown): SavedState | null {
   return {
     version: 1,
     defaultTier: p.defaultTier ?? 1,
+    defaultPipeTier: p.defaultPipeTier ?? 1,
     gridBelts: p.gridBelts ?? true,
     beltLabels: p.beltLabels ?? true,
     nodes: p.nodes.map((n) => ({ id: n.id, type: n.type, position: n.position, data: n.data }) as FactoryNode),
     edges: p.edges.map((e) => ({
       id: e.id,
-      type: 'belt' as const,
+      type: e.type === 'pipe' ? ('pipe' as const) : ('belt' as const),
       source: e.source,
       sourceHandle: e.sourceHandle,
       target: e.target,

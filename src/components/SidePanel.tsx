@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { BELTS, ITEMS } from '../game/data';
+import { BELTS, ITEMS, withUnit } from '../game/data';
 import { fmt } from '../format';
 import type { Issue, SimResult } from '../sim/simulate';
 
@@ -38,8 +38,8 @@ export function SidePanel(props: {
                     <span className="dot" style={{ background: ITEMS[p.item].color }} />
                     {ITEMS[p.item].name}
                   </td>
-                  <td>{p.stored ? `${fmt(p.stored)}/min` : '—'}</td>
-                  <td>{p.loose ? `${fmt(p.loose)}/min` : '—'}</td>
+                  <td>{p.stored ? withUnit(fmt(p.stored), p.item) : '—'}</td>
+                  <td>{p.loose ? withUnit(fmt(p.loose), p.item) : '—'}</td>
                 </tr>
               ))}
             </tbody>
@@ -71,8 +71,10 @@ export function SidePanel(props: {
         <div><span className="swatch" style={{ background: 'var(--warn)' }} /> Sobrando item (produz &gt; consome)</div>
         <div><span className="swatch" style={{ background: '#4a4f58' }} /> Parada</div>
         <div><span className="swatch" style={{ background: ITEMS['iron-ore'].color }} /> OK (cor do item)</div>
+        <div><span className="swatch pipe-swatch" /> Cano (fluido, m³/min)</div>
         <div><span className="swatch round" style={{ background: 'var(--port-in)' }} /> Conector de entrada</div>
         <div><span className="swatch round" style={{ background: 'var(--port-out)' }} /> Conector de saída</div>
+        <div><span className="swatch square" /> Conector quadrado = fluido</div>
       </section>
     </aside>
   );

@@ -1,10 +1,10 @@
-import { BELTS, BELT_TIERS, ITEMS, MACHINES, getRecipe } from '../game/data';
-import type { BeltEdge, BeltItem, BeltRouting, BeltTier, FactoryNode } from '../game/types';
+import { BELTS, BELT_TIERS, EXTRACTORS, ITEMS, MACHINES, PIPES, PIPE_TIERS, getRecipe } from '../game/data';
+import type { BeltEdge, BeltItem, BeltRouting, BeltTier, FactoryNode, PipeTier } from '../game/types';
 import { fmt } from '../format';
 import type { EdgeResult, Issue } from '../sim/simulate';
 import { itemColor } from './nodes';
 
-const itemLabel = (item: BeltItem) => (item === 'mixed' ? 'Itens misturados' : item ? ITEMS[item].name : 'Nada (esteira vazia)');
+const itemLabel = (item: BeltItem) => (item === 'mixed' ? 'Misturado' : item ? ITEMS[item].name : 'Nada passando');
 
 /** Nome curto do node pra mostrar "de onde vem / pra onde vai" */
 export function nodeLabel(n?: FactoryNode): string {
@@ -13,14 +13,16 @@ export function nodeLabel(n?: FactoryNode): string {
   switch (d.kind) {
     case 'miner':
       return `Mineradora · ${ITEMS[d.resource].name}`;
+    case 'extractor':
+      return `${EXTRACTORS[d.extractor].name} · ${ITEMS[d.resource].name}`;
     case 'machine': {
       const r = getRecipe(d);
       return `${MACHINES[d.machine].name} · ${r.name.replace(/^Alternate: /, '')}`;
     }
     case 'splitter':
-      return 'Divisor';
+      return d.fluid ? 'Junção (divide)' : 'Divisor';
     case 'merger':
-      return 'Mesclador';
+      return d.fluid ? 'Junção (junta)' : 'Mesclador';
     case 'sink':
       return 'Armazém';
   }
@@ -56,28 +58,35 @@ export function BeltInspector(props: {
 }) {
   const { edge, result: r } = props;
   const tier = edge.data?.tier ?? 1;
-  const cap = r?.cap ?? BELTS[tier].rate;
+  const pipe = edge.type === 'pipe';
+  const tiers = pipe ? PIPE_TIERS : BELT_TIERS;
+  const tierInfo = (t: number) => (pipe ? PIPES[t as PipeTier] : BELTS[t as BeltTier]) ?? (pipe ? PIPES[1] : BELTS[1]);
+  const cap = r?.cap ?? tierInfo(tier).rate;
+  const unit = pipe ? 'm³/min' : 'por min';
+  const per = pipe ? ' m³/min' : '/min';
   const flow = r?.flow ?? 0;
   const use = cap ? flow / cap : 0;
   const status = r?.status ?? 'idle';
   return (
     <section className="belt-inspector">
-      <h3>Esteira selecionada</h3>
+      <h3>{pipe ? '💧 Cano selecionado' : 'Esteira selecionada'}</h3>
 
       <div className="bi-item">
         <span className="bi-dot" style={{ background: itemColor(r?.item ?? null) }} />
         <div>
           <b>{itemLabel(r?.item ?? null)}</b>
-          <small className={`bi-status ${status}`}>{STATUS_TEXT[status]}</small>
+          <small className={`bi-status ${status}`}>{pipe ? STATUS_TEXT[status].replace('item', 'fluido').replace('Esteira fraca', 'Cano fraco') : STATUS_TEXT[status]}</small>
         </div>
       </div>
 
       <div className="bi-flow">
         <span className="bi-big">{fmt(flow)}</span>
-        <span className="muted">/ {fmt(cap)} por min</span>
+        <span className="muted">
+          / {fmt(cap)} {unit}
+        </span>
         <span className="bi-pct">{Math.round(use * 100)}%</span>
       </div>
-      <div className="bi-bar" title={`${Math.round(use * 100)}% da capacidade da esteira`}>
+      <div className="bi-bar" title={`${Math.round(use * 100)}% da capacidade ${pipe ? 'do cano' : 'da esteira'}`}>
         <div style={{ width: `${Math.min(100, use * 100)}%`, background: status === 'ok' || status === 'idle' ? itemColor(r?.item ?? null) : status === 'excess' ? 'var(--warn)' : 'var(--err)' }} />
       </div>
 
@@ -85,17 +94,26 @@ export function BeltInspector(props: {
         <tbody>
           <tr>
             <td>Chegando da origem</td>
-            <td>{fmt(Math.min(r?.offered ?? 0, cap))}/min</td>
+            <td>
+              {fmt(Math.min(r?.offered ?? 0, cap))}
+              {per}
+            </td>
           </tr>
           {r && r.offered > cap + 1e-6 && (
             <tr>
               <td>Origem queria mandar</td>
-              <td className="warn-text">{fmt(r.offered)}/min</td>
+              <td className="warn-text">
+                {fmt(r.offered)}
+                {per}
+              </td>
             </tr>
           )}
           <tr>
             <td>Destino aceita</td>
-            <td>{fmt(r?.wanted ?? 0)}/min</td>
+            <td>
+              {fmt(r?.wanted ?? 0)}
+              {per}
+            </td>
           </tr>
         </tbody>
       </table>
@@ -122,11 +140,12 @@ export function BeltInspector(props: {
 
       <div className="bi-controls">
         <label>
-          Esteira
+          {pipe ? 'Cano' : 'Esteira'}
           <select value={tier} onChange={(e) => props.onTier(Number(e.target.value) as BeltTier)}>
-            {BELT_TIERS.map((t) => (
+            {tiers.map((t) => (
               <option key={t} value={t}>
-                {BELTS[t].name} ({BELTS[t].rate}/min)
+                {tierInfo(t).name} ({tierInfo(t).rate}
+                {per})
               </option>
             ))}
           </select>

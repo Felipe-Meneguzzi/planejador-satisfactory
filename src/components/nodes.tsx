@@ -1,8 +1,10 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { Handle, Position, useNodeId, useReactFlow, useUpdateNodeInternals, type NodeProps } from '@xyflow/react';
-import { AMPLIFICATION, ITEMS, MACHINES, MINER_TIERS, PURITIES, RECIPES, RESOURCES, getRecipe, recipesFor } from '../game/data';
+import { AMPLIFICATION, EXTRACTORS, ITEMS, MACHINES, MINER_TIERS, PURITIES, RECIPES, RESOURCES, WELL_PRESSURIZER_NAME, WELL_PRESSURIZER_POWER, getRecipe, isFluid, recipesFor } from '../game/data';
 import type {
   BeltItem,
+  ExtractorKind,
+  ExtractorNode,
   ItemId,
   MachineNode,
   MergerNode,
@@ -16,7 +18,7 @@ import type {
 import { fmt } from '../format';
 import { GRID, snapUp } from '../grid';
 import { useSim } from '../sim/SimContext';
-import { CLOCK_MAX, CLOCK_MIN, ampOf, clampClock, minerRate, shardsFor, sloopsOf, type Issue } from '../sim/simulate';
+import { CLOCK_MAX, CLOCK_MIN, ampOf, clampClock, extractorRate, minerRate, shardsFor, sloopsOf, type Issue } from '../sim/simulate';
 
 export const itemColor = (item: BeltItem) => (item && item !== 'mixed' ? ITEMS[item].color : item === 'mixed' ? '#d46ad8' : '#5b616b');
 
@@ -66,6 +68,8 @@ function useRotation(id: string, rotation: Rotation = 0, collapsed = false) {
 
 interface StripPort {
   type: 'in' | 'out';
+  /** porta de fluido (cano): conector quadrado */
+  fluid?: boolean;
   handle: string;
   title: string;
 }
@@ -84,7 +88,7 @@ function PortStrip({ side, ports }: { side: Position; ports: StripPort[] }) {
           type={p.type === 'in' ? 'target' : 'source'}
           position={side}
           id={p.handle}
-          className={`port-handle ${p.type}`}
+          className={`port-handle ${p.type} ${p.fluid ? 'fluid' : ''}`}
           // -0.5px desempata quando cai exatamente no meio de dois quadradinhos (sempre pro de cima/esquerda)
           style={{ [isVertical(side) ? 'left' : 'top']: `round(nearest, calc(${((i + 1) / (ports.length + 1)) * 100}% - 0.5px), ${GRID}px)` }}
           title={p.title}
@@ -272,7 +276,7 @@ function ClockControl(props: { clock: number; baseRate: number; item: ItemId; on
           onChange={(rate) => onChange((rate / baseRate) * 100)}
         />
         <span className="unit" title={ITEMS[props.item].name}>
-          /min
+          {isFluid(props.item) ? 'm³/min' : '/min'}
         </span>
       </div>
     </div>
@@ -319,7 +323,7 @@ function PortRow(props: { type: 'in' | 'out'; handle: string; side: Position; it
   return (
     <div className={`port-row ${props.type}`}>
       {!props.stripped && !isVertical(props.side) && (
-        <Handle type={isIn ? 'target' : 'source'} position={props.side} id={props.handle} className={`port-handle ${props.type}`} />
+        <Handle type={isIn ? 'target' : 'source'} position={props.side} id={props.handle} className={`port-handle ${props.type} ${isFluid(props.item) ? 'fluid' : ''}`} />
       )}
       <span className="dot" style={{ background: itemColor(props.item) }} />
       {props.label && <span className="port-item">{props.label}</span>}
@@ -345,13 +349,13 @@ function PortCell(props: {
   return (
     <div className={`port-cell ${props.type} at-${edge}`} title={ITEMS[props.item].name}>
       {!props.stripped && !isVertical(props.side) && (
-        <Handle type={props.type === 'in' ? 'target' : 'source'} position={props.side} id={props.handle} className={`port-handle ${props.type}`} />
+        <Handle type={props.type === 'in' ? 'target' : 'source'} position={props.side} id={props.handle} className={`port-handle ${props.type} ${isFluid(props.item) ? 'fluid' : ''}`} />
       )}
       <span className="port-cell-name">
         <span className="dot" style={{ background: itemColor(props.item) }} />
         {ITEMS[props.item].name}
       </span>
-      <span className="port-cell-rate">{rate(props.port?.actual ?? 0, props.port?.max ?? props.fallbackMax)}</span>
+      <span className="port-cell-rate">{rate(props.port?.actual ?? 0, props.port?.max ?? props.fallbackMax, props.item)}</span>
     </div>
   );
 }
@@ -367,10 +371,15 @@ function UtilBar({ value }: { value: number }) {
   );
 }
 
-const rate = (actual: number, max: number) => (
+/** "atual / máximo" com a unidade do item (m³/min pra fluido) */
+const rate = (actual: number, max: number, item?: BeltItem) => (
   <>
     <b>{fmt(actual)}</b>
-    <small> / {fmt(max)}/min</small>
+    <small>
+      {' '}
+      / {fmt(max)}
+      {isFluid(item) ? ' m³/min' : '/min'}
+    </small>
   </>
 );
 
@@ -426,7 +435,7 @@ function CollapsedSummary(props: {
           <span className="dot" style={{ background: itemColor(o.item) }} />
           {/* não repete o nome quando ele já é o da receita/linha de cima */}
           <span className="port-item">{props.hideName ? '' : ITEMS[o.item].name}</span>
-          <span className="port-value">{rate(o.actual, o.max)}</span>
+          <span className="port-value">{rate(o.actual, o.max, o.item)}</span>
         </div>
       ))}
       <div className="util-thin" title={`${pct}% em uso`}>
@@ -497,7 +506,77 @@ export function MinerNodeView({ id, data, selected }: NodeProps<MinerNode>) {
       </Field>
       <ClockControl clock={data.clock} baseRate={minerRate({ ...data, clock: 100 })} item={data.resource} onChange={(clock) => updateNodeData(id, { clock })} />
       <PortBlock>
-        <PortRow type="out" handle="out-0" side={outSide} stripped={stripped} item={data.resource} label={ITEMS[data.resource].name} value={rate(out?.actual ?? max, max)} />
+        <PortRow type="out" handle="out-0" side={outSide} stripped={stripped} item={data.resource} label={ITEMS[data.resource].name} value={rate(out?.actual ?? max, max, data.resource)} />
+      </PortBlock>
+      <UtilBar value={r?.util ?? 1} />
+    </NodeCard>
+  );
+}
+
+const extractorResourceOptions = (kind: ExtractorKind) => EXTRACTORS[kind].resources.map((it) => ({ value: it, label: ITEMS[it].name }));
+
+export function ExtractorNodeView({ id, data, selected }: NodeProps<ExtractorNode>) {
+  const { updateNodeData } = useReactFlow();
+  const { r, issues } = useNodeSim(id);
+  const info = EXTRACTORS[data.extractor];
+  const max = extractorRate(data);
+  const out = r?.outputs[0];
+  const collapsed = !!data.collapsed;
+  const rotate = useRotation(id, data.rotation, collapsed);
+  const outSide = rotatePos(Position.Right, data.rotation);
+  const stripped = collapsed || isVertical(outSide);
+  const strips = stripped && <PortStrip side={outSide} ports={[{ type: 'out', handle: 'out-0', title: ITEMS[data.resource].name, fluid: true }]} />;
+  const card = {
+    icon: data.extractor === 'water' ? '💧' : data.extractor === 'oil' ? '🛢️' : '🕳️',
+    title: info.name,
+    color: '#1f5f8b',
+    selected,
+    issues,
+    power: r?.power,
+    onRotate: rotate,
+    strips,
+    collapsed,
+    onToggleCollapse: () => updateNodeData(id, { collapsed: !collapsed }),
+  };
+  if (collapsed)
+    return (
+      <NodeCard {...card}>
+        <CollapsedSummary
+          line={info.usesPurity ? `${ITEMS[data.resource].name} · ${PURITIES[data.purity].name}` : ITEMS[data.resource].name}
+          chips={clockChip(data.clock)}
+          outputs={[{ item: data.resource, actual: out?.actual ?? max, max }]}
+          util={r?.util ?? 1}
+        />
+      </NodeCard>
+    );
+  return (
+    <NodeCard {...card}>
+      {info.resources.length > 1 && (
+        <Field label="Recurso">
+          <select className="nodrag" value={data.resource} onChange={(e) => updateNodeData(id, { resource: e.target.value as ItemId })}>
+            {extractorResourceOptions(data.extractor).map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </Field>
+      )}
+      {info.usesPurity && (
+        <Field label="Pureza">
+          <Seg value={data.purity} options={PURITY_OPTIONS} onChange={(purity) => updateNodeData(id, { purity })} />
+        </Field>
+      )}
+      {data.extractor === 'well' && (
+        <div className="note">
+          Fica num nó-satélite do poço e não tem clock nem consumo próprio: quem consome ({fmt(WELL_PRESSURIZER_POWER)} MW) e faz overclock é o {WELL_PRESSURIZER_NAME}, que não entra na conta.
+        </div>
+      )}
+      {info.overclockable && (
+        <ClockControl clock={data.clock} baseRate={info.rate(data.purity)} item={data.resource} onChange={(clock) => updateNodeData(id, { clock })} />
+      )}
+      <PortBlock>
+        <PortRow type="out" handle="out-0" side={outSide} stripped={stripped} item={data.resource} label={ITEMS[data.resource].name} value={rate(out?.actual ?? max, max, data.resource)} />
       </PortBlock>
       <UtilBar value={r?.util ?? 1} />
     </NodeCard>
@@ -522,8 +601,8 @@ export function MachineNodeView({ id, data, selected }: NodeProps<MachineNode>) 
   const stripped = collapsed || isVertical(inSide);
   const strips = stripped && (
     <>
-      <PortStrip side={inSide} ports={recipe.inputs.map((p, i) => ({ type: 'in', handle: `in-${i}`, title: ITEMS[p.item].name }))} />
-      <PortStrip side={outSide} ports={recipe.outputs.map((p, i) => ({ type: 'out', handle: `out-${i}`, title: ITEMS[p.item].name }))} />
+      <PortStrip side={inSide} ports={recipe.inputs.map((p, i) => ({ type: 'in', handle: `in-${i}`, title: ITEMS[p.item].name, fluid: isFluid(p.item) }))} />
+      <PortStrip side={outSide} ports={recipe.outputs.map((p, i) => ({ type: 'out', handle: `out-${i}`, title: ITEMS[p.item].name, fluid: isFluid(p.item) }))} />
     </>
   );
 
@@ -646,7 +725,7 @@ const MERGER_PORTS: CubePort[] = [
   { type: 'out', handle: 'out-0', position: Position.Right },
 ];
 
-function LogisticCube({ id, selected, kind, rotation }: { id: string; selected?: boolean; kind: 'splitter' | 'merger'; rotation?: Rotation }) {
+function LogisticCube({ id, selected, kind, rotation, fluid }: { id: string; selected?: boolean; kind: 'splitter' | 'merger'; rotation?: Rotation; fluid?: boolean }) {
   const { r, issues } = useNodeSim(id);
   const rotate = useRotation(id, rotation);
   const ports = kind === 'splitter' ? SPLITTER_PORTS : MERGER_PORTS;
@@ -655,21 +734,25 @@ function LogisticCube({ id, selected, kind, rotation }: { id: string; selected?:
   const worst = issues.some((i) => i.level === 'error') ? 'error' : issues.some((i) => i.level === 'warning') ? 'warning' : '';
   const flagged = issues.filter((i) => i.level !== 'info');
   return (
-    <div className={`cube ${kind} ${selected ? 'selected' : ''} ${worst}`} title={issues.map((i) => i.message).join('\n') || undefined}>
+    <div className={`cube ${kind} ${fluid ? 'fluid' : ''} ${selected ? 'selected' : ''} ${worst}`} title={issues.map((i) => i.message).join('\n') || undefined}>
       {ports.map((p) => {
         const port = portOf(p);
         const side = rotatePos(p.position, rotation);
         return (
           <div key={p.handle}>
-            <Handle type={p.type === 'in' ? 'target' : 'source'} position={side} id={p.handle} className={`port-handle ${p.type}`} />
+            <Handle type={p.type === 'in' ? 'target' : 'source'} position={side} id={p.handle} className={`port-handle ${p.type} ${fluid ? 'fluid' : ''}`} />
             {port?.connected && <span className={`cube-flow ${side}`}>{fmt(port.actual)}</span>}
           </div>
         );
       })}
       <div className="cube-center">
-        <span className="cube-icon">{kind === 'splitter' ? '🔀' : '🔁'}</span>
-        <b>{kind === 'splitter' ? 'Divisor' : 'Mesclador'}</b>
-        <small>{fmt(through)}/min</small>
+        <span className="cube-icon">{fluid ? '💧' : kind === 'splitter' ? '🔀' : '🔁'}</span>
+        <b>{fluid ? 'Junção' : kind === 'splitter' ? 'Divisor' : 'Mesclador'}</b>
+        {fluid && <small className="cube-sub">{kind === 'splitter' ? 'divide' : 'junta'}</small>}
+        <small>
+          {fmt(through)}
+          {fluid ? ' m³/min' : '/min'}
+        </small>
       </div>
       {flagged.length > 0 && <span className={`cube-badge ${worst}`}>!</span>}
       <button className="rotate-btn cube-rotate nodrag" onClick={rotate} title="Girar 90° (R)">
@@ -680,11 +763,11 @@ function LogisticCube({ id, selected, kind, rotation }: { id: string; selected?:
 }
 
 export function SplitterNodeView({ id, data, selected }: NodeProps<SplitterNode>) {
-  return <LogisticCube id={id} selected={selected} kind="splitter" rotation={data.rotation} />;
+  return <LogisticCube id={id} selected={selected} kind="splitter" rotation={data.rotation} fluid={data.fluid} />;
 }
 
 export function MergerNodeView({ id, data, selected }: NodeProps<MergerNode>) {
-  return <LogisticCube id={id} selected={selected} kind="merger" rotation={data.rotation} />;
+  return <LogisticCube id={id} selected={selected} kind="merger" rotation={data.rotation} fluid={data.fluid} />;
 }
 
 export function SinkNodeView({ id, data, selected }: NodeProps<SinkNode>) {
@@ -706,7 +789,7 @@ export function SinkNodeView({ id, data, selected }: NodeProps<SinkNode>) {
           value={
             <>
               <b>{fmt(inp?.actual ?? 0)}</b>
-              <small>/min</small>
+              <small>{isFluid(item) ? ' m³/min' : '/min'}</small>
             </>
           }
         />
@@ -717,6 +800,7 @@ export function SinkNodeView({ id, data, selected }: NodeProps<SinkNode>) {
 
 export const nodeTypes = {
   miner: MinerNodeView,
+  extractor: ExtractorNodeView,
   machine: MachineNodeView,
   splitter: SplitterNodeView,
   merger: MergerNodeView,

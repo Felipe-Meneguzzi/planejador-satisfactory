@@ -1344,3 +1344,101 @@ button.primary {
   padding: 3px 10px;
   white-space: nowrap;
 }
+
+/* ---------- fluidos: canos ---------- */
+
+/* conector de fluido é quadrado (o de sólido é redondo); verde/vermelho continuam valendo */
+.react-flow__handle.port-handle.fluid {
+  border-radius: 3px;
+  width: 14px;
+  height: 14px;
+  outline: 2px solid #8fd0ff;
+  outline-offset: -5px;
+}
+
+/* tubo: borda de aço (o BaseEdge) + miolo na cor do fluido + correnteza */
+.pipe-core {
+  fill: none;
+  stroke-width: 5;
+  stroke-linecap: round;
+  pointer-events: none;
+}
+.pipe-flow {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.45);
+  stroke-width: 2;
+  stroke-dasharray: 14 22;
+  stroke-linecap: round;
+  animation: pipe-move linear infinite;
+  pointer-events: none;
+}
+@keyframes pipe-move {
+  to {
+    stroke-dashoffset: -36;
+  }
+}
+
+.belt-label.pipe {
+  border-radius: 6px;
+  border-style: double;
+  border-width: 3px;
+  padding-left: 4px;
+}
+.pipe-icon {
+  font-size: 11px;
+}
+
+/* junção de cano: cubo azulado */
+.cube.fluid {
+  background: linear-gradient(145deg, #2f4d66, #1d2c3b);
+  border-color: #3b6f99;
+  border-radius: 18px;
+}
+.cube-sub {
+  font-size: 10px;
+  color: #8fd0ff;
+  margin-top: -2px;
+}
+
+.note {
+  font-size: 11px;
+  color: var(--muted);
+  background: var(--bg);
+  border-radius: 4px;
+  padding: 4px 6px;
+}
+
+.palette-defaults {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.palette-defaults label {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.palette-defaults select {
+  width: 100%;
+  font-size: 12px;
+  padding: 3px 4px;
+  color: var(--text);
+}
+
+.swatch.pipe-swatch {
+  height: 9px;
+  background: #3d9df2;
+  border: 2px solid #8fa3b8;
+  border-radius: 5px;
+}
+.swatch.square {
+  width: 11px;
+  height: 11px;
+  border-radius: 2px;
+  background: var(--port-in);
+  outline: 2px solid #8fd0ff;
+  outline-offset: -4px;
+}
