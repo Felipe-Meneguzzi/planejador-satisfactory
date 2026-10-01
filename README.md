@@ -22,6 +22,15 @@ Os dados do jogo (receitas, máquinas, esteiras, overclock, Somersloops, gerador
 - **Gerador de linha**: insumos que não dá pra produzir (coletáveis como Mycelia, Hatcher Remains, Blue Power Slug) viram Entradas externas já ligadas às faixas que precisam deles, com a vazão exata — a linha continua sem erros nem avisos.
 - **Simplificações**: a Saída externa leva tudo o que chega (sem back-pressure da fábrica de destino); várias entradas ligadas na mesma saída dividem a vazão igualmente; a energia do resumo soma todas as fábricas como se estivessem na mesma rede.
 
+## Organizar o canvas
+
+- **Moldura** (paleta → Organização): retângulo com título e cor (8 opções pro tema escuro) que fica atrás de tudo. Arraste pelo cabeçalho: ela leva junto o que está dentro (todo node com pelo menos metade da área nela; outra moldura só se estiver inteira dentro). Duplo clique no título renomeia (Enter confirma, Esc cancela); selecionada, mostra ✎, a cor e as alças pra redimensionar. Posição e tamanho ficam sempre no grid de 20px. Clicar no meio da moldura age no canvas (mover a vista, seleção por caixa), não nela. Copiar/recortar/duplicar uma moldura leva o conteúdo junto; `Del` apaga só a moldura.
+- **Anotação**: bloco de texto livre (várias linhas) com cor, redimensionável no grid. Duplo clique edita; `Ctrl+Enter` ou clicar fora confirma, `Esc` descarta.
+- Molduras e anotações são salvas no projeto, entram no desfazer/refazer, no copiar/colar e no minimapa (com a cor delas), mas **não contam** na simulação, no resumo nem no gerador de linha.
+- **Como a moldura leva o conteúdo**: as posições continuam absolutas (sem os sub-flows/`parentId` do React Flow); no começo do arraste o app vê o que está dentro e desloca junto. Assim copiar/colar, gerador, simulação e salvamento não precisam saber de moldura, e um node entra ou sai de uma moldura só por estar em cima dela. Moldura não minimiza (por enquanto).
+- **Reconectar**: arraste a ponta de uma esteira ou cano (logo depois do conector) até outra porta. Vale a mesma regra de uma conexão nova (meio certo, porta livre, sem ligar no próprio node) e a conexão não troca de esteira pra cano; o Mk e a rota continuam, só o trajeto planejado pelo gerador é descartado. Soltar no vazio ou numa porta inválida não muda nada.
+- **Busca rápida** (`Ctrl+K` ou o botão 🔍 da barra): adicionar qualquer coisa da paleta (receitas, mineradoras, extratores, poços, geradores, logística, saídas, molduras/anotações — entra onde o mouse estava no canvas, ou no centro), **ir para** um node ou moldura da fábrica aberta ou de outra (troca de aba e centraliza) e **ações** (gerar linha, nova fábrica, exportar/importar, compartilhar, grid/rótulos, minimizar/expandir tudo, desfazer/refazer…). Busca sem acento e por partes (`iron pl` acha Iron Plate). `↑`/`↓` navegam, `Enter` escolhe, `Esc` fecha. O `Ctrl+K` abre mesmo com o foco num campo de texto (nenhum campo usa esse atalho), só não abre por cima de outro diálogo.
+
 ## Exportar, importar e compartilhar
 
 - **📁 Arquivo → Exportar**: o projeto inteiro (`projeto-satisfactory-AAAA-MM-DD.json`) ou só a fábrica aberta (`fabrica-<nome>-AAAA-MM-DD.json`).
@@ -84,6 +93,10 @@ Na primeira vez, baixe o navegador do Playwright com `npx playwright install chr
 | `Ctrl+C` / `Ctrl+X` / `Ctrl+V` / `Ctrl+D` | Copia / recorta / cola no mouse / duplica |
 | `Ctrl+Z` / `Ctrl+Y` | Desfaz / refaz |
 | `Del` | Apaga o selecionado |
+| `Ctrl+K` | Busca rápida: adicionar, ir para node/moldura (em qualquer fábrica), ações |
+| Arrastar a ponta de uma esteira/cano | Liga em outra porta (soltar no vazio não apaga) |
+| Arrastar o título da moldura | Move a moldura com o que está dentro |
+| Duplo clique na moldura / anotação | Renomeia / edita o texto |
 | 🏭 **Gerar linha** | Monta uma linha de produção inteira com 100% de eficiência (na aba aberta) |
 | `+` nas abas / duplo clique na aba | Nova fábrica / renomeia |
 | Arrastar a aba / menu `⋯` | Reordena / renomeia, duplica, move, apaga |
