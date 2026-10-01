@@ -329,7 +329,7 @@ export function simulate(nodes: SimNode[], edges: SimEdge[]): SimResult {
         'edge',
         e.id,
         'belt',
-        `${what} ${tierName} fraco${b.pipe ? '' : 'a'}: precisa levar ${u(need)}, aguenta ${u(b.cap)}` +
+        `${what} ${tierName} frac${b.pipe ? 'o' : 'a'}: precisa levar ${u(need)}, aguenta ${u(b.cap)}` +
           (fix ? '' : ` — nem ${b.pipe ? 'o' : 'a'} ${maxName} aguenta, divida em ${b.pipe ? 'mais canos' : 'mais esteiras'}`),
         fix,
       );

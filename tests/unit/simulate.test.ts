@@ -33,9 +33,7 @@ describe('simulate', () => {
     expect(ok.edges.b.flow).toBeCloseTo(120);
   });
 
-  // BUG: a mensagem sai "Esteira Mk.1 fracoa" — em simulate.ts o sufixo é `fraco${b.pipe ? '' : 'a'}`
-  // (devia ser `frac${b.pipe ? 'o' : 'a'}`). Reativar quando corrigir.
-  it.skip('escreve "fraca" (feminino) na mensagem de esteira fraca', () => {
+  it('escreve "fraca" (feminino) na mensagem de esteira fraca', () => {
     const r = simulate([miner('m', 'iron-ore', 'pure'), sink('k')], [belt('b', 'm', 0, 'k', 0, 1)]);
     expect(r.issues.find((i) => i.id === 'b:belt')?.message).toBe('Esteira Mk.1 fraca: precisa levar 120/min, aguenta 60/min');
   });
