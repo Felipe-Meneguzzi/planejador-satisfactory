@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type MutableRefObject } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { BeltEdge, FactoryNode } from '../game/types';
 
 export interface Snapshot {
@@ -8,6 +8,12 @@ export interface Snapshot {
 interface Entry {
   key: string;
   snap: Snapshot;
+}
+/** Pilhas de uma fábrica */
+interface Stacks {
+  committed: Entry;
+  past: Entry[];
+  future: Entry[];
 }
 
 const LIMIT = 200;
@@ -27,55 +33,73 @@ const clean = (nodes: FactoryNode[], edges: BeltEdge[]): Snapshot =>
     edges: edges.map(({ id, type, source, sourceHandle, target, targetHandle, data }) => ({ id, type, source, sourceHandle, target, targetHandle, data })),
   });
 
+const entryOf = (nodes: FactoryNode[], edges: BeltEdge[]): Entry => ({ key: keyOf(nodes, edges), snap: clean(nodes, edges) });
+
 /**
- * Histórico de desfazer/refazer por snapshots. Cada mudança "assentada" do grafo vira
- * um passo; arrastar um node conta como um passo só (gravado ao soltar).
+ * Histórico de desfazer/refazer por snapshots, separado por fábrica (`scope` = id da fábrica
+ * aberta). Cada mudança "assentada" do grafo vira um passo; arrastar um node conta como um
+ * passo só (gravado ao soltar). Trocar de fábrica fecha o passo pendente da anterior.
  */
-export function useHistory(nodes: FactoryNode[], edges: BeltEdge[], apply: (s: Snapshot) => void) {
-  const committed = useRef<Entry>({ key: keyOf(nodes, edges), snap: clean(nodes, edges) });
-  const past = useRef<Entry[]>([]);
-  const future = useRef<Entry[]>([]);
-  const latest = useRef({ nodes, edges });
+export function useHistory(scope: string, nodes: FactoryNode[], edges: BeltEdge[], apply: (s: Snapshot) => void) {
+  const stacks = useRef(new Map<string, Stacks>());
+  const latest = useRef({ scope, nodes, edges });
   const timer = useRef<number>();
   const [, rerender] = useState(0);
 
+  const stackOf = useCallback((s: string, n: FactoryNode[], e: BeltEdge[]) => {
+    let st = stacks.current.get(s);
+    if (!st) stacks.current.set(s, (st = { committed: entryOf(n, e), past: [], future: [] }));
+    return st;
+  }, []);
+  // a fábrica aberta já tem pilha desde o primeiro render (o estado inicial é o ponto de partida)
+  stackOf(scope, nodes, edges);
+
   const flush = useCallback(() => {
     window.clearTimeout(timer.current);
-    const { nodes, edges } = latest.current;
+    const { scope, nodes, edges } = latest.current;
     if (nodes.some((n) => n.dragging)) return;
+    const st = stackOf(scope, nodes, edges);
     const key = keyOf(nodes, edges);
-    if (key === committed.current.key) return;
-    past.current.push(committed.current);
-    if (past.current.length > LIMIT) past.current.shift();
-    future.current = [];
-    committed.current = { key, snap: clean(nodes, edges) };
+    if (key === st.committed.key) return;
+    st.past.push(st.committed);
+    if (st.past.length > LIMIT) st.past.shift();
+    st.future = [];
+    st.committed = { key, snap: clean(nodes, edges) };
     rerender((x) => x + 1);
-  }, []);
+  }, [stackOf]);
 
   useEffect(() => {
-    latest.current = { nodes, edges };
+    // trocou de fábrica: o passo pendente é da anterior (com os nodes dela)
+    if (latest.current.scope !== scope) flush();
+    latest.current = { scope, nodes, edges };
     if (nodes.some((n) => n.dragging)) return;
     window.clearTimeout(timer.current);
     timer.current = window.setTimeout(flush, SETTLE_MS);
-  }, [nodes, edges, flush]);
+  }, [scope, nodes, edges, flush]);
 
   useEffect(() => () => window.clearTimeout(timer.current), []);
 
   const move = useCallback(
-    (from: MutableRefObject<Entry[]>, to: MutableRefObject<Entry[]>) => {
+    (dir: 'undo' | 'redo') => {
       flush();
-      const entry = from.current.pop();
+      const st = stacks.current.get(latest.current.scope);
+      if (!st) return;
+      const [from, to] = dir === 'undo' ? [st.past, st.future] : [st.future, st.past];
+      const entry = from.pop();
       if (!entry) return;
-      to.current.push(committed.current);
-      committed.current = entry;
+      to.push(st.committed);
+      st.committed = entry;
       apply(structuredClone(entry.snap));
       rerender((x) => x + 1);
     },
     [apply, flush],
   );
 
-  const undo = useCallback(() => move(past, future), [move]);
-  const redo = useCallback(() => move(future, past), [move]);
+  const undo = useCallback(() => move('undo'), [move]);
+  const redo = useCallback(() => move('redo'), [move]);
+  /** esquece o histórico de uma fábrica apagada */
+  const forget = useCallback((s: string) => void stacks.current.delete(s), []);
 
-  return { undo, redo, canUndo: past.current.length > 0, canRedo: future.current.length > 0 };
+  const st = stacks.current.get(scope);
+  return { undo, redo, forget, canUndo: !!st?.past.length, canRedo: !!st?.future.length };
 }
