@@ -152,6 +152,17 @@ export const generatorNominal = (d: GeneratorData) => {
   return (g.power * generatorClock(d)) / 100;
 };
 
+/**
+ * Geração da rede com Alien Power Augmenters (fórmula do wiki):
+ * (geração dos outros + 500 MW × APAs) × (1 + Σ bônus), bônus = 0,1 sem combustível e 0,3 abastecido.
+ * `base` já inclui os MW próprios dos APAs; `fed` = fração abastecida de cada APA (0..1, parcial = média).
+ */
+export function augmentedGeneration(base: number, fed: number[]) {
+  const boost = Object.values(GENERATORS).find((g) => g.boost)?.boost ?? { unfueled: 0, fueled: 0 };
+  const rate = fed.reduce((a, f) => a + boost.unfueled + (boost.fueled - boost.unfueled) * Math.min(1, Math.max(0, f)), 0);
+  return { rate, generation: base * (1 + rate) };
+}
+
 /** O AWESOME Sink recusa o item (fluido ou item sem pontos): a esteira para */
 export const sinkRefuses = (d: SinkData, item: BeltItem) =>
   d.mode === 'awesome' && !!item && item !== 'mixed' && (isFluid(item) || (sinkPoints(item) === undefined && item !== SINK.dna.item));
@@ -447,7 +458,7 @@ export function simulate(nodes: SimNode[], edges: SimEdge[]): SimResult {
   let sloops = 0;
   // energia: geração sem bônus, bônus dos APAs, por tipo e insumos consumidos
   let genBase = 0;
-  let boostRate = 0;
+  const apaFed: number[] = [];
   let generatorCount = 0;
   let firstGenerator: string | undefined;
   const byType = new Map<GeneratorId, { count: number; generated: number; nominal: number }>();
@@ -587,9 +598,9 @@ export function simulate(nodes: SimNode[], edges: SimEdge[]): SimResult {
         byType.set(d.generator, { count: t.count + 1, generated: t.generated + generated, nominal: t.nominal + nominal });
         ins.forEach((x) => x.b && !isWrong(x.b.item, x.item) && addTo(fuelUsed, x.item, flowOf(x.b)));
         if (g.boost) {
-          // bônus do APA: +10% sem combustível, +30% abastecido (parcial = média proporcional)
+          // bônus do APA entra na conta da rede inteira (augmentedGeneration)
           const fed = ins.length ? supply(ins[0]) : 0;
-          boostRate += g.boost.unfueled + (g.boost.fueled - g.boost.unfueled) * fed;
+          apaFed.push(fed);
         }
         nodeResults[n.id] = {
           util,
@@ -686,7 +697,7 @@ export function simulate(nodes: SimNode[], edges: SimEdge[]): SimResult {
   }
 
   // Saldo: (geração + MW próprios dos APAs) × (1 + bônus somado dos APAs)
-  const generation = genBase * (1 + boostRate);
+  const { rate: boostRate, generation } = augmentedGeneration(genBase, apaFed);
   if (firstGenerator && power > generation + EPS)
     add(
       'error',
