@@ -1534,3 +1534,27 @@ button.primary {
   inset: 0;
   height: auto;
 }
+
+.error-toast {
+  position: fixed;
+  left: 14px;
+  bottom: 14px;
+  z-index: 200;
+  max-width: min(520px, calc(100vw - 28px));
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 10px;
+  background: var(--panel);
+  border: 1px solid var(--warn);
+  border-radius: 8px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
+  font-size: 12px;
+}
+.error-toast b {
+  color: var(--warn);
+  overflow-wrap: anywhere;
+}
+.error-toast button {
+  padding: 0 4px;
+}
