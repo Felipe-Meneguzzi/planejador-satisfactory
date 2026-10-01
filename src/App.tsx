@@ -17,12 +17,13 @@ import {
   type NodeChange,
   type Viewport,
 } from '@xyflow/react';
-import { GAME_VERSION, GENERATORS, MACHINES } from './game/data';
+import { GAME_VERSION, GENERATORS, ITEMS, MACHINES, generatorPorts, getRecipe } from './game/data';
+import { allEntries, entryKeywords } from './game/catalog';
 import { mediumsMatch, portMedium } from './game/ports';
 import { isAnnotation, isProduction, type BeltEdge, type BeltTier, type FactoryData, type FactoryNode, type PipeTier } from './game/types';
 import { fmt } from './format';
 import { GRID } from './grid';
-import { ANNOTATION_COLORS, annotationNode, frameMembers, snapGrid } from './game/annotations';
+import { ANNOTATION_COLORS, annotationNode, frameMembers, noteSummary, snapGrid } from './game/annotations';
 
 /** diâmetro dos pontos do fundo */
 const DOT = 1.2;
@@ -30,7 +31,9 @@ import { nextRotation, nodeTypes } from './components/nodes';
 import { edgeTypes } from './components/BeltEdge';
 import { DND_TYPE, Palette } from './components/Palette';
 import { SidePanel } from './components/SidePanel';
-import { BeltInspector } from './components/BeltInspector';
+import { BeltInspector, nodeLabel } from './components/BeltInspector';
+import { CommandPalette } from './components/CommandPalette';
+import type { QuickItem } from './state/quickSearch';
 import { SimContext } from './sim/SimContext';
 import { EMPTY_SIM } from './sim/SimContext';
 import { ProjectContext, type ProjectInfo } from './sim/ProjectContext';
@@ -357,6 +360,27 @@ function Planner() {
     return () => window.removeEventListener('keydown', onKey);
   }, [undo, redo, clipboard]);
 
+  /*
+   * Ctrl+K (ou Cmd+K) abre/fecha a busca rápida. Abre mesmo com o foco num campo de texto
+   * (nenhum campo do app usa Ctrl+K, e o atalho do navegador pra barra de busca fica bloqueado
+   * aqui); só não abre por cima de outro diálogo.
+   */
+  const [quickOpen, setQuickOpen] = useState(false);
+  const quickPointer = useRef<{ x: number; y: number } | null>(null);
+  const dialogOpen = plannerOpen || !!pending || shareOpen || summaryOpen;
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.shiftKey || e.altKey || e.key.toLowerCase() !== 'k') return;
+      e.preventDefault();
+      if (dialogOpen) return;
+      // posição do mouse no canvas na hora de abrir: é ali que "Adicionar" põe o node
+      quickPointer.current = clipboard.pointer();
+      setQuickOpen((o) => !o);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [dialogOpen, clipboard]);
+
   // R gira os nodes selecionados 90° no sentido horário; Shift+R no anti-horário
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -381,6 +405,18 @@ function Planner() {
   const viewports = useRef(new Map<string, Viewport>());
   /** enquadrar tudo assim que os nodes da fábrica aberta forem medidos (primeira carga, aba nova) */
   const pendingFit = useRef(true);
+  /** node pra centralizar assim que a fábrica aberta (ir para, da busca rápida) for medida */
+  const pendingFocus = useRef<string | null>(null);
+  useEffect(() => {
+    const id = pendingFocus.current;
+    if (!id) return;
+    const n = nodes.find((x) => x.id === id);
+    if (!n) return void (pendingFocus.current = null);
+    if (!n.measured?.width) return;
+    pendingFocus.current = null;
+    pendingFit.current = false;
+    focusNodeRef.current(id);
+  }, [nodes]);
   useEffect(() => {
     if (!pendingFit.current) return;
     if (!nodes.length) {
@@ -604,6 +640,21 @@ function Planner() {
     [edges, getNode, setCenter, setEdges, setNodes],
   );
 
+  /** Seleciona o node e centraliza a vista nele (moldura: enquadra ela inteira) */
+  const focusNode = useCallback(
+    (id: string) => {
+      const n = getNode(id);
+      if (!n) return;
+      setNodes((ns) => ns.map((x) => (!!x.selected !== (x.id === id) ? { ...x, selected: x.id === id } : x)));
+      setEdges((es) => es.map((e) => (e.selected ? { ...e, selected: false } : e)));
+      if (n.data.kind === 'frame') fitView({ nodes: [{ id }], padding: 0.15, maxZoom: 1, duration: 400 });
+      else focusIssue({ id, level: 'info', message: '', target: { kind: 'node', id } });
+    },
+    [getNode, setNodes, setEdges, fitView, focusIssue],
+  );
+  const focusNodeRef = useRef(focusNode);
+  focusNodeRef.current = focusNode;
+
   const fixBelt = useCallback(
     (edgeId: string, tier?: BeltTier) => tier && setEdges((es) => es.map((e) => (e.id === edgeId ? { ...e, data: { ...e.data, tier } } : e))),
     [setEdges],
@@ -713,6 +764,13 @@ function Planner() {
     [project, live, activeId],
   );
 
+  const clearFactory = () => {
+    if (!confirm(`Apagar tudo da fábrica "${active.name}"? (Ctrl+Z desfaz)`)) return;
+    setNodes([]);
+    setEdges([]);
+    setViewport({ x: 0, y: 0, zoom: 1 });
+  };
+
   /* ---------- minimizar ---------- */
 
   const collapsible = (n: FactoryNode) => ['machine', 'miner', 'generator', 'well', 'inbound'].includes(n.data.kind);
@@ -723,6 +781,106 @@ function Planner() {
     const collapse = nodes.some((n) => collapsible(n) && targets(n) && !(n.data as { collapsed?: boolean }).collapsed);
     setNodes((ns) => ns.map((n) => (collapsible(n) && targets(n) ? ({ ...n, data: { ...n.data, collapsed: collapse } } as FactoryNode) : n)));
   };
+
+  /* ---------- busca rápida (Ctrl+K) ---------- */
+
+  /** Abre a fábrica (se não for a aberta) e centraliza no node */
+  const goTo = (factoryId: string, nodeId: string) => {
+    if (factoryId === activeId) return focusNode(nodeId);
+    pendingFocus.current = nodeId;
+    selectFactory(factoryId);
+  };
+  /** Adiciona como a paleta: onde o mouse estava no canvas ao abrir a busca, ou no centro */
+  const addFromQuick = (data: FactoryData) => {
+    const p = quickPointer.current;
+    if (!p) return addNode(data);
+    const pos = screenToFlowPosition(p);
+    addNode(data, { x: pos.x - 110, y: pos.y - 40 });
+  };
+
+  const buildQuickItems = (): QuickItem[] => {
+    const actions: Omit<QuickItem, 'group' | 'id'>[] = [
+      { label: 'Gerar linha…', icon: '🏭', keywords: 'planejar producao calculadora', run: () => setPlannerOpen(true) },
+      { label: 'Nova fábrica', icon: '＋', keywords: 'aba criar', run: () => addFactory() },
+      { label: 'Duplicar esta fábrica', icon: '⧉', keywords: 'aba copiar', run: () => duplicateFactory(activeId) },
+      { label: 'Resumo do projeto', icon: '📊', keywords: 'todas fabricas total', run: () => setSummaryOpen(true) },
+      { label: 'Exportar projeto (.json)', icon: '⬇', keywords: 'baixar salvar arquivo', run: () => exportFile('project') },
+      { label: 'Exportar só esta fábrica (.json)', icon: '⬇', keywords: 'baixar salvar arquivo', run: () => exportFile('factory') },
+      { label: 'Importar arquivo…', icon: '⬆', keywords: 'abrir carregar json', run: () => fileRef.current?.click() },
+      { label: 'Compartilhar…', icon: '🔗', keywords: 'link url', run: () => setShareOpen(true) },
+      { label: 'Exemplo numa fábrica nova', icon: '🧪', keywords: 'demo', run: () => addFactory(demoPlant(), 'Exemplo') },
+      { label: gridBelts ? 'Esteiras em curva' : 'Esteiras no grid', icon: gridBelts ? '∿' : '┐', keywords: 'grid curva alternar rota', run: () => setGridBelts((g) => !g) },
+      { label: beltLabels ? 'Esconder rótulos das esteiras' : 'Mostrar rótulos das esteiras', icon: '🏷', keywords: 'rotulos labels alternar', run: () => setBeltLabels((v) => !v) },
+      { label: anyExpanded ? 'Minimizar tudo' : 'Expandir tudo', icon: anyExpanded ? '▾' : '▸', keywords: 'minimizar expandir recolher maquinas', run: toggleCollapseAll },
+      { label: 'Desfazer', icon: '↶', shortcut: 'Ctrl+Z', keywords: 'undo voltar', run: undo },
+      { label: 'Refazer', icon: '↷', shortcut: 'Ctrl+Y', keywords: 'redo', run: redo },
+      { label: 'Enquadrar tudo', icon: '⛶', keywords: 'zoom ver tudo centralizar fit', run: () => fitView({ padding: 0.15, maxZoom: 1, duration: 400 }) },
+      { label: 'Limpar esta fábrica…', icon: '🗑', keywords: 'apagar tudo', run: clearFactory },
+    ];
+    const items: QuickItem[] = actions.map((a, i) => ({ ...a, id: `a${i}`, group: 'Ações' }));
+
+    // ir para: fábricas, depois nodes e molduras (a aberta primeiro)
+    for (const f of live) if (f.id !== activeId) items.push({ id: `f-${f.id}`, group: 'Ir para', label: f.name, hint: 'fábrica', icon: '🏭', keywords: 'aba fabrica', run: () => selectFactory(f.id) });
+    const ordered = [active, ...live.filter((f) => f.id !== activeId)];
+    for (const f of ordered) {
+      const seen = new Map<string, number>();
+      for (const n of f.nodes) {
+        const d = n.data;
+        let label = nodeLabel(n);
+        let icon = '•';
+        let keywords = '';
+        if (d.kind === 'frame') {
+          label = d.title || 'Moldura sem título';
+          icon = '🔲';
+          keywords = 'moldura';
+        } else if (d.kind === 'note') {
+          label = noteSummary(d.text) || 'Anotação vazia';
+          icon = '📝';
+          keywords = `anotacao ${d.text}`;
+        } else if (d.kind === 'machine') {
+          icon = MACHINES[d.machine]?.icon ?? '•';
+          const r = getRecipe(d);
+          keywords = [...r.inputs, ...r.outputs].map((p) => ITEMS[p.item]?.name).join(' ');
+        } else if (d.kind === 'generator') {
+          icon = GENERATORS[d.generator]?.icon ?? '⚡';
+          keywords = generatorPorts(d).inputs.map((p) => ITEMS[p.item]?.name).join(' ');
+        }
+        const k = seen.get(label) ?? 0;
+        seen.set(label, k + 1);
+        const where = f.id === activeId ? 'esta fábrica' : f.name;
+        items.push({
+          id: `n-${f.id}-${n.id}`,
+          group: 'Ir para',
+          label,
+          hint: k ? `${where} · ${k + 1}º` : where,
+          icon,
+          color: d.kind === 'frame' || d.kind === 'note' ? ANNOTATION_COLORS[d.color]?.base : minimapColor(n),
+          keywords,
+          hideWhenEmpty: true,
+          run: () => goTo(f.id, n.id),
+        });
+      }
+    }
+
+    // adicionar: tudo da paleta (com a busca vazia, só a Organização e a logística aparecem)
+    const quickDefault = new Set(['frame', 'note', 'splitter', 'merger', 'sink']);
+    for (const en of allEntries())
+      items.push({
+        id: `add-${en.key}`,
+        group: 'Adicionar',
+        label: en.label,
+        hint: en.sub,
+        icon: en.icon,
+        color: en.color,
+        keywords: entryKeywords(en),
+        hideWhenEmpty: !quickDefault.has(en.key),
+        run: () => addFromQuick(en.data),
+      });
+    return items;
+  };
+  // monta a lista ao abrir (as ações fecham a busca, então ela não fica velha)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const quickItems = useMemo(() => (quickOpen ? buildQuickItems() : []), [quickOpen]);
 
   // esteira selecionada (a última clicada, se houver várias)
   const selectedEdge = [...edges].reverse().find((e) => e.selected);
@@ -755,6 +913,16 @@ function Planner() {
           <span className={`chip ${warnings ? 'warn' : ''}`}>⚠️ {warnings}</span>
         </div>
         <div className="actions">
+          <button
+            className="quick-btn"
+            onClick={() => {
+              quickPointer.current = null;
+              setQuickOpen(true);
+            }}
+            title="Busca rápida: adicionar, ir para um node ou moldura, ações (Ctrl+K)"
+          >
+            🔍 <kbd>Ctrl K</kbd>
+          </button>
           <button onClick={toggleCollapseAll} title="Minimizar ou expandir todas as máquinas e mineradoras (ou só as selecionadas)">
             {anyExpanded ? '▾ Minimizar' : '▸ Expandir'}
           </button>
@@ -788,16 +956,7 @@ function Planner() {
               { label: '⬇ Exportar só esta fábrica (.json)', onClick: () => exportFile('factory'), title: `Só "${active.name}"` },
               { label: '⬆ Importar arquivo…', onClick: () => fileRef.current?.click(), title: 'Projeto, fábrica avulsa ou planta do formato antigo' },
               { label: '🧪 Exemplo numa fábrica nova', onClick: () => addFactory(demoPlant(), 'Exemplo'), separator: true },
-              {
-                label: '🗑 Limpar esta fábrica…',
-                danger: true,
-                onClick: () => {
-                  if (!confirm(`Apagar tudo da fábrica "${active.name}"? (Ctrl+Z desfaz)`)) return;
-                  setNodes([]);
-                  setEdges([]);
-                  setViewport({ x: 0, y: 0, zoom: 1 });
-                },
-              },
+              { label: '🗑 Limpar esta fábrica…', danger: true, onClick: clearFactory },
             ]}
           />
           <input ref={fileRef} type="file" accept="application/json,.json" hidden onChange={importJson} data-testid="import-file" />
@@ -820,6 +979,7 @@ function Planner() {
         onSummary={() => setSummaryOpen(true)}
       />
 
+      {quickOpen && <CommandPalette items={quickItems} onClose={() => setQuickOpen(false)} />}
       {plannerOpen && <PlannerModal onClose={() => setPlannerOpen(false)} onGenerate={generateLine} />}
       {pending && (
         <IncomingDialog
