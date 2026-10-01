@@ -84,7 +84,7 @@ const minimapColor = (n: FactoryNode) => {
   if (d.kind === 'extractor' || d.kind === 'well') return '#1f5f8b';
   if ((d.kind === 'splitter' || d.kind === 'merger') && d.fluid) return '#3b6f99';
   if (d.kind === 'machine') return MACHINES[d.machine].color;
-  if (d.kind === 'sink') return '#2f7a52';
+  if (d.kind === 'sink') return d.mode === 'awesome' ? '#7d3a8c' : '#2f7a52';
   if (d.kind === 'generator') return GENERATORS[d.generator]?.color ?? '#555b66';
   return '#555b66';
 };
@@ -129,6 +129,7 @@ function Planner() {
   const [defaultPipeTier, setDefaultPipeTier] = useState<PipeTier>(initial.defaultPipeTier ?? 1);
   const [gridBelts, setGridBelts] = useState(initial.gridBelts ?? true);
   const [beltLabels, setBeltLabels] = useState(initial.beltLabels ?? true);
+  const [couponsPrinted, setCouponsPrinted] = useState(initial.couponsPrinted ?? 0);
   const settings = useMemo(() => ({ gridBelts, beltLabels }), [gridBelts, beltLabels]);
   // muda quando o canvas é remontado depois de um erro ("Tentar de novo")
   const [canvasEpoch, setCanvasEpoch] = useState(0);
@@ -254,9 +255,9 @@ function Planner() {
   // salvamento automático (pausado enquanto algum Error Boundary estiver em erro);
   // canvasEpoch: salva o que foi feito com o canvas quebrado assim que ele volta
   useEffect(() => {
-    const t = setTimeout(() => saveState({ version: 1, nodes, edges, defaultTier, defaultPipeTier, gridBelts, beltLabels }), 300);
+    const t = setTimeout(() => saveState({ version: 1, nodes, edges, defaultTier, defaultPipeTier, gridBelts, beltLabels, couponsPrinted }), 300);
     return () => clearTimeout(t);
-  }, [nodes, edges, defaultTier, defaultPipeTier, gridBelts, beltLabels, canvasEpoch]);
+  }, [nodes, edges, defaultTier, defaultPipeTier, gridBelts, beltLabels, couponsPrinted, canvasEpoch]);
 
   /* ---------- conexões ---------- */
 
@@ -389,18 +390,19 @@ function Planner() {
 
   /* ---------- toolbar ---------- */
 
-  const replaceAll = (s: { nodes: FactoryNode[]; edges: BeltEdge[]; defaultTier: BeltTier; defaultPipeTier?: PipeTier; gridBelts?: boolean; beltLabels?: boolean }) => {
+  const replaceAll = (s: { nodes: FactoryNode[]; edges: BeltEdge[]; defaultTier: BeltTier; defaultPipeTier?: PipeTier; gridBelts?: boolean; beltLabels?: boolean; couponsPrinted?: number }) => {
     setNodes(s.nodes);
     setEdges(s.edges);
     setDefaultTier(s.defaultTier);
     if (s.gridBelts !== undefined) setGridBelts(s.gridBelts);
     if (s.defaultPipeTier !== undefined) setDefaultPipeTier(s.defaultPipeTier);
     if (s.beltLabels !== undefined) setBeltLabels(s.beltLabels);
+    if (s.couponsPrinted !== undefined) setCouponsPrinted(s.couponsPrinted);
     setTimeout(() => (s.nodes.length ? fitView({ padding: 0.15, maxZoom: 1, duration: 300 }) : setViewport({ x: 0, y: 0, zoom: 1 })), 50);
   };
 
   const exportJson = () =>
-    downloadJson({ version: 1, nodes, edges, defaultTier, defaultPipeTier, gridBelts, beltLabels }, `fabrica-${new Date().toISOString().slice(0, 10)}.json`);
+    downloadJson({ version: 1, nodes, edges, defaultTier, defaultPipeTier, gridBelts, beltLabels, couponsPrinted }, `fabrica-${new Date().toISOString().slice(0, 10)}.json`);
 
   const importJson = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -552,6 +554,8 @@ function Planner() {
           sim={sim}
           onFocus={focusIssue}
           onFixBelt={fixBelt}
+          couponsPrinted={couponsPrinted}
+          onCouponsPrinted={setCouponsPrinted}
           beltDetails={
             selectedEdge && (
               <BeltInspector

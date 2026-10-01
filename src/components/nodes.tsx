@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { Handle, Position, useNodeId, useReactFlow, useUpdateNodeInternals, type NodeProps } from '@xyflow/react';
-import { AMPLIFICATION, EXTRACTORS, GENERATORS, ITEMS, MACHINES, MINER_TIERS, PURITIES, RECIPES, RESOURCES, WELL, extractorClockable, fuelOf, generatorPorts, getRecipe, isFluid, recipesFor } from '../game/data';
+import { AMPLIFICATION, EXTRACTORS, GENERATORS, ITEMS, MACHINES, MINER_TIERS, PURITIES, RECIPES, RESOURCES, SINK, WELL, extractorClockable, fuelOf, generatorPorts, getRecipe, isFluid, recipesFor, sinkPoints } from '../game/data';
 import type {
   BeltItem,
   ExtractorKind,
@@ -1011,15 +1011,34 @@ export function MergerNodeView({ id, data, selected }: NodeProps<MergerNode>) {
   return <LogisticCube id={id} selected={selected} kind="merger" rotation={data.rotation} fluid={data.fluid} />;
 }
 
+const SINK_MODES = [
+  { value: 'storage' as const, label: 'Armazém' },
+  { value: 'awesome' as const, label: SINK.name },
+];
+
 export function SinkNodeView({ id, data, selected }: NodeProps<SinkNode>) {
+  const { updateNodeData } = useReactFlow();
   const { r, issues } = useNodeSim(id);
   const inp = r?.inputs[0];
   const item = inp?.item ?? null;
+  const awesome = data.mode === 'awesome';
   const rotate = useRotation(id, data.rotation);
   const inSide = rotatePos(Position.Left, data.rotation);
   const strips = isVertical(inSide) && <PortStrip side={inSide} ports={[{ type: 'in', handle: 'in-0', title: 'Entrada' }]} />;
+  const each = item && item !== 'mixed' ? sinkPoints(item) : undefined;
   return (
-    <NodeCard icon="📦" title="Armazém" subtitle="Saída final" color="#2f7a52" selected={selected} issues={issues} onRotate={rotate} strips={strips}>
+    <NodeCard
+      icon={awesome ? '♻️' : '📦'}
+      title={awesome ? SINK.name : 'Armazém'}
+      subtitle={awesome ? 'Pontos' : 'Saída final'}
+      color={awesome ? '#7d3a8c' : '#2f7a52'}
+      selected={selected}
+      issues={issues}
+      power={awesome ? (r?.power ?? 0) : undefined}
+      onRotate={rotate}
+      strips={strips}
+    >
+      <Seg value={data.mode ?? 'storage'} options={SINK_MODES} onChange={(mode) => updateNodeData(id, { mode })} />
       <PortBlock>
         <PortRow
           type="in"
@@ -1035,6 +1054,13 @@ export function SinkNodeView({ id, data, selected }: NodeProps<SinkNode>) {
           }
         />
       </PortBlock>
+      {awesome && (
+        <div className="sink-points" title={each !== undefined ? `${fmt(each)} pontos por item` : undefined}>
+          <span className="field-label">Pontos</span>
+          <b>{fmt(r?.points ?? 0)}</b>
+          <small>/min · {fmt((r?.points ?? 0) * 60)}/h</small>
+        </div>
+      )}
     </NodeCard>
   );
 }

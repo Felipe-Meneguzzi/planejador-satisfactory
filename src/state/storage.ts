@@ -19,6 +19,8 @@ export interface SavedState {
   gridBelts?: boolean;
   /** mostrar rótulos nas esteiras */
   beltLabels?: boolean;
+  /** cupons do AWESOME Sink já impressos (pra estimar o custo dos próximos) */
+  couponsPrinted?: number;
 }
 
 /** contador da sessão: o gerador cria centenas de ids no mesmo milissegundo */
@@ -79,6 +81,7 @@ export function sanitize(raw: unknown): SavedState | null {
     defaultPipeTier: p.defaultPipeTier ?? 1,
     gridBelts: p.gridBelts ?? true,
     beltLabels: p.beltLabels ?? true,
+    ...(finite(p.couponsPrinted) && p.couponsPrinted! > 0 ? { couponsPrinted: Math.floor(p.couponsPrinted!) } : {}),
     nodes: p.nodes.map((n) => ({ id: n.id, position: n.position, ...migrateNode(n.type, n.data as Record<string, unknown>) }) as FactoryNode),
     edges: p.edges.map((e) => ({
       id: e.id,

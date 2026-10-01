@@ -1,5 +1,5 @@
 import { useMemo, useState, type DragEvent } from 'react';
-import { ALL_RECIPES, BELTS, BELT_TIERS, EXTRACTORS, GENERATORS, GENERATOR_IDS, ITEMS, MACHINES, MACHINE_IDS, MINER_TIERS, PIPES, PIPE_TIERS, PURITIES, RECIPES, RESOURCES, WELL, recipesFor, withUnit } from '../game/data';
+import { ALL_RECIPES, BELTS, BELT_TIERS, EXTRACTORS, GENERATORS, GENERATOR_IDS, ITEMS, MACHINES, MACHINE_IDS, MINER_TIERS, PIPES, PIPE_TIERS, PURITIES, RECIPES, RESOURCES, SINK, WELL, recipesFor, withUnit } from '../game/data';
 import type { BeltTier, ExtractorKind, FactoryData, ItemId, PipeTier, Purity } from '../game/types';
 import { fmt } from '../format';
 
@@ -114,7 +114,13 @@ const GROUPS: { title: string; entries: PaletteEntry[] }[] = [
       { key: 'merger', label: 'Mesclador', sub: 'Merger · 3 entradas → 1 saída', icon: '🔁', color: '#555b66', data: { kind: 'merger' } },
     ],
   },
-  { title: 'Saída', entries: [{ key: 'sink', label: 'Armazém', sub: 'Consome tudo que chega', icon: '📦', color: '#2f7a52', data: { kind: 'sink' } }] },
+  {
+    title: 'Saída',
+    entries: [
+      { key: 'sink', label: 'Armazém', sub: 'Consome tudo que chega', icon: '📦', color: '#2f7a52', data: { kind: 'sink' } },
+      { key: 'awesome-sink', label: SINK.name, sub: `Só sólidos, vira pontos · ${fmt(SINK.power)} MW`, icon: '♻️', color: '#7d3a8c', data: { kind: 'sink', mode: 'awesome' } },
+    ],
+  },
 ];
 
 const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');

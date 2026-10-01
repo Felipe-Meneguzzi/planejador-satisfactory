@@ -11,6 +11,7 @@ export const EMPTY_SIM: SimResult = {
   machines: 0,
   sloops: 0,
   production: [],
+  sink: { count: 0, points: 0, dna: 0 },
 };
 
 export const SimContext = createContext<SimResult>(EMPTY_SIM);

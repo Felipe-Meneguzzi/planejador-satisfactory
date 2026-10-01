@@ -1,4 +1,4 @@
-import { BELTS, BELT_TIERS, EXTRACTORS, GENERATORS, ITEMS, WELL, MACHINES, PIPES, PIPE_TIERS, generatorPorts, getRecipe } from '../game/data';
+import { BELTS, BELT_TIERS, EXTRACTORS, GENERATORS, ITEMS, SINK, WELL, MACHINES, PIPES, PIPE_TIERS, generatorPorts, getRecipe } from '../game/data';
 import type { BeltEdge, BeltItem, BeltRouting, BeltTier, FactoryNode, PipeTier } from '../game/types';
 import { fmt } from '../format';
 import type { EdgeResult, Issue } from '../sim/simulate';
@@ -26,7 +26,7 @@ export function nodeLabel(n?: FactoryNode): string {
     case 'merger':
       return d.fluid ? 'Junção (junta)' : 'Mesclador';
     case 'sink':
-      return 'Armazém';
+      return d.mode === 'awesome' ? SINK.name : 'Armazém';
     case 'generator':
       return GENERATORS[d.generator]?.name ?? 'Gerador';
   }

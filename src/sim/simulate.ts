@@ -1,5 +1,5 @@
-import { AMPLIFICATION, BELTS, BELT_TIERS, EXTRACTORS, GENERATORS, ITEMS, MACHINES, MINER_TIERS, OVERCLOCK, PIPES, PIPE_TIERS, PURITIES, WELL, extractorClockable, generatorClockable, generatorPorts, getRecipe, isFluid, withUnit } from '../game/data';
-import type { BeltItem, BeltTier, ExtractorData, FactoryData, GeneratorData, GeneratorId, ItemId, MachineData, MinerData, PipeTier, WellData } from '../game/types';
+import { AMPLIFICATION, BELTS, BELT_TIERS, EXTRACTORS, GENERATORS, ITEMS, MACHINES, MINER_TIERS, OVERCLOCK, PIPES, PIPE_TIERS, PURITIES, SINK, WELL, extractorClockable, generatorClockable, generatorPorts, getRecipe, isFluid, sinkPoints, withUnit } from '../game/data';
+import type { BeltItem, BeltTier, ExtractorData, FactoryData, GeneratorData, GeneratorId, ItemId, MachineData, MinerData, PipeTier, SinkData, WellData } from '../game/types';
 import { fmt } from '../format';
 
 /*
@@ -54,6 +54,8 @@ export interface NodeResult {
   power: number;
   /** geração em MW (geradores; sem o bônus do Alien Power Augmenter) */
   generated?: number;
+  /** pontos/min do AWESOME Sink */
+  points?: number;
   inputs: PortResult[];
   outputs: PortResult[];
 }
@@ -99,7 +101,10 @@ export interface SimResult {
   machines: number;
   /** total de Somersloops em uso */
   sloops: number;
-  production: { item: ItemId; stored: number; loose: number }[];
+  /** `sunk` = destruído em AWESOME Sinks (só aparece quando há) */
+  production: { item: ItemId; stored: number; loose: number; sunk?: number }[];
+  /** AWESOME Sinks: quantos há, pontos/min e pontos/min do contador de DNA */
+  sink: { count: number; points: number; dna: number };
 }
 
 const EPS = 1e-6;
@@ -146,6 +151,10 @@ export const generatorNominal = (d: GeneratorData) => {
   if (g.geothermal) return g.geothermal[d.purity ?? 'normal'].avg;
   return (g.power * generatorClock(d)) / 100;
 };
+
+/** O AWESOME Sink recusa o item (fluido ou item sem pontos): a esteira para */
+export const sinkRefuses = (d: SinkData, item: BeltItem) =>
+  d.mode === 'awesome' && !!item && item !== 'mixed' && (isFluid(item) || (sinkPoints(item) === undefined && item !== SINK.dna.item));
 
 /** Somersloops efetivos (limitados aos slots da máquina) */
 export const sloopsOf = (d: MachineData) => Math.max(0, Math.min(MACHINES[d.machine]?.sloopSlots ?? 0, Math.floor(d.sloops ?? 0)));
@@ -346,7 +355,7 @@ export function simulate(nodes: SimNode[], edges: SimEdge[]): SimResult {
       }
       case 'sink': {
         const b = inB(n.id, 0);
-        if (b) setD(b, Infinity);
+        if (b) setD(b, sinkRefuses(d, b.item) ? 0 : Infinity);
         break;
       }
     }
@@ -384,7 +393,10 @@ export function simulate(nodes: SimNode[], edges: SimEdge[]): SimResult {
     const u = (v: number) => withUnit(fmt(v), b.item);
     const what = b.pipe ? 'Cano' : 'Esteira';
 
-    if (expected && isWrong(b.item, expected)) {
+    if (tgt.kind === 'sink' && sinkRefuses(tgt, b.item)) {
+      // o problema aparece no próprio AWESOME Sink (não vira "sobra" na esteira)
+      status = 'wrong-item';
+    } else if (expected && isWrong(b.item, expected)) {
       status = 'wrong-item';
       add(
         'error',
@@ -439,6 +451,10 @@ export function simulate(nodes: SimNode[], edges: SimEdge[]): SimResult {
   let generatorCount = 0;
   let firstGenerator: string | undefined;
   const byType = new Map<GeneratorId, { count: number; generated: number; nominal: number }>();
+  const sunk = new Map<ItemId, number>();
+  let sinkCount = 0;
+  let sinkPointsTotal = 0;
+  let sinkDna = 0;
   const fuelUsed = new Map<ItemId, number>();
 
   for (const n of nodes) {
@@ -637,8 +653,31 @@ export function simulate(nodes: SimNode[], edges: SimEdge[]): SimResult {
       }
       case 'sink': {
         const b = inB(n.id, 0);
-        nodeResults[n.id] = { util: 1, power: 0, inputs: [port('in-0', b?.item ?? null, b?.cap ?? 0, b)], outputs: [] };
-        if (b) addTo(stored, b.item, flowOf(b));
+        const flow = flowOf(b);
+        if (d.mode !== 'awesome') {
+          nodeResults[n.id] = { util: 1, power: 0, inputs: [port('in-0', b?.item ?? null, b?.cap ?? 0, b)], outputs: [] };
+          if (b) addTo(stored, b.item, flow);
+          break;
+        }
+        // AWESOME Sink: consome energia só enquanto recebe itens
+        const p = flow > EPS ? SINK.power : 0;
+        power += p;
+        sinkCount++;
+        const item = b?.item ?? null;
+        const pts = item && item !== 'mixed' ? sinkPoints(item) : undefined;
+        const points = pts !== undefined ? flow * pts : 0;
+        sinkPointsTotal += points;
+        nodeResults[n.id] = { util: 1, power: p, points, inputs: [port('in-0', item, b?.cap ?? 0, b)], outputs: [] };
+        if (!b || !item) break;
+        const name = itemName(item);
+        if (item === 'mixed') add('warning', 'node', n.id, 'mixed', 'Itens misturados chegando: os pontos/min não podem ser calculados');
+        else if (isFluid(item)) add('error', 'node', n.id, 'fluid', `${SINK.name} não aceita fluidos: ${name} precisa ser empacotado (Packager) antes`);
+        else if (item === SINK.dna.item) {
+          sinkDna += flow * SINK.dna.points;
+          addTo(sunk, item, flow);
+          add('info', 'node', n.id, 'dna', `${name} vai pro contador separado de DNA: ${fmt(flow * SINK.dna.points)} pontos/min`);
+        } else if (pts === undefined) add('warning', 'node', n.id, 'nopoints', `${name} não pode ser destruído no ${SINK.name} (não vale pontos): a esteira fica parada`);
+        else addTo(sunk, item, flow);
         break;
       }
     }
@@ -671,10 +710,11 @@ export function simulate(nodes: SimNode[], edges: SimEdge[]): SimResult {
   const byTargetIssues: Record<string, Issue[]> = {};
   for (const i of issues) (byTargetIssues[i.target.id] ??= []).push(i);
 
-  const items = new Set<ItemId>([...stored.keys(), ...loose.keys()]);
+  const items = new Set<ItemId>([...stored.keys(), ...loose.keys(), ...sunk.keys()]);
   const production = (Object.keys(ITEMS) as ItemId[])
     .filter((i) => items.has(i))
-    .map((item) => ({ item, stored: stored.get(item) ?? 0, loose: loose.get(item) ?? 0 }));
+    .map((item) => ({ item, stored: stored.get(item) ?? 0, loose: loose.get(item) ?? 0, ...(sunk.has(item) ? { sunk: sunk.get(item)! } : {}) }));
 
-  return { nodes: nodeResults, edges: edgeResults, issues, byTarget: byTargetIssues, power, energy, machines, sloops, production };
+  const sink = { count: sinkCount, points: sinkPointsTotal, dna: sinkDna };
+  return { nodes: nodeResults, edges: edgeResults, issues, byTarget: byTargetIssues, power, energy, machines, sloops, production, sink };
 }

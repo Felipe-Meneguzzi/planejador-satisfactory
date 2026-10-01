@@ -457,3 +457,15 @@ export function couponCost(n: number): number {
   if (n >= c.capFrom) return c.capCost;
   return c.factor * (Math.ceil(n / 3) - 1) ** 2 + c.base;
 }
+
+/**
+ * Cupons que dá pra imprimir com `points` pontos, começando do cupom `printed + 1`
+ * (cada cupom custa mais que o anterior, ver couponCost). Retorna também o custo do próximo e os pontos que sobram.
+ */
+export function couponsFor(points: number, printed: number): { count: number; next: number; left: number } {
+  let left = points;
+  let n = printed;
+  // teto de segurança: o custo cresce ao quadrado, então são poucas voltas na prática
+  for (let guard = 0; guard < 1_000_000 && couponCost(n + 1) <= left; guard++) left -= couponCost(++n);
+  return { count: n - printed, next: couponCost(n + 1), left };
+}

@@ -48,7 +48,9 @@ export type WellData = {
 /** fluid = junção de cano (Pipeline Junction Cross) em vez de divisor/mesclador de esteira */
 export type SplitterData = { kind: 'splitter'; fluid?: boolean; rotation?: Rotation };
 export type MergerData = { kind: 'merger'; fluid?: boolean; rotation?: Rotation };
-export type SinkData = { kind: 'sink'; rotation?: Rotation };
+/** Saída final: 'storage' = Armazém (aceita tudo), 'awesome' = AWESOME Sink (só sólidos, vira pontos) */
+export type SinkMode = 'storage' | 'awesome';
+export type SinkData = { kind: 'sink'; mode?: SinkMode; rotation?: Rotation };
 /** slug do nome oficial do gerador, ex.: 'coal-powered-generator' */
 export type GeneratorId = string;
 /**

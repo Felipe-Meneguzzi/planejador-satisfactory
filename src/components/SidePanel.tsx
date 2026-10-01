@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { BELTS, GENERATORS, ITEMS, PIPES, withUnit } from '../game/data';
+import { BELTS, GENERATORS, ITEMS, PIPES, SINK, couponCost, couponsFor, withUnit } from '../game/data';
 import type { PipeTier } from '../game/types';
 import { fmt } from '../format';
 import type { EnergyResult, Issue, SimResult } from '../sim/simulate';
@@ -12,9 +12,12 @@ export function SidePanel(props: {
   onFixBelt: (edgeId: string, tier: Issue['fixTier']) => void;
   /** detalhes da esteira selecionada, mostrados no topo do painel */
   beltDetails?: ReactNode;
+  couponsPrinted: number;
+  onCouponsPrinted: (n: number) => void;
 }) {
   const { sim } = props;
   const problems = sim.issues.filter((i) => i.level !== 'info');
+  const sunkAny = sim.production.some((p) => p.sunk);
   const infos = sim.issues.filter((i) => i.level === 'info');
   return (
     <aside className="sidepanel">
@@ -30,6 +33,7 @@ export function SidePanel(props: {
                 <th>Item</th>
                 <th title="Chegando em armazéns">Armazém</th>
                 <th title="Saídas de máquinas sem esteira">Livre</th>
+                {sunkAny && <th title={`Destruído em ${SINK.name}s`}>Sink</th>}
               </tr>
             </thead>
             <tbody>
@@ -41,12 +45,15 @@ export function SidePanel(props: {
                   </td>
                   <td>{p.stored ? withUnit(fmt(p.stored), p.item) : '—'}</td>
                   <td>{p.loose ? withUnit(fmt(p.loose), p.item) : '—'}</td>
+                  {sunkAny && <td>{p.sunk ? withUnit(fmt(p.sunk), p.item) : '—'}</td>}
                 </tr>
               ))}
             </tbody>
           </table>
         )}
       </section>
+
+      {sim.sink.count > 0 && <SinkSection sink={sim.sink} printed={props.couponsPrinted} onPrinted={props.onCouponsPrinted} />}
 
       <EnergySection energy={sim.energy} />
 
@@ -174,6 +181,50 @@ function EnergySection({ energy: e }: { energy: EnergyResult }) {
           </ul>
         </>
       )}
+    </section>
+  );
+}
+
+/** Pontos/min e /hora dos AWESOME Sinks e a estimativa de cupons */
+function SinkSection({ sink, printed, onPrinted }: { sink: SimResult['sink']; printed: number; onPrinted: (n: number) => void }) {
+  const perHour = sink.points * 60;
+  const est = couponsFor(perHour, printed);
+  const nextCost = couponCost(printed + 1);
+  return (
+    <section className="sink-section">
+      <h3>{SINK.name}</h3>
+      <table className="energy-table">
+        <tbody>
+          <tr>
+            <td>Pontos por minuto</td>
+            <td>{fmt(sink.points)}</td>
+          </tr>
+          <tr className="total">
+            <td>Pontos por hora</td>
+            <td>{fmt(perHour)}</td>
+          </tr>
+          {sink.dna > 0 && (
+            <tr>
+              <td title="Alien DNA Capsule: contador separado">Pontos de DNA por hora</td>
+              <td>{fmt(sink.dna * 60)}</td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+      <label className="coupons">
+        Cupons já impressos
+        <input
+          type="number"
+          min={0}
+          step={1}
+          value={printed}
+          onChange={(e) => onPrinted(Math.max(0, Math.floor(Number(e.target.value) || 0)))}
+        />
+      </label>
+      <p className="muted">
+        O próximo cupom custa <b>{fmt(nextCost)}</b> pontos
+        {sink.points > 0 ? ` (~${fmt(Math.ceil(nextCost / sink.points))} min)` : ''}. Nesse ritmo: <b>≈ {fmt(est.count)}</b> cupom(ns) na próxima hora.
+      </p>
     </section>
   );
 }
