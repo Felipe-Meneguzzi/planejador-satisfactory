@@ -25,6 +25,7 @@ import { useSim } from '../sim/SimContext';
 import { useProject } from '../sim/ProjectContext';
 import type { FeedStatus } from '../sim/project';
 import { mediumsMatch, portMedium } from '../game/ports';
+import { FrameNodeView, NoteNodeView } from './annotationNodes';
 import { CLOCK_MAX, CLOCK_MIN, ampOf, clampClock, extractorRate, generatorClock, generatorNominal, minerRate, shardsFor, sloopsOf, wellPower, wellSatelliteRates, type Issue } from '../sim/simulate';
 
 export const itemColor = (item: BeltItem) => (item && item !== 'mixed' ? ITEMS[item].color : item === 'mixed' ? '#d46ad8' : '#5b616b');
@@ -1295,4 +1296,6 @@ export const nodeTypes = {
   generator: GeneratorNodeView,
   inbound: InboundNodeView,
   outbound: OutboundNodeView,
+  frame: FrameNodeView,
+  note: NoteNodeView,
 };
