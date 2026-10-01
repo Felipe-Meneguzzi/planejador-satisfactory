@@ -1,0 +1,4155 @@
+{
+  "version": "1.2.4.0",
+  "dataNotes": "Receitas/itens/potências extraídos de Template:DocsRecipes.json (rev. 2026-09-01), Template:DocsItems.json e Template:DocsBuildings.json (rev. '1.2 stable' 2026-06-02). Nenhuma mudança de balanceamento relevante nas patch notes 1.1.x–1.2.4.0. O wiki não usa o prefixo 'Alternate: ' no nome; foi adicionado aqui para receitas com alternate=true (nome original = sem o prefixo). 'event: FICSMAS' marca receitas sazonais. 'variablePower' (MW) substitui o consumo fixo da máquina nessa receita.",
+  "sources": [
+    "https://satisfactory.wiki.gg/wiki/Template:DocsRecipes.json",
+    "https://satisfactory.wiki.gg/wiki/Template:DocsItems.json",
+    "https://satisfactory.wiki.gg/wiki/Template:DocsBuildings.json",
+    "https://satisfactory.wiki.gg/wiki/Conveyor_Belts",
+    "https://satisfactory.wiki.gg/wiki/Miner",
+    "https://satisfactory.wiki.gg/wiki/Resource_Node",
+    "https://satisfactory.wiki.gg/wiki/Clock_speed",
+    "https://satisfactory.wiki.gg/wiki/Tutorial:Advanced_clock_speed",
+    "https://satisfactory.wiki.gg/wiki/Power_Shard",
+    "https://satisfactory.wiki.gg/wiki/Smelter",
+    "https://satisfactory.wiki.gg/wiki/Foundry",
+    "https://satisfactory.wiki.gg/wiki/Constructor",
+    "https://satisfactory.wiki.gg/wiki/Assembler",
+    "https://satisfactory.wiki.gg/wiki/Manufacturer",
+    "https://satisfactory.wiki.gg/wiki/Patch_1.1.0.0",
+    "https://satisfactory.wiki.gg/wiki/Patch_1.2.0.0",
+    "https://satisfactory.wiki.gg/wiki/Patch_1.2.2.2",
+    "https://satisfactory.wiki.gg/wiki/Patch_1.2.4.0",
+    "https://satisfactory.wiki.gg/wiki/Production_amplifier"
+  ],
+  "belts": [
+    {
+      "tier": 1,
+      "rate": 60
+    },
+    {
+      "tier": 2,
+      "rate": 120
+    },
+    {
+      "tier": 3,
+      "rate": 270
+    },
+    {
+      "tier": 4,
+      "rate": 480
+    },
+    {
+      "tier": 5,
+      "rate": 780
+    },
+    {
+      "tier": 6,
+      "rate": 1200
+    }
+  ],
+  "purities": {
+    "impure": 0.5,
+    "normal": 1,
+    "pure": 2
+  },
+  "miners": [
+    {
+      "tier": 1,
+      "rate": 60,
+      "power": 5
+    },
+    {
+      "tier": 2,
+      "rate": 120,
+      "power": 15
+    },
+    {
+      "tier": 3,
+      "rate": 240,
+      "power": 45
+    }
+  ],
+  "overclock": {
+    "min": 1,
+    "max": 250,
+    "precisionDecimals": 4,
+    "shards": [
+      {
+        "upTo": 100,
+        "shards": 0
+      },
+      {
+        "upTo": 150,
+        "shards": 1
+      },
+      {
+        "upTo": 200,
+        "shards": 2
+      },
+      {
+        "upTo": 250,
+        "shards": 3
+      }
+    ],
+    "powerExponent": 1.321928,
+    "notes": "power = basePower * (clock/100)^1.321928 — mesmo expoente para máquinas de produção e mineradoras (extractors). Produção escala linearmente com o clock. Cada Power Shard libera +50% (máx. 3 shards = 250%). Sem shard o limite é 100%; underclock (1–100%) não exige shard. Mudar o clock exige a pesquisa MAM 'Overclock Production' (Power Slugs). Máquina ativa abaixo de 0,1 MW consome 0,1 MW. Geradores escalam linearmente (fora do escopo)."
+  },
+  "resources": [
+    "Iron Ore",
+    "Copper Ore",
+    "Limestone",
+    "Coal",
+    "Caterium Ore",
+    "Raw Quartz",
+    "Sulfur",
+    "Bauxite",
+    "Uranium",
+    "SAM"
+  ],
+  "machines": [
+    {
+      "name": "Smelter",
+      "power": 4,
+      "inputs": 1,
+      "outputs": 1,
+      "somersloopSlots": 1
+    },
+    {
+      "name": "Foundry",
+      "power": 16,
+      "inputs": 2,
+      "outputs": 1,
+      "somersloopSlots": 2
+    },
+    {
+      "name": "Constructor",
+      "power": 4,
+      "inputs": 1,
+      "outputs": 1,
+      "somersloopSlots": 1
+    },
+    {
+      "name": "Assembler",
+      "power": 15,
+      "inputs": 2,
+      "outputs": 1,
+      "somersloopSlots": 2
+    },
+    {
+      "name": "Manufacturer",
+      "power": 55,
+      "inputs": 4,
+      "outputs": 1,
+      "somersloopSlots": 4
+    }
+  ],
+  "recipes": [
+    {
+      "name": "Blue FICSMAS Ornament",
+      "className": "Recipe_XmasBall2_C",
+      "alternate": false,
+      "machine": "Smelter",
+      "duration": 12,
+      "inputs": [
+        {
+          "item": "FICSMAS Gift",
+          "amount": 1
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Blue FICSMAS Ornament",
+          "amount": 2
+        }
+      ],
+      "event": "FICSMAS"
+    },
+    {
+      "name": "Caterium Ingot",
+      "className": "Recipe_IngotCaterium_C",
+      "alternate": false,
+      "machine": "Smelter",
+      "duration": 4,
+      "inputs": [
+        {
+          "item": "Caterium Ore",
+          "amount": 3
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Caterium Ingot",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "name": "Copper Ingot",
+      "className": "Recipe_IngotCopper_C",
+      "alternate": false,
+      "machine": "Smelter",
+      "duration": 2,
+      "inputs": [
+        {
+          "item": "Copper Ore",
+          "amount": 1
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Copper Ingot",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "name": "Iron Ingot",
+      "className": "Recipe_IngotIron_C",
+      "alternate": false,
+      "machine": "Smelter",
+      "duration": 2,
+      "inputs": [
+        {
+          "item": "Iron Ore",
+          "amount": 1
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Iron Ingot",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "name": "Red FICSMAS Ornament",
+      "className": "Recipe_XmasBall1_C",
+      "alternate": false,
+      "machine": "Smelter",
+      "duration": 12,
+      "inputs": [
+        {
+          "item": "FICSMAS Gift",
+          "amount": 1
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Red FICSMAS Ornament",
+          "amount": 1
+        }
+      ],
+      "event": "FICSMAS"
+    },
+    {
+      "name": "Alternate: Pure Aluminum Ingot",
+      "className": "Recipe_PureAluminumIngot_C",
+      "alternate": true,
+      "machine": "Smelter",
+      "duration": 2,
+      "inputs": [
+        {
+          "item": "Aluminum Scrap",
+          "amount": 2
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Aluminum Ingot",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "name": "Aluminum Ingot",
+      "className": "Recipe_IngotAluminum_C",
+      "alternate": false,
+      "machine": "Foundry",
+      "duration": 4,
+      "inputs": [
+        {
+          "item": "Aluminum Scrap",
+          "amount": 6
+        },
+        {
+          "item": "Silica",
+          "amount": 5
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Aluminum Ingot",
+          "amount": 4
+        }
+      ]
+    },
+    {
+      "name": "Copper FICSMAS Ornament",
+      "className": "Recipe_XmasBall3_C",
+      "alternate": false,
+      "machine": "Foundry",
+      "duration": 12,
+      "inputs": [
+        {
+          "item": "Red FICSMAS Ornament",
+          "amount": 2
+        },
+        {
+          "item": "Copper Ingot",
+          "amount": 2
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Copper FICSMAS Ornament",
+          "amount": 1
+        }
+      ],
+      "event": "FICSMAS"
+    },
+    {
+      "name": "Iron FICSMAS Ornament",
+      "className": "Recipe_XmasBall4_C",
+      "alternate": false,
+      "machine": "Foundry",
+      "duration": 12,
+      "inputs": [
+        {
+          "item": "Blue FICSMAS Ornament",
+          "amount": 3
+        },
+        {
+          "item": "Iron Ingot",
+          "amount": 3
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Iron FICSMAS Ornament",
+          "amount": 1
+        }
+      ],
+      "event": "FICSMAS"
+    },
+    {
+      "name": "Steel Ingot",
+      "className": "Recipe_IngotSteel_C",
+      "alternate": false,
+      "machine": "Foundry",
+      "duration": 4,
+      "inputs": [
+        {
+          "item": "Iron Ore",
+          "amount": 3
+        },
+        {
+          "item": "Coal",
+          "amount": 3
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Steel Ingot",
+          "amount": 3
+        }
+      ]
+    },
+    {
+      "name": "Alternate: Basic Iron Ingot",
+      "className": "Recipe_Alternate_IronIngot_Basic_C",
+      "alternate": true,
+      "machine": "Foundry",
+      "duration": 12,
+      "inputs": [
+        {
+          "item": "Iron Ore",
+          "amount": 5
+        },
+        {
+          "item": "Limestone",
+          "amount": 8
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Iron Ingot",
+          "amount": 10
+        }
+      ]
+    },
+    {
+      "name": "Alternate: Coke Steel Ingot",
+      "className": "Recipe_Alternate_CokeSteelIngot_C",
+      "alternate": true,
+      "machine": "Foundry",
+      "duration": 12,
+      "inputs": [
+        {
+          "item": "Iron Ore",
+          "amount": 15
+        },
+        {
+          "item": "Petroleum Coke",
+          "amount": 15
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Steel Ingot",
+          "amount": 20
+        }
+      ]
+    },
+    {
+      "name": "Alternate: Compacted Steel Ingot",
+      "className": "Recipe_Alternate_IngotSteel_2_C",
+      "alternate": true,
+      "machine": "Foundry",
+      "duration": 24,
+      "inputs": [
+        {
+          "item": "Iron Ore",
+          "amount": 2
+        },
+        {
+          "item": "Compacted Coal",
+          "amount": 1
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Steel Ingot",
+          "amount": 4
+        }
+      ]
+    },
+    {
+      "name": "Alternate: Copper Alloy Ingot",
+      "className": "Recipe_Alternate_CopperAlloyIngot_C",
+      "alternate": true,
+      "machine": "Foundry",
+      "duration": 6,
+      "inputs": [
+        {
+          "item": "Copper Ore",
+          "amount": 5
+        },
+        {
+          "item": "Iron Ore",
+          "amount": 5
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Copper Ingot",
+          "amount": 10
+        }
+      ]
+    },
+    {
+      "name": "Alternate: Fused Quartz Crystal",
+      "className": "Recipe_Alternate_Quartz_Fused_C",
+      "alternate": true,
+      "machine": "Foundry",
+      "duration": 20,
+      "inputs": [
+        {
+          "item": "Raw Quartz",
+          "amount": 25
+        },
+        {
+          "item": "Coal",
+          "amount": 12
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Quartz Crystal",
+          "amount": 18
+        }
+      ]
+    },
+    {
+      "name": "Alternate: Iron Alloy Ingot",
+      "className": "Recipe_Alternate_IngotIron_C",
+      "alternate": true,
+      "machine": "Foundry",
+      "duration": 12,
+      "inputs": [
+        {
+          "item": "Iron Ore",
+          "amount": 8
+        },
+        {
+          "item": "Copper Ore",
+          "amount": 2
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Iron Ingot",
+          "amount": 15
+        }
+      ]
+    },
+    {
+      "name": "Alternate: Molded Beam",
+      "className": "Recipe_Alternate_SteelBeam_Molded_C",
+      "alternate": true,
+      "machine": "Foundry",
+      "duration": 12,
+      "inputs": [
+        {
+          "item": "Steel Ingot",
+          "amount": 24
+        },
+        {
+          "item": "Concrete",
+          "amount": 16
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Steel Beam",
+          "amount": 9
+        }
+      ]
+    },
+    {
+      "name": "Alternate: Molded Steel Pipe",
+      "className": "Recipe_Alternate_SteelPipe_Molded_C",
+      "alternate": true,
+      "machine": "Foundry",
+      "duration": 6,
+      "inputs": [
+        {
+          "item": "Steel Ingot",
+          "amount": 5
+        },
+        {
+          "item": "Concrete",
+          "amount": 3
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Steel Pipe",
+          "amount": 5
+        }
+      ]
+    },
+    {
+      "name": "Alternate: Solid Steel Ingot",
+      "className": "Recipe_Alternate_IngotSteel_1_C",
+      "alternate": true,
+      "machine": "Foundry",
+      "duration": 3,
+      "inputs": [
+        {
+          "item": "Iron Ingot",
+          "amount": 2
+        },
+        {
+          "item": "Coal",
+          "amount": 2
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Steel Ingot",
+          "amount": 3
+        }
+      ]
+    },
+    {
+      "name": "Alternate: Steel Cast Plate",
+      "className": "Recipe_Alternate_SteelCastedPlate_C",
+      "alternate": true,
+      "machine": "Foundry",
+      "duration": 4,
+      "inputs": [
+        {
+          "item": "Iron Ingot",
+          "amount": 1
+        },
+        {
+          "item": "Steel Ingot",
+          "amount": 1
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Iron Plate",
+          "amount": 3
+        }
+      ]
+    },
+    {
+      "name": "Alternate: Tempered Caterium Ingot",
+      "className": "Recipe_Alternate_CateriumIngot_Tempered_C",
+      "alternate": true,
+      "machine": "Foundry",
+      "duration": 8,
+      "inputs": [
+        {
+          "item": "Caterium Ore",
+          "amount": 6
+        },
+        {
+          "item": "Petroleum Coke",
+          "amount": 2
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Caterium Ingot",
+          "amount": 3
+        }
+      ]
+    },
+    {
+      "name": "Alternate: Tempered Copper Ingot",
+      "className": "Recipe_Alternate_CopperIngot_Tempered_C",
+      "alternate": true,
+      "machine": "Foundry",
+      "duration": 12,
+      "inputs": [
+        {
+          "item": "Copper Ore",
+          "amount": 5
+        },
+        {
+          "item": "Petroleum Coke",
+          "amount": 8
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Copper Ingot",
+          "amount": 12
+        }
+      ]
+    },
+    {
+      "name": "Alien DNA Capsule",
+      "className": "Recipe_AlienDNACapsule_C",
+      "alternate": false,
+      "machine": "Constructor",
+      "duration": 6,
+      "inputs": [
+        {
+          "item": "Alien Protein",
+          "amount": 1
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Alien DNA Capsule",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "name": "Aluminum Casing",
+      "className": "Recipe_AluminumCasing_C",
+      "alternate": false,
+      "machine": "Constructor",
+      "duration": 2,
+      "inputs": [
+        {
+          "item": "Aluminum Ingot",
+          "amount": 3
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Aluminum Casing",
+          "amount": 2
+        }
+      ]
+    },
+    {
+      "name": "Biomass (Alien Protein)",
+      "className": "Recipe_Biomass_AlienProtein_C",
+      "alternate": false,
+      "machine": "Constructor",
+      "duration": 4,
+      "inputs": [
+        {
+          "item": "Alien Protein",
+          "amount": 1
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Biomass",
+          "amount": 100
+        }
+      ]
+    },
+    {
+      "name": "Biomass (Leaves)",
+      "className": "Recipe_Biomass_Leaves_C",
+      "alternate": false,
+      "machine": "Constructor",
+      "duration": 5,
+      "inputs": [
+        {
+          "item": "Leaves",
+          "amount": 10
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Biomass",
+          "amount": 5
+        }
+      ]
+    },
+    {
+      "name": "Biomass (Mycelia)",
+      "className": "Recipe_Biomass_Mycelia_C",
+      "alternate": false,
+      "machine": "Constructor",
+      "duration": 4,
+      "inputs": [
+        {
+          "item": "Mycelia",
+          "amount": 1
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Biomass",
+          "amount": 10
+        }
+      ]
+    },
+    {
+      "name": "Biomass (Wood)",
+      "className": "Recipe_Biomass_Wood_C",
+      "alternate": false,
+      "machine": "Constructor",
+      "duration": 4,
+      "inputs": [
+        {
+          "item": "Wood",
+          "amount": 4
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Biomass",
+          "amount": 20
+        }
+      ]
+    },
+    {
+      "name": "Cable",
+      "className": "Recipe_Cable_C",
+      "alternate": false,
+      "machine": "Constructor",
+      "duration": 2,
+      "inputs": [
+        {
+          "item": "Wire",
+          "amount": 2
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Cable",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "name": "Candy Cane",
+      "className": "Recipe_CandyCane_C",
+      "alternate": false,
+      "machine": "Constructor",
+      "duration": 12,
+      "inputs": [
+        {
+          "item": "FICSMAS Gift",
+          "amount": 3
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Candy Cane",
+          "amount": 1
+        }
+      ],
+      "event": "FICSMAS"
+    },
+    {
+      "name": "Concrete",
+      "className": "Recipe_Concrete_C",
+      "alternate": false,
+      "machine": "Constructor",
+      "duration": 4,
+      "inputs": [
+        {
+          "item": "Limestone",
+          "amount": 3
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Concrete",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "name": "Copper Powder",
+      "className": "Recipe_CopperDust_C",
+      "alternate": false,
+      "machine": "Constructor",
+      "duration": 6,
+      "inputs": [
+        {
+          "item": "Copper Ingot",
+          "amount": 30
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Copper Powder",
+          "amount": 5
+        }
+      ]
+    },
+    {
+      "name": "Copper Sheet",
+      "className": "Recipe_CopperSheet_C",
+      "alternate": false,
+      "machine": "Constructor",
+      "duration": 6,
+      "inputs": [
+        {
+          "item": "Copper Ingot",
+          "amount": 2
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Copper Sheet",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "name": "Empty Canister",
+      "className": "Recipe_FluidCanister_C",
+      "alternate": false,
+      "machine": "Constructor",
+      "duration": 4,
+      "inputs": [
+        {
+          "item": "Plastic",
+          "amount": 2
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Empty Canister",
+          "amount": 4
+        }
+      ]
+    },
+    {
+      "name": "Empty Fluid Tank",
+      "className": "Recipe_GasTank_C",
+      "alternate": false,
+      "machine": "Constructor",
+      "duration": 1,
+      "inputs": [
+        {
+          "item": "Aluminum Ingot",
+          "amount": 1
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Empty Fluid Tank",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "name": "FICSMAS Actual Snow",
+      "className": "Recipe_Snow_C",
+      "alternate": false,
+      "machine": "Constructor",
+      "duration": 12,
+      "inputs": [
+        {
+          "item": "FICSMAS Gift",
+          "amount": 5
+        }
+      ],
+      "outputs": [
+        {
+          "item": "FICSMAS Actual Snow",
+          "amount": 2
+        }
+      ],
+      "event": "FICSMAS"
+    },
+    {
+      "name": "FICSMAS Bow",
+      "className": "Recipe_XmasBow_C",
+      "alternate": false,
+      "machine": "Constructor",
+      "duration": 12,
+      "inputs": [
+        {
+          "item": "FICSMAS Gift",
+          "amount": 2
+        }
+      ],
+      "outputs": [
+        {
+          "item": "FICSMAS Bow",
+          "amount": 1
+        }
+      ],
+      "event": "FICSMAS"
+    },
+    {
+      "name": "FICSMAS Tree Branch",
+      "className": "Recipe_XmasBranch_C",
+      "alternate": false,
+      "machine": "Constructor",
+      "duration": 6,
+      "inputs": [
+        {
+          "item": "FICSMAS Gift",
+          "amount": 1
+        }
+      ],
+      "outputs": [
+        {
+          "item": "FICSMAS Tree Branch",
+          "amount": 1
+        }
+      ],
+      "event": "FICSMAS"
+    },
+    {
+      "name": "Ficsite Trigon",
+      "className": "Recipe_FicsiteMesh_C",
+      "alternate": false,
+      "machine": "Constructor",
+      "duration": 6,
+      "inputs": [
+        {
+          "item": "Ficsite Ingot",
+          "amount": 1
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Ficsite Trigon",
+          "amount": 3
+        }
+      ]
+    },
+    {
+      "name": "Hatcher Protein",
+      "className": "Recipe_Protein_Crab_C",
+      "alternate": false,
+      "machine": "Constructor",
+      "duration": 3,
+      "inputs": [
+        {
+          "item": "Hatcher Remains",
+          "amount": 1
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Alien Protein",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "name": "Hog Protein",
+      "className": "Recipe_Protein_Hog_C",
+      "alternate": false,
+      "machine": "Constructor",
+      "duration": 3,
+      "inputs": [
+        {
+          "item": "Hog Remains",
+          "amount": 1
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Alien Protein",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "name": "Iron Plate",
+      "className": "Recipe_IronPlate_C",
+      "alternate": false,
+      "machine": "Constructor",
+      "duration": 6,
+      "inputs": [
+        {
+          "item": "Iron Ingot",
+          "amount": 3
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Iron Plate",
+          "amount": 2
+        }
+      ]
+    },
+    {
+      "name": "Iron Rebar",
+      "className": "Recipe_SpikedRebar_C",
+      "alternate": false,
+      "machine": "Constructor",
+      "duration": 4,
+      "inputs": [
+        {
+          "item": "Iron Rod",
+          "amount": 1
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Iron Rebar",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "name": "Iron Rod",
+      "className": "Recipe_IronRod_C",
+      "alternate": false,
+      "machine": "Constructor",
+      "duration": 4,
+      "inputs": [
+        {
+          "item": "Iron Ingot",
+          "amount": 1
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Iron Rod",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "name": "Power Shard (1)",
+      "className": "Recipe_PowerCrystalShard_1_C",
+      "alternate": false,
+      "machine": "Constructor",
+      "duration": 8,
+      "inputs": [
+        {
+          "item": "Blue Power Slug",
+          "amount": 1
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Power Shard",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "name": "Power Shard (2)",
+      "className": "Recipe_PowerCrystalShard_2_C",
+      "alternate": false,
+      "machine": "Constructor",
+      "duration": 12,
+      "inputs": [
+        {
+          "item": "Yellow Power Slug",
+          "amount": 1
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Power Shard",
+          "amount": 2
+        }
+      ]
+    },
+    {
+      "name": "Power Shard (5)",
+      "className": "Recipe_PowerCrystalShard_3_C",
+      "alternate": false,
+      "machine": "Constructor",
+      "duration": 24,
+      "inputs": [
+        {
+          "item": "Purple Power Slug",
+          "amount": 1
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Power Shard",
+          "amount": 5
+        }
+      ]
+    },
+    {
+      "name": "Quartz Crystal",
+      "className": "Recipe_QuartzCrystal_C",
+      "alternate": false,
+      "machine": "Constructor",
+      "duration": 8,
+      "inputs": [
+        {
+          "item": "Raw Quartz",
+          "amount": 5
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Quartz Crystal",
+          "amount": 3
+        }
+      ]
+    },
+    {
+      "name": "Quickwire",
+      "className": "Recipe_Quickwire_C",
+      "alternate": false,
+      "machine": "Constructor",
+      "duration": 5,
+      "inputs": [
+        {
+          "item": "Caterium Ingot",
+          "amount": 1
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Quickwire",
+          "amount": 5
+        }
+      ]
+    },
+    {
+      "name": "Reanimated SAM",
+      "className": "Recipe_IngotSAM_C",
+      "alternate": false,
+      "machine": "Constructor",
+      "duration": 2,
+      "inputs": [
+        {
+          "item": "SAM",
+          "amount": 4
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Reanimated SAM",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "name": "Screws",
+      "className": "Recipe_Screw_C",
+      "alternate": false,
+      "machine": "Constructor",
+      "duration": 6,
+      "inputs": [
+        {
+          "item": "Iron Rod",
+          "amount": 1
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Screws",
+          "amount": 4
+        }
+      ]
+    },
+    {
+      "name": "Silica",
+      "className": "Recipe_Silica_C",
+      "alternate": false,
+      "machine": "Constructor",
+      "duration": 8,
+      "inputs": [
+        {
+          "item": "Raw Quartz",
+          "amount": 3
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Silica",
+          "amount": 5
+        }
+      ]
+    },
+    {
+      "name": "Snowball",
+      "className": "Recipe_Snowball_C",
+      "alternate": false,
+      "machine": "Constructor",
+      "duration": 12,
+      "inputs": [
+        {
+          "item": "FICSMAS Actual Snow",
+          "amount": 3
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Snowball",
+          "amount": 1
+        }
+      ],
+      "event": "FICSMAS"
+    },
+    {
+      "name": "Solid Biofuel",
+      "className": "Recipe_Biofuel_C",
+      "alternate": false,
+      "machine": "Constructor",
+      "duration": 4,
+      "inputs": [
+        {
+          "item": "Biomass",
+          "amount": 8
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Solid Biofuel",
+          "amount": 4
+        }
+      ]
+    },
+    {
+      "name": "Spitter Protein",
+      "className": "Recipe_Protein_Spitter_C",
+      "alternate": false,
+      "machine": "Constructor",
+      "duration": 3,
+      "inputs": [
+        {
+          "item": "Spitter Remains",
+          "amount": 1
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Alien Protein",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "name": "Steel Beam",
+      "className": "Recipe_SteelBeam_C",
+      "alternate": false,
+      "machine": "Constructor",
+      "duration": 4,
+      "inputs": [
+        {
+          "item": "Steel Ingot",
+          "amount": 4
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Steel Beam",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "name": "Steel Pipe",
+      "className": "Recipe_SteelPipe_C",
+      "alternate": false,
+      "machine": "Constructor",
+      "duration": 6,
+      "inputs": [
+        {
+          "item": "Steel Ingot",
+          "amount": 3
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Steel Pipe",
+          "amount": 2
+        }
+      ]
+    },
+    {
+      "name": "Stinger Protein",
+      "className": "Recipe_Protein_Stinger_C",
+      "alternate": false,
+      "machine": "Constructor",
+      "duration": 3,
+      "inputs": [
+        {
+          "item": "Stinger Remains",
+          "amount": 1
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Alien Protein",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "name": "Wire",
+      "className": "Recipe_Wire_C",
+      "alternate": false,
+      "machine": "Constructor",
+      "duration": 4,
+      "inputs": [
+        {
+          "item": "Copper Ingot",
+          "amount": 1
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Wire",
+          "amount": 2
+        }
+      ]
+    },
+    {
+      "name": "Alternate: Aluminum Beam",
+      "className": "Recipe_Alternate_SteelBeam_Aluminum_C",
+      "alternate": true,
+      "machine": "Constructor",
+      "duration": 8,
+      "inputs": [
+        {
+          "item": "Aluminum Ingot",
+          "amount": 3
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Steel Beam",
+          "amount": 3
+        }
+      ]
+    },
+    {
+      "name": "Alternate: Aluminum Rod",
+      "className": "Recipe_Alternate_AluminumRod_C",
+      "alternate": true,
+      "machine": "Constructor",
+      "duration": 8,
+      "inputs": [
+        {
+          "item": "Aluminum Ingot",
+          "amount": 1
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Iron Rod",
+          "amount": 7
+        }
+      ]
+    },
+    {
+      "name": "Alternate: Biocoal",
+      "className": "Recipe_Alternate_Coal_2_C",
+      "alternate": true,
+      "machine": "Constructor",
+      "duration": 8,
+      "inputs": [
+        {
+          "item": "Biomass",
+          "amount": 5
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Coal",
+          "amount": 6
+        }
+      ]
+    },
+    {
+      "name": "Alternate: Cast Screws",
+      "className": "Recipe_Alternate_Screw_C",
+      "alternate": true,
+      "machine": "Constructor",
+      "duration": 24,
+      "inputs": [
+        {
+          "item": "Iron Ingot",
+          "amount": 5
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Screws",
+          "amount": 20
+        }
+      ]
+    },
+    {
+      "name": "Alternate: Caterium Wire",
+      "className": "Recipe_Alternate_Wire_2_C",
+      "alternate": true,
+      "machine": "Constructor",
+      "duration": 4,
+      "inputs": [
+        {
+          "item": "Caterium Ingot",
+          "amount": 1
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Wire",
+          "amount": 8
+        }
+      ]
+    },
+    {
+      "name": "Alternate: Charcoal",
+      "className": "Recipe_Alternate_Coal_1_C",
+      "alternate": true,
+      "machine": "Constructor",
+      "duration": 4,
+      "inputs": [
+        {
+          "item": "Wood",
+          "amount": 1
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Coal",
+          "amount": 10
+        }
+      ]
+    },
+    {
+      "name": "Alternate: Iron Pipe",
+      "className": "Recipe_Alternate_SteelPipe_Iron_C",
+      "alternate": true,
+      "machine": "Constructor",
+      "duration": 12,
+      "inputs": [
+        {
+          "item": "Iron Ingot",
+          "amount": 20
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Steel Pipe",
+          "amount": 5
+        }
+      ]
+    },
+    {
+      "name": "Alternate: Iron Wire",
+      "className": "Recipe_Alternate_Wire_1_C",
+      "alternate": true,
+      "machine": "Constructor",
+      "duration": 24,
+      "inputs": [
+        {
+          "item": "Iron Ingot",
+          "amount": 5
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Wire",
+          "amount": 9
+        }
+      ]
+    },
+    {
+      "name": "Alternate: Steel Canister",
+      "className": "Recipe_Alternate_SteelCanister_C",
+      "alternate": true,
+      "machine": "Constructor",
+      "duration": 6,
+      "inputs": [
+        {
+          "item": "Steel Ingot",
+          "amount": 4
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Empty Canister",
+          "amount": 4
+        }
+      ]
+    },
+    {
+      "name": "Alternate: Steel Rod",
+      "className": "Recipe_Alternate_SteelRod_C",
+      "alternate": true,
+      "machine": "Constructor",
+      "duration": 5,
+      "inputs": [
+        {
+          "item": "Steel Ingot",
+          "amount": 1
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Iron Rod",
+          "amount": 4
+        }
+      ]
+    },
+    {
+      "name": "Alternate: Steel Screws",
+      "className": "Recipe_Alternate_Screw_2_C",
+      "alternate": true,
+      "machine": "Constructor",
+      "duration": 12,
+      "inputs": [
+        {
+          "item": "Steel Beam",
+          "amount": 1
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Screws",
+          "amount": 52
+        }
+      ]
+    },
+    {
+      "name": "AI Limiter",
+      "className": "Recipe_AILimiter_C",
+      "alternate": false,
+      "machine": "Assembler",
+      "duration": 12,
+      "inputs": [
+        {
+          "item": "Copper Sheet",
+          "amount": 5
+        },
+        {
+          "item": "Quickwire",
+          "amount": 20
+        }
+      ],
+      "outputs": [
+        {
+          "item": "AI Limiter",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "name": "Alclad Aluminum Sheet",
+      "className": "Recipe_AluminumSheet_C",
+      "alternate": false,
+      "machine": "Assembler",
+      "duration": 6,
+      "inputs": [
+        {
+          "item": "Aluminum Ingot",
+          "amount": 3
+        },
+        {
+          "item": "Copper Ingot",
+          "amount": 1
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Alclad Aluminum Sheet",
+          "amount": 3
+        }
+      ]
+    },
+    {
+      "name": "Assembly Director System",
+      "className": "Recipe_SpaceElevatorPart_7_C",
+      "alternate": false,
+      "machine": "Assembler",
+      "duration": 80,
+      "inputs": [
+        {
+          "item": "Adaptive Control Unit",
+          "amount": 2
+        },
+        {
+          "item": "Supercomputer",
+          "amount": 1
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Assembly Director System",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "name": "Automated Wiring",
+      "className": "Recipe_SpaceElevatorPart_3_C",
+      "alternate": false,
+      "machine": "Assembler",
+      "duration": 24,
+      "inputs": [
+        {
+          "item": "Stator",
+          "amount": 1
+        },
+        {
+          "item": "Cable",
+          "amount": 20
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Automated Wiring",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "name": "Black Powder",
+      "className": "Recipe_Gunpowder_C",
+      "alternate": false,
+      "machine": "Assembler",
+      "duration": 4,
+      "inputs": [
+        {
+          "item": "Coal",
+          "amount": 1
+        },
+        {
+          "item": "Sulfur",
+          "amount": 1
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Black Powder",
+          "amount": 2
+        }
+      ]
+    },
+    {
+      "name": "Circuit Board",
+      "className": "Recipe_CircuitBoard_C",
+      "alternate": false,
+      "machine": "Assembler",
+      "duration": 8,
+      "inputs": [
+        {
+          "item": "Copper Sheet",
+          "amount": 2
+        },
+        {
+          "item": "Plastic",
+          "amount": 4
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Circuit Board",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "name": "Cluster Nobelisk",
+      "className": "Recipe_NobeliskCluster_C",
+      "alternate": false,
+      "machine": "Assembler",
+      "duration": 24,
+      "inputs": [
+        {
+          "item": "Nobelisk",
+          "amount": 3
+        },
+        {
+          "item": "Smokeless Powder",
+          "amount": 4
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Cluster Nobelisk",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "name": "Compacted Coal",
+      "className": "Recipe_Alternate_EnrichedCoal_C",
+      "alternate": false,
+      "machine": "Assembler",
+      "duration": 12,
+      "inputs": [
+        {
+          "item": "Coal",
+          "amount": 5
+        },
+        {
+          "item": "Sulfur",
+          "amount": 5
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Compacted Coal",
+          "amount": 5
+        }
+      ]
+    },
+    {
+      "name": "Electromagnetic Control Rod",
+      "className": "Recipe_ElectromagneticControlRod_C",
+      "alternate": false,
+      "machine": "Assembler",
+      "duration": 30,
+      "inputs": [
+        {
+          "item": "Stator",
+          "amount": 3
+        },
+        {
+          "item": "AI Limiter",
+          "amount": 2
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Electromagnetic Control Rod",
+          "amount": 2
+        }
+      ]
+    },
+    {
+      "name": "Encased Industrial Beam",
+      "className": "Recipe_EncasedIndustrialBeam_C",
+      "alternate": false,
+      "machine": "Assembler",
+      "duration": 10,
+      "inputs": [
+        {
+          "item": "Steel Beam",
+          "amount": 3
+        },
+        {
+          "item": "Concrete",
+          "amount": 6
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Encased Industrial Beam",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "name": "Encased Plutonium Cell",
+      "className": "Recipe_PlutoniumCell_C",
+      "alternate": false,
+      "machine": "Assembler",
+      "duration": 12,
+      "inputs": [
+        {
+          "item": "Plutonium Pellet",
+          "amount": 2
+        },
+        {
+          "item": "Concrete",
+          "amount": 4
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Encased Plutonium Cell",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "name": "FICSMAS Ornament Bundle",
+      "className": "Recipe_XmasBallCluster_C",
+      "alternate": false,
+      "machine": "Assembler",
+      "duration": 12,
+      "inputs": [
+        {
+          "item": "Copper FICSMAS Ornament",
+          "amount": 1
+        },
+        {
+          "item": "Iron FICSMAS Ornament",
+          "amount": 1
+        }
+      ],
+      "outputs": [
+        {
+          "item": "FICSMAS Ornament Bundle",
+          "amount": 1
+        }
+      ],
+      "event": "FICSMAS"
+    },
+    {
+      "name": "FICSMAS Wonder Star",
+      "className": "Recipe_XmasStar_C",
+      "alternate": false,
+      "machine": "Assembler",
+      "duration": 60,
+      "inputs": [
+        {
+          "item": "FICSMAS Wreath",
+          "amount": 5
+        },
+        {
+          "item": "Candy Cane",
+          "amount": 20
+        }
+      ],
+      "outputs": [
+        {
+          "item": "FICSMAS Wonder Star",
+          "amount": 1
+        }
+      ],
+      "event": "FICSMAS"
+    },
+    {
+      "name": "FICSMAS Wreath",
+      "className": "Recipe_XmasWreath_C",
+      "alternate": false,
+      "machine": "Assembler",
+      "duration": 60,
+      "inputs": [
+        {
+          "item": "FICSMAS Tree Branch",
+          "amount": 15
+        },
+        {
+          "item": "FICSMAS Ornament Bundle",
+          "amount": 6
+        }
+      ],
+      "outputs": [
+        {
+          "item": "FICSMAS Wreath",
+          "amount": 2
+        }
+      ],
+      "event": "FICSMAS"
+    },
+    {
+      "name": "Fabric",
+      "className": "Recipe_Fabric_C",
+      "alternate": false,
+      "machine": "Assembler",
+      "duration": 4,
+      "inputs": [
+        {
+          "item": "Mycelia",
+          "amount": 1
+        },
+        {
+          "item": "Biomass",
+          "amount": 5
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Fabric",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "name": "Fancy Fireworks",
+      "className": "Recipe_Fireworks_02_C",
+      "alternate": false,
+      "machine": "Assembler",
+      "duration": 24,
+      "inputs": [
+        {
+          "item": "FICSMAS Tree Branch",
+          "amount": 4
+        },
+        {
+          "item": "FICSMAS Bow",
+          "amount": 3
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Fancy Fireworks",
+          "amount": 1
+        }
+      ],
+      "event": "FICSMAS"
+    },
+    {
+      "name": "Gas Nobelisk",
+      "className": "Recipe_NobeliskGas_C",
+      "alternate": false,
+      "machine": "Assembler",
+      "duration": 12,
+      "inputs": [
+        {
+          "item": "Nobelisk",
+          "amount": 1
+        },
+        {
+          "item": "Biomass",
+          "amount": 10
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Gas Nobelisk",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "name": "Heat Sink",
+      "className": "Recipe_HeatSink_C",
+      "alternate": false,
+      "machine": "Assembler",
+      "duration": 8,
+      "inputs": [
+        {
+          "item": "Alclad Aluminum Sheet",
+          "amount": 5
+        },
+        {
+          "item": "Copper Sheet",
+          "amount": 3
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Heat Sink",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "name": "Homing Rifle Ammo",
+      "className": "Recipe_CartridgeSmart_C",
+      "alternate": false,
+      "machine": "Assembler",
+      "duration": 24,
+      "inputs": [
+        {
+          "item": "Rifle Ammo",
+          "amount": 20
+        },
+        {
+          "item": "High-Speed Connector",
+          "amount": 1
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Homing Rifle Ammo",
+          "amount": 10
+        }
+      ]
+    },
+    {
+      "name": "Magnetic Field Generator",
+      "className": "Recipe_SpaceElevatorPart_6_C",
+      "alternate": false,
+      "machine": "Assembler",
+      "duration": 120,
+      "inputs": [
+        {
+          "item": "Versatile Framework",
+          "amount": 5
+        },
+        {
+          "item": "Electromagnetic Control Rod",
+          "amount": 2
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Magnetic Field Generator",
+          "amount": 2
+        }
+      ]
+    },
+    {
+      "name": "Modular Frame",
+      "className": "Recipe_ModularFrame_C",
+      "alternate": false,
+      "machine": "Assembler",
+      "duration": 60,
+      "inputs": [
+        {
+          "item": "Reinforced Iron Plate",
+          "amount": 3
+        },
+        {
+          "item": "Iron Rod",
+          "amount": 12
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Modular Frame",
+          "amount": 2
+        }
+      ]
+    },
+    {
+      "name": "Motor",
+      "className": "Recipe_Motor_C",
+      "alternate": false,
+      "machine": "Assembler",
+      "duration": 12,
+      "inputs": [
+        {
+          "item": "Rotor",
+          "amount": 2
+        },
+        {
+          "item": "Stator",
+          "amount": 2
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Motor",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "name": "Nobelisk",
+      "className": "Recipe_Nobelisk_C",
+      "alternate": false,
+      "machine": "Assembler",
+      "duration": 6,
+      "inputs": [
+        {
+          "item": "Black Powder",
+          "amount": 2
+        },
+        {
+          "item": "Steel Pipe",
+          "amount": 2
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Nobelisk",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "name": "Pressure Conversion Cube",
+      "className": "Recipe_PressureConversionCube_C",
+      "alternate": false,
+      "machine": "Assembler",
+      "duration": 60,
+      "inputs": [
+        {
+          "item": "Fused Modular Frame",
+          "amount": 1
+        },
+        {
+          "item": "Radio Control Unit",
+          "amount": 2
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Pressure Conversion Cube",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "name": "Pulse Nobelisk",
+      "className": "Recipe_NobeliskShockwave_C",
+      "alternate": false,
+      "machine": "Assembler",
+      "duration": 60,
+      "inputs": [
+        {
+          "item": "Nobelisk",
+          "amount": 5
+        },
+        {
+          "item": "Crystal Oscillator",
+          "amount": 1
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Pulse Nobelisk",
+          "amount": 5
+        }
+      ]
+    },
+    {
+      "name": "Reinforced Iron Plate",
+      "className": "Recipe_IronPlateReinforced_C",
+      "alternate": false,
+      "machine": "Assembler",
+      "duration": 12,
+      "inputs": [
+        {
+          "item": "Iron Plate",
+          "amount": 6
+        },
+        {
+          "item": "Screws",
+          "amount": 12
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Reinforced Iron Plate",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "name": "Rifle Ammo",
+      "className": "Recipe_Cartridge_C",
+      "alternate": false,
+      "machine": "Assembler",
+      "duration": 12,
+      "inputs": [
+        {
+          "item": "Copper Sheet",
+          "amount": 3
+        },
+        {
+          "item": "Smokeless Powder",
+          "amount": 2
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Rifle Ammo",
+          "amount": 15
+        }
+      ]
+    },
+    {
+      "name": "Rotor",
+      "className": "Recipe_Rotor_C",
+      "alternate": false,
+      "machine": "Assembler",
+      "duration": 15,
+      "inputs": [
+        {
+          "item": "Iron Rod",
+          "amount": 5
+        },
+        {
+          "item": "Screws",
+          "amount": 25
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Rotor",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "name": "Shatter Rebar",
+      "className": "Recipe_Rebar_Spreadshot_C",
+      "alternate": false,
+      "machine": "Assembler",
+      "duration": 12,
+      "inputs": [
+        {
+          "item": "Iron Rebar",
+          "amount": 2
+        },
+        {
+          "item": "Quartz Crystal",
+          "amount": 3
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Shatter Rebar",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "name": "Smart Plating",
+      "className": "Recipe_SpaceElevatorPart_1_C",
+      "alternate": false,
+      "machine": "Assembler",
+      "duration": 30,
+      "inputs": [
+        {
+          "item": "Reinforced Iron Plate",
+          "amount": 1
+        },
+        {
+          "item": "Rotor",
+          "amount": 1
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Smart Plating",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "name": "Sparkly Fireworks",
+      "className": "Recipe_Fireworks_03_C",
+      "alternate": false,
+      "machine": "Assembler",
+      "duration": 24,
+      "inputs": [
+        {
+          "item": "FICSMAS Tree Branch",
+          "amount": 3
+        },
+        {
+          "item": "FICSMAS Actual Snow",
+          "amount": 2
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Sparkly Fireworks",
+          "amount": 1
+        }
+      ],
+      "event": "FICSMAS"
+    },
+    {
+      "name": "Stator",
+      "className": "Recipe_Stator_C",
+      "alternate": false,
+      "machine": "Assembler",
+      "duration": 12,
+      "inputs": [
+        {
+          "item": "Steel Pipe",
+          "amount": 3
+        },
+        {
+          "item": "Wire",
+          "amount": 8
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Stator",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "name": "Stun Rebar",
+      "className": "Recipe_Rebar_Stunshot_C",
+      "alternate": false,
+      "machine": "Assembler",
+      "duration": 6,
+      "inputs": [
+        {
+          "item": "Iron Rebar",
+          "amount": 1
+        },
+        {
+          "item": "Quickwire",
+          "amount": 5
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Stun Rebar",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "name": "Sweet Fireworks",
+      "className": "Recipe_Fireworks_01_C",
+      "alternate": false,
+      "machine": "Assembler",
+      "duration": 24,
+      "inputs": [
+        {
+          "item": "FICSMAS Tree Branch",
+          "amount": 6
+        },
+        {
+          "item": "Candy Cane",
+          "amount": 3
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Sweet Fireworks",
+          "amount": 1
+        }
+      ],
+      "event": "FICSMAS"
+    },
+    {
+      "name": "Versatile Framework",
+      "className": "Recipe_SpaceElevatorPart_2_C",
+      "alternate": false,
+      "machine": "Assembler",
+      "duration": 24,
+      "inputs": [
+        {
+          "item": "Modular Frame",
+          "amount": 1
+        },
+        {
+          "item": "Steel Beam",
+          "amount": 12
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Versatile Framework",
+          "amount": 2
+        }
+      ]
+    },
+    {
+      "name": "Alternate: Adhered Iron Plate",
+      "className": "Recipe_Alternate_AdheredIronPlate_C",
+      "alternate": true,
+      "machine": "Assembler",
+      "duration": 16,
+      "inputs": [
+        {
+          "item": "Iron Plate",
+          "amount": 3
+        },
+        {
+          "item": "Rubber",
+          "amount": 1
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Reinforced Iron Plate",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "name": "Alternate: Alclad Casing",
+      "className": "Recipe_Alternate_AlcladCasing_C",
+      "alternate": true,
+      "machine": "Assembler",
+      "duration": 8,
+      "inputs": [
+        {
+          "item": "Aluminum Ingot",
+          "amount": 20
+        },
+        {
+          "item": "Copper Ingot",
+          "amount": 10
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Aluminum Casing",
+          "amount": 15
+        }
+      ]
+    },
+    {
+      "name": "Alternate: Automated Miner",
+      "className": "Recipe_Alternate_AutomatedMiner_C",
+      "alternate": true,
+      "machine": "Assembler",
+      "duration": 60,
+      "inputs": [
+        {
+          "item": "Steel Pipe",
+          "amount": 4
+        },
+        {
+          "item": "Iron Plate",
+          "amount": 4
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Portable Miner",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "name": "Alternate: Bolted Frame",
+      "className": "Recipe_Alternate_BoltedFrame_C",
+      "alternate": true,
+      "machine": "Assembler",
+      "duration": 24,
+      "inputs": [
+        {
+          "item": "Reinforced Iron Plate",
+          "amount": 3
+        },
+        {
+          "item": "Screws",
+          "amount": 56
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Modular Frame",
+          "amount": 2
+        }
+      ]
+    },
+    {
+      "name": "Alternate: Bolted Iron Plate",
+      "className": "Recipe_Alternate_ReinforcedIronPlate_1_C",
+      "alternate": true,
+      "machine": "Assembler",
+      "duration": 12,
+      "inputs": [
+        {
+          "item": "Iron Plate",
+          "amount": 18
+        },
+        {
+          "item": "Screws",
+          "amount": 50
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Reinforced Iron Plate",
+          "amount": 3
+        }
+      ]
+    },
+    {
+      "name": "Alternate: Caterium Circuit Board",
+      "className": "Recipe_Alternate_CircuitBoard_2_C",
+      "alternate": true,
+      "machine": "Assembler",
+      "duration": 48,
+      "inputs": [
+        {
+          "item": "Plastic",
+          "amount": 10
+        },
+        {
+          "item": "Quickwire",
+          "amount": 30
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Circuit Board",
+          "amount": 7
+        }
+      ]
+    },
+    {
+      "name": "Alternate: Cheap Silica",
+      "className": "Recipe_Alternate_Silica_C",
+      "alternate": true,
+      "machine": "Assembler",
+      "duration": 8,
+      "inputs": [
+        {
+          "item": "Raw Quartz",
+          "amount": 3
+        },
+        {
+          "item": "Limestone",
+          "amount": 5
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Silica",
+          "amount": 7
+        }
+      ]
+    },
+    {
+      "name": "Alternate: Coated Iron Canister",
+      "className": "Recipe_Alternate_CoatedIronCanister_C",
+      "alternate": true,
+      "machine": "Assembler",
+      "duration": 4,
+      "inputs": [
+        {
+          "item": "Iron Plate",
+          "amount": 2
+        },
+        {
+          "item": "Copper Sheet",
+          "amount": 1
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Empty Canister",
+          "amount": 4
+        }
+      ]
+    },
+    {
+      "name": "Alternate: Coated Iron Plate",
+      "className": "Recipe_Alternate_CoatedIronPlate_C",
+      "alternate": true,
+      "machine": "Assembler",
+      "duration": 8,
+      "inputs": [
+        {
+          "item": "Iron Ingot",
+          "amount": 5
+        },
+        {
+          "item": "Plastic",
+          "amount": 1
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Iron Plate",
+          "amount": 10
+        }
+      ]
+    },
+    {
+      "name": "Alternate: Copper Rotor",
+      "className": "Recipe_Alternate_CopperRotor_C",
+      "alternate": true,
+      "machine": "Assembler",
+      "duration": 16,
+      "inputs": [
+        {
+          "item": "Copper Sheet",
+          "amount": 6
+        },
+        {
+          "item": "Screws",
+          "amount": 52
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Rotor",
+          "amount": 3
+        }
+      ]
+    },
+    {
+      "name": "Alternate: Crystal Computer",
+      "className": "Recipe_Alternate_Computer_2_C",
+      "alternate": true,
+      "machine": "Assembler",
+      "duration": 36,
+      "inputs": [
+        {
+          "item": "Circuit Board",
+          "amount": 3
+        },
+        {
+          "item": "Crystal Oscillator",
+          "amount": 1
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Computer",
+          "amount": 2
+        }
+      ]
+    },
+    {
+      "name": "Alternate: Electric Motor",
+      "className": "Recipe_Alternate_ElectricMotor_C",
+      "alternate": true,
+      "machine": "Assembler",
+      "duration": 16,
+      "inputs": [
+        {
+          "item": "Electromagnetic Control Rod",
+          "amount": 1
+        },
+        {
+          "item": "Rotor",
+          "amount": 2
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Motor",
+          "amount": 2
+        }
+      ]
+    },
+    {
+      "name": "Alternate: Electrode Circuit Board",
+      "className": "Recipe_Alternate_ElectrodeCircuitBoard_C",
+      "alternate": true,
+      "machine": "Assembler",
+      "duration": 12,
+      "inputs": [
+        {
+          "item": "Rubber",
+          "amount": 4
+        },
+        {
+          "item": "Petroleum Coke",
+          "amount": 8
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Circuit Board",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "name": "Alternate: Electromagnetic Connection Rod",
+      "className": "Recipe_Alternate_ElectromagneticControlRod_1_C",
+      "alternate": true,
+      "machine": "Assembler",
+      "duration": 15,
+      "inputs": [
+        {
+          "item": "Stator",
+          "amount": 2
+        },
+        {
+          "item": "High-Speed Connector",
+          "amount": 1
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Electromagnetic Control Rod",
+          "amount": 2
+        }
+      ]
+    },
+    {
+      "name": "Alternate: Encased Industrial Pipe",
+      "className": "Recipe_Alternate_EncasedIndustrialBeam_C",
+      "alternate": true,
+      "machine": "Assembler",
+      "duration": 15,
+      "inputs": [
+        {
+          "item": "Steel Pipe",
+          "amount": 6
+        },
+        {
+          "item": "Concrete",
+          "amount": 5
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Encased Industrial Beam",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "name": "Alternate: Fine Black Powder",
+      "className": "Recipe_Alternate_Gunpowder_1_C",
+      "alternate": true,
+      "machine": "Assembler",
+      "duration": 8,
+      "inputs": [
+        {
+          "item": "Sulfur",
+          "amount": 1
+        },
+        {
+          "item": "Compacted Coal",
+          "amount": 2
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Black Powder",
+          "amount": 6
+        }
+      ]
+    },
+    {
+      "name": "Alternate: Fine Concrete",
+      "className": "Recipe_Alternate_Concrete_C",
+      "alternate": true,
+      "machine": "Assembler",
+      "duration": 12,
+      "inputs": [
+        {
+          "item": "Silica",
+          "amount": 3
+        },
+        {
+          "item": "Limestone",
+          "amount": 12
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Concrete",
+          "amount": 10
+        }
+      ]
+    },
+    {
+      "name": "Alternate: Fused Quickwire",
+      "className": "Recipe_Alternate_Quickwire_C",
+      "alternate": true,
+      "machine": "Assembler",
+      "duration": 8,
+      "inputs": [
+        {
+          "item": "Caterium Ingot",
+          "amount": 1
+        },
+        {
+          "item": "Copper Ingot",
+          "amount": 5
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Quickwire",
+          "amount": 12
+        }
+      ]
+    },
+    {
+      "name": "Alternate: Fused Wire",
+      "className": "Recipe_Alternate_FusedWire_C",
+      "alternate": true,
+      "machine": "Assembler",
+      "duration": 20,
+      "inputs": [
+        {
+          "item": "Copper Ingot",
+          "amount": 4
+        },
+        {
+          "item": "Caterium Ingot",
+          "amount": 1
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Wire",
+          "amount": 30
+        }
+      ]
+    },
+    {
+      "name": "Alternate: Heat Exchanger",
+      "className": "Recipe_Alternate_HeatSink_1_C",
+      "alternate": true,
+      "machine": "Assembler",
+      "duration": 6,
+      "inputs": [
+        {
+          "item": "Aluminum Casing",
+          "amount": 3
+        },
+        {
+          "item": "Rubber",
+          "amount": 3
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Heat Sink",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "name": "Alternate: Insulated Cable",
+      "className": "Recipe_Alternate_Cable_1_C",
+      "alternate": true,
+      "machine": "Assembler",
+      "duration": 12,
+      "inputs": [
+        {
+          "item": "Wire",
+          "amount": 9
+        },
+        {
+          "item": "Rubber",
+          "amount": 6
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Cable",
+          "amount": 20
+        }
+      ]
+    },
+    {
+      "name": "Alternate: OC Supercomputer",
+      "className": "Recipe_Alternate_OCSupercomputer_C",
+      "alternate": true,
+      "machine": "Assembler",
+      "duration": 20,
+      "inputs": [
+        {
+          "item": "Radio Control Unit",
+          "amount": 2
+        },
+        {
+          "item": "Cooling System",
+          "amount": 2
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Supercomputer",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "name": "Alternate: Plastic AI Limiter",
+      "className": "Recipe_Alternate_AILimiter_Plastic_C",
+      "alternate": true,
+      "machine": "Assembler",
+      "duration": 15,
+      "inputs": [
+        {
+          "item": "Quickwire",
+          "amount": 30
+        },
+        {
+          "item": "Plastic",
+          "amount": 7
+        }
+      ],
+      "outputs": [
+        {
+          "item": "AI Limiter",
+          "amount": 2
+        }
+      ]
+    },
+    {
+      "name": "Alternate: Plutonium Fuel Unit",
+      "className": "Recipe_Alternate_PlutoniumFuelUnit_C",
+      "alternate": true,
+      "machine": "Assembler",
+      "duration": 120,
+      "inputs": [
+        {
+          "item": "Encased Plutonium Cell",
+          "amount": 20
+        },
+        {
+          "item": "Pressure Conversion Cube",
+          "amount": 1
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Plutonium Fuel Rod",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "name": "Alternate: Quickwire Cable",
+      "className": "Recipe_Alternate_Cable_2_C",
+      "alternate": true,
+      "machine": "Assembler",
+      "duration": 24,
+      "inputs": [
+        {
+          "item": "Quickwire",
+          "amount": 3
+        },
+        {
+          "item": "Rubber",
+          "amount": 2
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Cable",
+          "amount": 11
+        }
+      ]
+    },
+    {
+      "name": "Alternate: Quickwire Stator",
+      "className": "Recipe_Alternate_Stator_C",
+      "alternate": true,
+      "machine": "Assembler",
+      "duration": 15,
+      "inputs": [
+        {
+          "item": "Steel Pipe",
+          "amount": 4
+        },
+        {
+          "item": "Quickwire",
+          "amount": 15
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Stator",
+          "amount": 2
+        }
+      ]
+    },
+    {
+      "name": "Alternate: Rubber Concrete",
+      "className": "Recipe_Alternate_RubberConcrete_C",
+      "alternate": true,
+      "machine": "Assembler",
+      "duration": 6,
+      "inputs": [
+        {
+          "item": "Limestone",
+          "amount": 10
+        },
+        {
+          "item": "Rubber",
+          "amount": 2
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Concrete",
+          "amount": 9
+        }
+      ]
+    },
+    {
+      "name": "Alternate: Silicon Circuit Board",
+      "className": "Recipe_Alternate_CircuitBoard_1_C",
+      "alternate": true,
+      "machine": "Assembler",
+      "duration": 24,
+      "inputs": [
+        {
+          "item": "Copper Sheet",
+          "amount": 11
+        },
+        {
+          "item": "Silica",
+          "amount": 11
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Circuit Board",
+          "amount": 5
+        }
+      ]
+    },
+    {
+      "name": "Alternate: Steel Rotor",
+      "className": "Recipe_Alternate_Rotor_C",
+      "alternate": true,
+      "machine": "Assembler",
+      "duration": 12,
+      "inputs": [
+        {
+          "item": "Steel Pipe",
+          "amount": 2
+        },
+        {
+          "item": "Wire",
+          "amount": 6
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Rotor",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "name": "Alternate: Steeled Frame",
+      "className": "Recipe_Alternate_ModularFrame_C",
+      "alternate": true,
+      "machine": "Assembler",
+      "duration": 60,
+      "inputs": [
+        {
+          "item": "Reinforced Iron Plate",
+          "amount": 2
+        },
+        {
+          "item": "Steel Pipe",
+          "amount": 10
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Modular Frame",
+          "amount": 3
+        }
+      ]
+    },
+    {
+      "name": "Alternate: Stitched Iron Plate",
+      "className": "Recipe_Alternate_ReinforcedIronPlate_2_C",
+      "alternate": true,
+      "machine": "Assembler",
+      "duration": 32,
+      "inputs": [
+        {
+          "item": "Iron Plate",
+          "amount": 10
+        },
+        {
+          "item": "Wire",
+          "amount": 20
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Reinforced Iron Plate",
+          "amount": 3
+        }
+      ]
+    },
+    {
+      "name": "Adaptive Control Unit",
+      "className": "Recipe_SpaceElevatorPart_5_C",
+      "alternate": false,
+      "machine": "Manufacturer",
+      "duration": 60,
+      "inputs": [
+        {
+          "item": "Automated Wiring",
+          "amount": 5
+        },
+        {
+          "item": "Circuit Board",
+          "amount": 5
+        },
+        {
+          "item": "Heavy Modular Frame",
+          "amount": 1
+        },
+        {
+          "item": "Computer",
+          "amount": 2
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Adaptive Control Unit",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "name": "Ballistic Warp Drive",
+      "className": "Recipe_SpaceElevatorPart_11_C",
+      "alternate": false,
+      "machine": "Manufacturer",
+      "duration": 60,
+      "inputs": [
+        {
+          "item": "Thermal Propulsion Rocket",
+          "amount": 1
+        },
+        {
+          "item": "Singularity Cell",
+          "amount": 5
+        },
+        {
+          "item": "Superposition Oscillator",
+          "amount": 2
+        },
+        {
+          "item": "Dark Matter Crystal",
+          "amount": 40
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Ballistic Warp Drive",
+          "amount": 1
+        }
+      ],
+      "variablePower": {
+        "min": 500,
+        "max": 1500
+      }
+    },
+    {
+      "name": "Computer",
+      "className": "Recipe_Computer_C",
+      "alternate": false,
+      "machine": "Manufacturer",
+      "duration": 24,
+      "inputs": [
+        {
+          "item": "Circuit Board",
+          "amount": 4
+        },
+        {
+          "item": "Cable",
+          "amount": 8
+        },
+        {
+          "item": "Plastic",
+          "amount": 16
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Computer",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "name": "Crystal Oscillator",
+      "className": "Recipe_CrystalOscillator_C",
+      "alternate": false,
+      "machine": "Manufacturer",
+      "duration": 120,
+      "inputs": [
+        {
+          "item": "Quartz Crystal",
+          "amount": 36
+        },
+        {
+          "item": "Cable",
+          "amount": 28
+        },
+        {
+          "item": "Reinforced Iron Plate",
+          "amount": 5
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Crystal Oscillator",
+          "amount": 2
+        }
+      ]
+    },
+    {
+      "name": "Explosive Rebar",
+      "className": "Recipe_Rebar_Explosive_C",
+      "alternate": false,
+      "machine": "Manufacturer",
+      "duration": 12,
+      "inputs": [
+        {
+          "item": "Iron Rebar",
+          "amount": 2
+        },
+        {
+          "item": "Smokeless Powder",
+          "amount": 2
+        },
+        {
+          "item": "Steel Pipe",
+          "amount": 2
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Explosive Rebar",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "name": "Gas Filter",
+      "className": "Recipe_FilterGasMask_C",
+      "alternate": false,
+      "machine": "Manufacturer",
+      "duration": 8,
+      "inputs": [
+        {
+          "item": "Fabric",
+          "amount": 2
+        },
+        {
+          "item": "Coal",
+          "amount": 4
+        },
+        {
+          "item": "Iron Plate",
+          "amount": 2
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Gas Filter",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "name": "Heavy Modular Frame",
+      "className": "Recipe_ModularFrameHeavy_C",
+      "alternate": false,
+      "machine": "Manufacturer",
+      "duration": 30,
+      "inputs": [
+        {
+          "item": "Modular Frame",
+          "amount": 5
+        },
+        {
+          "item": "Steel Pipe",
+          "amount": 20
+        },
+        {
+          "item": "Encased Industrial Beam",
+          "amount": 5
+        },
+        {
+          "item": "Screws",
+          "amount": 120
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Heavy Modular Frame",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "name": "High-Speed Connector",
+      "className": "Recipe_HighSpeedConnector_C",
+      "alternate": false,
+      "machine": "Manufacturer",
+      "duration": 16,
+      "inputs": [
+        {
+          "item": "Quickwire",
+          "amount": 56
+        },
+        {
+          "item": "Cable",
+          "amount": 10
+        },
+        {
+          "item": "Circuit Board",
+          "amount": 1
+        }
+      ],
+      "outputs": [
+        {
+          "item": "High-Speed Connector",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "name": "Iodine-Infused Filter",
+      "className": "Recipe_FilterHazmat_C",
+      "alternate": false,
+      "machine": "Manufacturer",
+      "duration": 16,
+      "inputs": [
+        {
+          "item": "Gas Filter",
+          "amount": 1
+        },
+        {
+          "item": "Quickwire",
+          "amount": 8
+        },
+        {
+          "item": "Aluminum Casing",
+          "amount": 1
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Iodine-Infused Filter",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "name": "Modular Engine",
+      "className": "Recipe_SpaceElevatorPart_4_C",
+      "alternate": false,
+      "machine": "Manufacturer",
+      "duration": 60,
+      "inputs": [
+        {
+          "item": "Motor",
+          "amount": 2
+        },
+        {
+          "item": "Rubber",
+          "amount": 15
+        },
+        {
+          "item": "Smart Plating",
+          "amount": 2
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Modular Engine",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "name": "Nuke Nobelisk",
+      "className": "Recipe_NobeliskNuke_C",
+      "alternate": false,
+      "machine": "Manufacturer",
+      "duration": 120,
+      "inputs": [
+        {
+          "item": "Nobelisk",
+          "amount": 5
+        },
+        {
+          "item": "Encased Uranium Cell",
+          "amount": 20
+        },
+        {
+          "item": "Smokeless Powder",
+          "amount": 10
+        },
+        {
+          "item": "AI Limiter",
+          "amount": 6
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Nuke Nobelisk",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "name": "Plutonium Fuel Rod",
+      "className": "Recipe_PlutoniumFuelRod_C",
+      "alternate": false,
+      "machine": "Manufacturer",
+      "duration": 240,
+      "inputs": [
+        {
+          "item": "Encased Plutonium Cell",
+          "amount": 30
+        },
+        {
+          "item": "Steel Beam",
+          "amount": 18
+        },
+        {
+          "item": "Electromagnetic Control Rod",
+          "amount": 6
+        },
+        {
+          "item": "Heat Sink",
+          "amount": 10
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Plutonium Fuel Rod",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "name": "Radio Control Unit",
+      "className": "Recipe_RadioControlUnit_C",
+      "alternate": false,
+      "machine": "Manufacturer",
+      "duration": 48,
+      "inputs": [
+        {
+          "item": "Aluminum Casing",
+          "amount": 32
+        },
+        {
+          "item": "Crystal Oscillator",
+          "amount": 1
+        },
+        {
+          "item": "Computer",
+          "amount": 2
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Radio Control Unit",
+          "amount": 2
+        }
+      ]
+    },
+    {
+      "name": "SAM Fluctuator",
+      "className": "Recipe_SAMFluctuator_C",
+      "alternate": false,
+      "machine": "Manufacturer",
+      "duration": 6,
+      "inputs": [
+        {
+          "item": "Reanimated SAM",
+          "amount": 6
+        },
+        {
+          "item": "Wire",
+          "amount": 5
+        },
+        {
+          "item": "Steel Pipe",
+          "amount": 3
+        }
+      ],
+      "outputs": [
+        {
+          "item": "SAM Fluctuator",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "name": "Singularity Cell",
+      "className": "Recipe_SingularityCell_C",
+      "alternate": false,
+      "machine": "Manufacturer",
+      "duration": 60,
+      "inputs": [
+        {
+          "item": "Nuclear Pasta",
+          "amount": 1
+        },
+        {
+          "item": "Dark Matter Crystal",
+          "amount": 20
+        },
+        {
+          "item": "Iron Plate",
+          "amount": 100
+        },
+        {
+          "item": "Concrete",
+          "amount": 200
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Singularity Cell",
+          "amount": 10
+        }
+      ]
+    },
+    {
+      "name": "Supercomputer",
+      "className": "Recipe_ComputerSuper_C",
+      "alternate": false,
+      "machine": "Manufacturer",
+      "duration": 32,
+      "inputs": [
+        {
+          "item": "Computer",
+          "amount": 4
+        },
+        {
+          "item": "AI Limiter",
+          "amount": 2
+        },
+        {
+          "item": "High-Speed Connector",
+          "amount": 3
+        },
+        {
+          "item": "Plastic",
+          "amount": 28
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Supercomputer",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "name": "Thermal Propulsion Rocket",
+      "className": "Recipe_SpaceElevatorPart_8_C",
+      "alternate": false,
+      "machine": "Manufacturer",
+      "duration": 120,
+      "inputs": [
+        {
+          "item": "Modular Engine",
+          "amount": 5
+        },
+        {
+          "item": "Turbo Motor",
+          "amount": 2
+        },
+        {
+          "item": "Cooling System",
+          "amount": 6
+        },
+        {
+          "item": "Fused Modular Frame",
+          "amount": 2
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Thermal Propulsion Rocket",
+          "amount": 2
+        }
+      ]
+    },
+    {
+      "name": "Turbo Motor",
+      "className": "Recipe_MotorTurbo_C",
+      "alternate": false,
+      "machine": "Manufacturer",
+      "duration": 32,
+      "inputs": [
+        {
+          "item": "Cooling System",
+          "amount": 4
+        },
+        {
+          "item": "Radio Control Unit",
+          "amount": 2
+        },
+        {
+          "item": "Motor",
+          "amount": 4
+        },
+        {
+          "item": "Rubber",
+          "amount": 24
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Turbo Motor",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "name": "Turbo Rifle Ammo",
+      "className": "Recipe_CartridgeChaos_Packaged_C",
+      "alternate": false,
+      "machine": "Manufacturer",
+      "duration": 12,
+      "inputs": [
+        {
+          "item": "Rifle Ammo",
+          "amount": 25
+        },
+        {
+          "item": "Aluminum Casing",
+          "amount": 3
+        },
+        {
+          "item": "Packaged Turbofuel",
+          "amount": 3
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Turbo Rifle Ammo",
+          "amount": 50
+        }
+      ]
+    },
+    {
+      "name": "Uranium Fuel Rod",
+      "className": "Recipe_NuclearFuelRod_C",
+      "alternate": false,
+      "machine": "Manufacturer",
+      "duration": 150,
+      "inputs": [
+        {
+          "item": "Encased Uranium Cell",
+          "amount": 50
+        },
+        {
+          "item": "Encased Industrial Beam",
+          "amount": 3
+        },
+        {
+          "item": "Electromagnetic Control Rod",
+          "amount": 5
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Uranium Fuel Rod",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "name": "Alternate: Automated Speed Wiring",
+      "className": "Recipe_Alternate_HighSpeedWiring_C",
+      "alternate": true,
+      "machine": "Manufacturer",
+      "duration": 32,
+      "inputs": [
+        {
+          "item": "Stator",
+          "amount": 2
+        },
+        {
+          "item": "Wire",
+          "amount": 40
+        },
+        {
+          "item": "High-Speed Connector",
+          "amount": 1
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Automated Wiring",
+          "amount": 4
+        }
+      ]
+    },
+    {
+      "name": "Alternate: Caterium Computer",
+      "className": "Recipe_Alternate_Computer_1_C",
+      "alternate": true,
+      "machine": "Manufacturer",
+      "duration": 16,
+      "inputs": [
+        {
+          "item": "Circuit Board",
+          "amount": 4
+        },
+        {
+          "item": "Quickwire",
+          "amount": 14
+        },
+        {
+          "item": "Rubber",
+          "amount": 6
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Computer",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "name": "Alternate: Classic Battery",
+      "className": "Recipe_Alternate_ClassicBattery_C",
+      "alternate": true,
+      "machine": "Manufacturer",
+      "duration": 8,
+      "inputs": [
+        {
+          "item": "Sulfur",
+          "amount": 6
+        },
+        {
+          "item": "Alclad Aluminum Sheet",
+          "amount": 7
+        },
+        {
+          "item": "Plastic",
+          "amount": 8
+        },
+        {
+          "item": "Wire",
+          "amount": 12
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Battery",
+          "amount": 4
+        }
+      ]
+    },
+    {
+      "name": "Alternate: Flexible Framework",
+      "className": "Recipe_Alternate_FlexibleFramework_C",
+      "alternate": true,
+      "machine": "Manufacturer",
+      "duration": 16,
+      "inputs": [
+        {
+          "item": "Modular Frame",
+          "amount": 1
+        },
+        {
+          "item": "Steel Beam",
+          "amount": 6
+        },
+        {
+          "item": "Rubber",
+          "amount": 8
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Versatile Framework",
+          "amount": 2
+        }
+      ]
+    },
+    {
+      "name": "Alternate: Heavy Encased Frame",
+      "className": "Recipe_Alternate_ModularFrameHeavy_C",
+      "alternate": true,
+      "machine": "Manufacturer",
+      "duration": 64,
+      "inputs": [
+        {
+          "item": "Modular Frame",
+          "amount": 8
+        },
+        {
+          "item": "Encased Industrial Beam",
+          "amount": 10
+        },
+        {
+          "item": "Steel Pipe",
+          "amount": 36
+        },
+        {
+          "item": "Concrete",
+          "amount": 22
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Heavy Modular Frame",
+          "amount": 3
+        }
+      ]
+    },
+    {
+      "name": "Alternate: Heavy Flexible Frame",
+      "className": "Recipe_Alternate_HeavyFlexibleFrame_C",
+      "alternate": true,
+      "machine": "Manufacturer",
+      "duration": 16,
+      "inputs": [
+        {
+          "item": "Modular Frame",
+          "amount": 5
+        },
+        {
+          "item": "Encased Industrial Beam",
+          "amount": 3
+        },
+        {
+          "item": "Rubber",
+          "amount": 20
+        },
+        {
+          "item": "Screws",
+          "amount": 104
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Heavy Modular Frame",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "name": "Alternate: Infused Uranium Cell",
+      "className": "Recipe_Alternate_UraniumCell_1_C",
+      "alternate": true,
+      "machine": "Manufacturer",
+      "duration": 12,
+      "inputs": [
+        {
+          "item": "Uranium",
+          "amount": 5
+        },
+        {
+          "item": "Silica",
+          "amount": 3
+        },
+        {
+          "item": "Sulfur",
+          "amount": 5
+        },
+        {
+          "item": "Quickwire",
+          "amount": 15
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Encased Uranium Cell",
+          "amount": 4
+        }
+      ]
+    },
+    {
+      "name": "Alternate: Insulated Crystal Oscillator",
+      "className": "Recipe_Alternate_CrystalOscillator_C",
+      "alternate": true,
+      "machine": "Manufacturer",
+      "duration": 32,
+      "inputs": [
+        {
+          "item": "Quartz Crystal",
+          "amount": 10
+        },
+        {
+          "item": "Rubber",
+          "amount": 7
+        },
+        {
+          "item": "AI Limiter",
+          "amount": 1
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Crystal Oscillator",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "name": "Alternate: Plastic Smart Plating",
+      "className": "Recipe_Alternate_PlasticSmartPlating_C",
+      "alternate": true,
+      "machine": "Manufacturer",
+      "duration": 24,
+      "inputs": [
+        {
+          "item": "Reinforced Iron Plate",
+          "amount": 1
+        },
+        {
+          "item": "Rotor",
+          "amount": 1
+        },
+        {
+          "item": "Plastic",
+          "amount": 3
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Smart Plating",
+          "amount": 2
+        }
+      ]
+    },
+    {
+      "name": "Alternate: Radio Connection Unit",
+      "className": "Recipe_Alternate_RadioControlUnit_1_C",
+      "alternate": true,
+      "machine": "Manufacturer",
+      "duration": 16,
+      "inputs": [
+        {
+          "item": "Heat Sink",
+          "amount": 4
+        },
+        {
+          "item": "High-Speed Connector",
+          "amount": 2
+        },
+        {
+          "item": "Quartz Crystal",
+          "amount": 12
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Radio Control Unit",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "name": "Alternate: Radio Control System",
+      "className": "Recipe_Alternate_RadioControlSystem_C",
+      "alternate": true,
+      "machine": "Manufacturer",
+      "duration": 40,
+      "inputs": [
+        {
+          "item": "Crystal Oscillator",
+          "amount": 1
+        },
+        {
+          "item": "Circuit Board",
+          "amount": 10
+        },
+        {
+          "item": "Aluminum Casing",
+          "amount": 60
+        },
+        {
+          "item": "Rubber",
+          "amount": 30
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Radio Control Unit",
+          "amount": 3
+        }
+      ]
+    },
+    {
+      "name": "Alternate: Rigor Motor",
+      "className": "Recipe_Alternate_Motor_1_C",
+      "alternate": true,
+      "machine": "Manufacturer",
+      "duration": 48,
+      "inputs": [
+        {
+          "item": "Rotor",
+          "amount": 3
+        },
+        {
+          "item": "Stator",
+          "amount": 3
+        },
+        {
+          "item": "Crystal Oscillator",
+          "amount": 1
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Motor",
+          "amount": 6
+        }
+      ]
+    },
+    {
+      "name": "Alternate: Silicon High-Speed Connector",
+      "className": "Recipe_Alternate_HighSpeedConnector_C",
+      "alternate": true,
+      "machine": "Manufacturer",
+      "duration": 40,
+      "inputs": [
+        {
+          "item": "Quickwire",
+          "amount": 60
+        },
+        {
+          "item": "Silica",
+          "amount": 25
+        },
+        {
+          "item": "Circuit Board",
+          "amount": 2
+        }
+      ],
+      "outputs": [
+        {
+          "item": "High-Speed Connector",
+          "amount": 2
+        }
+      ]
+    },
+    {
+      "name": "Alternate: Super-State Computer",
+      "className": "Recipe_Alternate_SuperStateComputer_C",
+      "alternate": true,
+      "machine": "Manufacturer",
+      "duration": 25,
+      "inputs": [
+        {
+          "item": "Computer",
+          "amount": 3
+        },
+        {
+          "item": "Electromagnetic Control Rod",
+          "amount": 1
+        },
+        {
+          "item": "Battery",
+          "amount": 10
+        },
+        {
+          "item": "Wire",
+          "amount": 25
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Supercomputer",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "name": "Alternate: Turbo Electric Motor",
+      "className": "Recipe_Alternate_TurboMotor_1_C",
+      "alternate": true,
+      "machine": "Manufacturer",
+      "duration": 64,
+      "inputs": [
+        {
+          "item": "Motor",
+          "amount": 7
+        },
+        {
+          "item": "Radio Control Unit",
+          "amount": 9
+        },
+        {
+          "item": "Electromagnetic Control Rod",
+          "amount": 5
+        },
+        {
+          "item": "Rotor",
+          "amount": 7
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Turbo Motor",
+          "amount": 3
+        }
+      ]
+    },
+    {
+      "name": "Alternate: Turbo Pressure Motor",
+      "className": "Recipe_Alternate_TurboPressureMotor_C",
+      "alternate": true,
+      "machine": "Manufacturer",
+      "duration": 32,
+      "inputs": [
+        {
+          "item": "Motor",
+          "amount": 4
+        },
+        {
+          "item": "Pressure Conversion Cube",
+          "amount": 1
+        },
+        {
+          "item": "Packaged Nitrogen Gas",
+          "amount": 24
+        },
+        {
+          "item": "Stator",
+          "amount": 8
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Turbo Motor",
+          "amount": 2
+        }
+      ]
+    },
+    {
+      "name": "Alternate: Uranium Fuel Unit",
+      "className": "Recipe_Alternate_NuclearFuelRod_1_C",
+      "alternate": true,
+      "machine": "Manufacturer",
+      "duration": 300,
+      "inputs": [
+        {
+          "item": "Encased Uranium Cell",
+          "amount": 100
+        },
+        {
+          "item": "Electromagnetic Control Rod",
+          "amount": 10
+        },
+        {
+          "item": "Crystal Oscillator",
+          "amount": 3
+        },
+        {
+          "item": "Rotor",
+          "amount": 10
+        }
+      ],
+      "outputs": [
+        {
+          "item": "Uranium Fuel Rod",
+          "amount": 3
+        }
+      ]
+    }
+  ],
+  "amplification": {
+    "powerExponent": 2,
+    "notes": "output × (1 + filled/total); power × (1 + filled/total)^2 × (clock/100)^1.321928. Miners/extractors não aceitam."
+  }
+}
