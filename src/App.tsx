@@ -38,6 +38,7 @@ import { useClipboard } from './state/useClipboard';
 import { useBoxSelection } from './state/useBoxSelection';
 import { LabelRootContext, SettingsContext } from './state/settings';
 import { PlannerModal } from './components/PlannerModal';
+import { debugCrash } from './errors';
 import { layoutPlan, type DistributionMode } from './planner/layout';
 import type { Plan } from './planner/plan';
 
@@ -91,6 +92,7 @@ function useAltHeld() {
 }
 
 function Planner() {
+  debugCrash('app');
   const initial = useMemo(loadState, []);
   const [nodes, setNodes, onNodesChange] = useNodesState<FactoryNode>(initial.nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState<BeltEdge>(initial.edges);

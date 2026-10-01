@@ -1452,3 +1452,79 @@ button.primary {
   font-size: 12px;
   margin: 4px 0;
 }
+
+/* ---------- recuperação de erro ---------- */
+
+.crash-screen {
+  height: 100%;
+  overflow-y: auto;
+  display: grid;
+  place-items: center;
+  padding: 24px 16px;
+  background: var(--bg);
+}
+.crash-card {
+  width: min(640px, 100%);
+  background: var(--panel);
+  border: 1px solid var(--err);
+  border-radius: 10px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  padding: 18px 20px;
+}
+.crash-card h2 {
+  margin: 0 0 8px;
+  font-size: 17px;
+  color: var(--err);
+}
+.crash-card p {
+  margin: 6px 0;
+}
+.crash-msg {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  color: var(--err);
+  overflow-wrap: anywhere;
+}
+.crash-details pre {
+  max-height: 240px;
+  overflow: auto;
+  margin: 6px 0 0;
+  padding: 8px 10px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 11px;
+  color: var(--muted);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.crash-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 14px 0 6px;
+}
+.crash-backups {
+  margin-top: 10px;
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+}
+.backup-list {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+}
+.backup-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--border);
+}
+.backup-list li:last-child {
+  border-bottom: 0;
+}
