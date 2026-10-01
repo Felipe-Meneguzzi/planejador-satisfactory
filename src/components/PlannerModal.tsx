@@ -167,7 +167,7 @@ export function PlannerModal(props: { onClose: () => void; onGenerate: (plan: Pl
               {groups.length > 1 ? `${groups.length} linhas · ` : ''}
               {/* item compartilhado por vários ramos: o grupo é um só, então mostra o total */}
               {Math.abs(groups.reduce((a, g) => a + g.demand, 0) - rate) > 1e-6 ? 'total ' : ''}
-              {total}× @ {groups.length > 1 && groups.some((g) => Math.abs(g.clock - groups[0].clock) > 1e-6) ? groups.map((g) => pct(g.clock)).join(' / ') : pct(groups[0].clock)}
+              {groups[0].kind === 'well' ? `${groups.reduce((a, g) => a + g.wells!.length, 0)} poço(s), ${total} satélites` : `${total}×`} @ {groups.length > 1 && groups.some((g) => Math.abs(g.clock - groups[0].clock) > 1e-6) ? groups.map((g) => pct(g.clock)).join(' / ') : pct(groups[0].clock)}
             </span>
           )}
         </div>
