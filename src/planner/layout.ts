@@ -1,7 +1,7 @@
 import { BELTS, BELT_TIERS, PIPES, PIPE_TIERS, isFluid } from '../game/data';
 import type { BeltEdge, BeltTier, FactoryNode, ItemId, PipeTier, ProductionData, ProductionNode, Rotation } from '../game/types';
 import { newId } from '../state/storage';
-import type { ByproductLane, Group, Lane, Plan } from './plan';
+import type { Bus, ByproductLane, Group, Lane, Plan } from './plan';
 
 /*
  * Desenho da linha planejada.
@@ -353,14 +353,64 @@ export function layoutPlan(plan: Plan, mode: DistributionMode, maxBelt: BeltTier
     return band;
   };
 
+  /* ---------- barramento (modo otimizado): mescladores em linha ---------- */
+
+  /**
+   * Fontes de um item juntas antes de dividir: k fontes → k−1 mescladores lado a lado (sem
+   * rotação: entram por cima e pela esquerda, saem pela direita). As fontes descem do corredor
+   * direto no conector de cima (a 1ª entra pela esquerda do primeiro mesclador).
+   */
+  const busInputs = new Map<string, Port>();
+  const busKey = (bus: string, src: { group: string; output: number; lane?: ByproductLane }) => `${bus}|${src.group}|${src.output}|${src.lane?.from ?? 0}`;
+  const layoutBus = (bus: Bus, X0: number) => {
+    const y = 0;
+    let prev: { id: string; x: number } | undefined;
+    let flow = bus.sources[0].amount;
+    for (let j = 0; j < bus.sources.length - 1; j++) {
+      const x = X0 + j * COL;
+      const id = cube('merger', 0, x, y, bus.item);
+      if (prev) belt(cubePort(prev.id, 'out-0', 'right', prev.x, y), cubePort(id, 'in-1', 'left', x, y), flow, bus.item);
+      else busInputs.set(busKey(bus.id, bus.sources[0]), cubePort(id, 'in-1', 'left', x, y));
+      busInputs.set(busKey(bus.id, bus.sources[j + 1]), cubePort(id, 'in-0', 'top', x, y));
+      flow += bus.sources[j + 1].amount;
+      prev = { id, x };
+    }
+    const source = cubePort(prev!.id, 'out-0', 'right', prev!.x, y);
+    // à direita fica a coluna do divisor que reparte pras faixas (mesmo lugar do modo árvore)
+    return { source, top: y, right: prev!.x + CUBE + 40 + CUBE };
+  };
+
   /* ---------- faixas, da esquerda pra direita ---------- */
 
-  const ordered = [...plan.groups].sort((a, b) => a.level - b.level || a.item.localeCompare(b.item) || a.id.localeCompare(b.id));
+  type Slot = { level: number; item: string; id: string; group?: Group; bus?: Bus };
+  const slots = ([
+    ...plan.groups.map((g) => ({ level: g.level, item: g.item, id: g.id, group: g })),
+    // barramento com uma fonte só não precisa de mesclador: sai direto da coleta dela
+    ...(plan.buses ?? []).filter((b) => b.sources.length > 1).map((b) => ({ level: b.level, item: b.item, id: b.id, bus: b })),
+  ] as Slot[]).sort((a, b) => a.level - b.level || a.item.localeCompare(b.item) || Number(!!a.bus) - Number(!!b.bus) || a.id.localeCompare(b.id));
   const bands: Band[] = [];
-  const routerCount = (g: Group) => (g.feeds.length > 1 ? 1 + Math.ceil(Math.max(0, g.feeds.length - 3) / 2) : 0);
+  const routerCount = (feeds: Lane[]) => (feeds.length > 1 ? 1 + Math.ceil(Math.max(0, feeds.length - 3) / 2) : 0);
+  /** saídas que se dividem pras faixas: coleta principal de grupo, barramento ou subproduto reaproveitado */
+  interface Emitter {
+    source: Port;
+    top: number;
+    feeds: Lane[];
+    item: ItemId;
+    demand: number;
+  }
+  const emitters: Emitter[] = [];
+  const busEmitters = new Map<string, Emitter>();
   let X = 0;
-  for (const g of ordered) {
-    const fan = 40 + 20 * routerCount(g);
+  for (const slot of slots) {
+    if (slot.bus) {
+      const fan = 40 + 20 * routerCount(slot.bus.feeds);
+      const b = layoutBus(slot.bus, X + fan);
+      busEmitters.set(slot.bus.id, { source: b.source, top: b.top, feeds: slot.bus.feeds, item: slot.bus.item, demand: slot.bus.demand });
+      X = b.right + 80 + fan;
+      continue;
+    }
+    const g = slot.group!;
+    const fan = 40 + 20 * routerCount(g.feeds);
     const band = layoutGroup(g, X + fan);
     bands.push(band);
     X = band.right + 80 + fan + (mode === 'tree' ? CUBE + 40 : 0);
@@ -392,29 +442,60 @@ export function layoutPlan(plan: Plan, mode: DistributionMode, maxBelt: BeltTier
   }
   const pieces: Piece[] = [];
   const routerTops: number[] = [];
+  const riseOf = (p: Port) => (p.side === 'right' ? p.pt.x + 40 : undefined);
 
   for (const band of bands) {
     const g = band.group!;
-    const src = band.source!;
-    const feeds = [...g.feeds].sort((a, b) => (entries.get(a.id)?.pt.x ?? 0) - (entries.get(b.id)?.pt.x ?? 0));
-    for (const bp of band.byproductSources) pieces.push({ from: bp.port, to: sinkPorts.get(bp.lane.sink!), flow: bp.lane.amount, item: bp.lane.item });
+    let src = band.source!;
+    let top = band.top;
+    if (g.overflow) {
+      // sobra da extração: divisor logo acima da coleta, com uma saída pro armazém
+      const rx = src.side === 'top' ? src.pt.x : src.pt.x + 40 + 60;
+      const x = rx - 60;
+      const y = band.top - 60 - CUBE;
+      routerTops.push(y);
+      const id = cube('splitter', 270, x, y, g.item);
+      belt(src, cubePort(id, 'in-0', 'bottom', x, y), g.demand, g.item, src.side === 'right' ? [rx] : undefined);
+      pieces.push({ from: cubePort(id, 'out-0', 'left', x, y), to: sinkPorts.get(g.overflow.sink), flow: g.overflow.amount, item: g.item, riseX: x - 20 });
+      src = cubePort(id, 'out-1', 'top', x, y);
+      top = y;
+    }
+    const routed = g.demand - (g.overflow?.amount ?? 0);
+    for (const bp of band.byproductSources) {
+      const bus = bp.lane.bus ? plan.buses?.find((b) => b.id === bp.lane.bus) : undefined;
+      if (bus && bus.sources.length === 1) emitters.push({ source: bp.port, top: band.top, feeds: bus.feeds, item: bus.item, demand: bus.demand });
+      else if (bus) pieces.push({ from: bp.port, to: busInputs.get(busKey(bus.id, { group: g.id, output: bp.lane.output, lane: bp.lane })), flow: bp.lane.amount, item: bp.lane.item });
+      else pieces.push({ from: bp.port, to: sinkPorts.get(bp.lane.sink!), flow: bp.lane.amount, item: bp.lane.item });
+    }
+    if (g.bus) {
+      const bus = plan.buses?.find((b) => b.id === g.bus);
+      if (bus && bus.sources.length === 1) emitters.push({ source: src, top, feeds: bus.feeds, item: bus.item, demand: bus.demand });
+      else pieces.push({ from: src, to: busInputs.get(busKey(g.bus, { group: g.id, output: 0 })), flow: routed, item: g.item, riseX: riseOf(src) });
+    } else emitters.push({ source: src, top, feeds: g.feeds, item: g.item, demand: routed });
+  }
+  emitters.push(...busEmitters.values());
+
+  for (const em of emitters) {
+    const src = em.source;
+    const feeds = [...em.feeds].sort((a, b) => (entries.get(a.id)?.pt.x ?? 0) - (entries.get(b.id)?.pt.x ?? 0));
+    if (!feeds.length) continue;
     if (feeds.length === 1) {
-      pieces.push({ from: src, to: entries.get(feeds[0].id), flow: feeds[0].demand, item: g.item, riseX: src.side === 'right' ? src.pt.x + 40 : undefined });
+      pieces.push({ from: src, to: entries.get(feeds[0].id), flow: feeds[0].demand, item: em.item, riseX: riseOf(src) });
       continue;
     }
     // corrente de divisores girados 270° acima da faixa: entra por baixo, sai pros lados e por cima
-    const S = routerCount(g);
+    const S = routerCount(feeds);
     const rx = src.side === 'top' ? src.pt.x : src.pt.x + 40 + 60;
     let remaining = [...feeds];
     let prevPort: Port = src;
-    let prevFlow = g.demand;
+    let prevFlow = em.demand;
     for (let i = 0; i < S; i++) {
       const x = rx - 60;
-      const y = band.top - 60 - CUBE - i * 160;
+      const y = em.top - 60 - CUBE - i * 160;
       routerTops.push(y);
-      const id = cube('splitter', 270, x, y, g.item);
+      const id = cube('splitter', 270, x, y, em.item);
       const inPort = cubePort(id, 'in-0', 'bottom', x, y);
-      belt(prevPort, inPort, prevFlow, g.item, prevPort.side === 'right' ? [rx] : undefined);
+      belt(prevPort, inPort, prevFlow, em.item, prevPort.side === 'right' ? [rx] : undefined);
       const last = i === S - 1;
       const take = last ? remaining.length : 2;
       const mine = remaining.slice(0, take);
@@ -428,7 +509,7 @@ export function layoutPlan(plan: Plan, mode: DistributionMode, maxBelt: BeltTier
         const [h, side] = outs[j];
         const spread = 20 * (S - 1 - i);
         const riseX = side === 'left' ? x - 20 - spread : side === 'right' ? x + CUBE + 20 + spread : undefined;
-        pieces.push({ from: cubePort(id, h, side, x, y), to: entries.get(lane.id), flow: lane.demand, item: g.item, riseX });
+        pieces.push({ from: cubePort(id, h, side, x, y), to: entries.get(lane.id), flow: lane.demand, item: em.item, riseX });
       });
       prevPort = cubePort(id, 'out-1', 'top', x, y);
       prevFlow = remaining.reduce((a, l) => a + l.demand, 0);
@@ -444,7 +525,7 @@ export function layoutPlan(plan: Plan, mode: DistributionMode, maxBelt: BeltTier
     pieces.push({ from: { node: id, handle: 'out-0', side: 'top', pt: { x: x + stripOffset(0, 1, MACH_W), y: 0 } }, to: entries.get(lane.id), flow: lane.demand, item: lane.item });
   });
 
-  const allTops = [...bands.map((b) => b.top), sinkBand.top, ...routerTops];
+  const allTops = [...bands.map((b) => b.top), ...[...busEmitters.values()].map((b) => b.top), sinkBand.top, ...routerTops];
   const corridor = Math.min(...allTops) - 40;
   pieces.forEach((p, t) => {
     const to = p.to;
