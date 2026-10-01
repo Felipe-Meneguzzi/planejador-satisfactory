@@ -3,6 +3,7 @@ import { BELTS, GENERATORS, ITEMS, PIPES, SINK, couponCost, couponsFor, withUnit
 import type { PipeTier } from '../game/types';
 import { fmt } from '../format';
 import type { EnergyResult, Issue, SimResult } from '../sim/simulate';
+import type { FactorySummary } from '../sim/project';
 
 const ICON = { error: '⛔', warning: '⚠️', info: 'ℹ️' } as const;
 
@@ -14,6 +15,8 @@ export function SidePanel(props: {
   beltDetails?: ReactNode;
   couponsPrinted: number;
   onCouponsPrinted: (n: number) => void;
+  /** o que a fábrica aberta recebe e manda pra outras (Entradas/Saídas externas) */
+  transfers?: FactorySummary;
 }) {
   const { sim } = props;
   const problems = sim.issues.filter((i) => i.level !== 'info');
@@ -52,6 +55,8 @@ export function SidePanel(props: {
           </table>
         )}
       </section>
+
+      {props.transfers && (props.transfers.imports.length > 0 || props.transfers.exports.length > 0) && <TransfersSection t={props.transfers} />}
 
       {sim.sink.count > 0 && <SinkSection sink={sim.sink} printed={props.couponsPrinted} onPrinted={props.onCouponsPrinted} />}
 
@@ -225,6 +230,34 @@ function SinkSection({ sink, printed, onPrinted }: { sink: SimResult['sink']; pr
         O próximo cupom custa <b>{fmt(nextCost)}</b> pontos
         {sink.points > 0 ? ` (~${fmt(Math.ceil(nextCost / sink.points))} min)` : ''}. Nesse ritmo: <b>≈ {fmt(est.count)}</b> cupom(ns) na próxima hora.
       </p>
+    </section>
+  );
+}
+
+/** Entradas e Saídas externas da fábrica aberta: o que recebe, de onde, e pra onde manda */
+function TransfersSection({ t }: { t: FactorySummary }) {
+  const item = (it: FactorySummary['exports'][number]['item'], rate: number) => (
+    <>
+      <span className="dot" style={{ background: it && it !== 'mixed' ? ITEMS[it].color : '#5b616b' }} />
+      {it === 'mixed' ? 'Misturado' : it ? ITEMS[it].name : 'Nada'}
+      <b>{withUnit(fmt(rate), it)}</b>
+    </>
+  );
+  return (
+    <section className="transfers">
+      <h3>Entre fábricas</h3>
+      <ul className="energy-fuel">
+        {t.imports.map((x) => (
+          <li key={x.node} title={`Entrada externa · vem de ${x.from}`}>
+            📥 {item(x.item, x.rate)} <small className="muted">← {x.from}</small>
+          </li>
+        ))}
+        {t.exports.map((x) => (
+          <li key={x.node} title="Saída externa">
+            📤 {item(x.item, x.rate)} <small className={x.to.length ? 'muted' : 'warn-text'}>→ {x.to.length ? x.to.join(', ') : 'ninguém'}</small>
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }
