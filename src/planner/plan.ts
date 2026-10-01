@@ -59,7 +59,10 @@ export interface Lane {
   source?: string;
 }
 
-/** Coleta de um subproduto: máquinas [from, to) do grupo mandam a saída `output` pra um armazém (`sink`, definido por quem monta o plano) */
+/**
+ * Coleta de um subproduto: máquinas [from, to) do grupo mandam a saída `output` pra um armazém
+ * (`sink`) ou, no modo otimizado, pro barramento do item (`bus`), onde ele é reaproveitado.
+ */
 export interface ByproductLane {
   output: number;
   item: ItemId;
@@ -67,6 +70,7 @@ export interface ByproductLane {
   to: number;
   amount: number;
   sink?: string;
+  bus?: string;
 }
 
 /** De onde sai um fluido do chão: extrator de água/petróleo ou poço de recurso */
@@ -92,6 +96,14 @@ export interface Group {
   inputLanes: Lane[][];
   /** faixas de consumidores que este grupo alimenta (saída principal) */
   feeds: Lane[];
+  /** modo otimizado: a saída principal vai inteira pro barramento do item (aí `feeds` fica vazio) */
+  bus?: string;
+  /**
+   * modo otimizado: extração presa no clock mínimo tira mais do que precisa; um divisor logo na
+   * saída manda `amount` pro armazém `sink` (o otimizador garante amount ≥ metade, então o
+   * divisor entrega o exato pras faixas: elas pedem menos que a parte justa delas)
+   */
+  overflow?: { sink: string; amount: number };
   /** subprodutos (saídas 2+ da receita), cada faixa vai pra um armazém */
   byproducts: ByproductLane[];
   level: number;
@@ -107,11 +119,41 @@ export interface SinkPlan {
   lane?: Lane;
   /** armazém de subproduto: recebe direto da coleta do grupo */
   byproduct?: { group: string; output: number };
+  /** armazém da sobra de uma extração (ver Group.overflow) */
+  overflow?: string;
+}
+
+/** De onde vem uma entrada do barramento: saída principal (output 0) ou uma faixa de subproduto */
+export interface BusSource {
+  group: string;
+  output: number;
+  lane?: ByproductLane;
+  amount: number;
+}
+
+/**
+ * Barramento (modo otimizado): junta todas as fontes de um item (grupo principal + subprodutos
+ * de outros grupos) numa esteira/cano só, cujo total é exatamente o que as faixas pedem, e só
+ * então divide pras faixas. Como a soma das fontes = soma das faixas, o mesclador consome tudo
+ * de todas as entradas e o divisor entrega a demanda exata de cada faixa (water-filling fecha).
+ */
+export interface Bus {
+  id: string;
+  item: ItemId;
+  demand: number;
+  sources: BusSource[];
+  feeds: Lane[];
+  /** posição no desenho (entre o produtor do item e os consumidores) */
+  level: number;
 }
 
 export interface Plan {
   groups: Group[];
   sinks: SinkPlan[];
+  /** só no modo otimizado: itens com mais de uma fonte */
+  buses?: Bus[];
+  /** modo otimizado: a linha foi dividida em N cópias iguais pra caber no Mk máximo */
+  copies?: number;
   /** insumos que não dá pra produzir aqui (coletáveis, etc.): precisam vir de fora */
   external: { item: ItemId; demand: number; lanes: Lane[] }[];
   levels: Record<ItemId, number>;
