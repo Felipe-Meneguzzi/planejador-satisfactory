@@ -31,7 +31,7 @@ import { DND_TYPE, Palette } from './components/Palette';
 import { SidePanel } from './components/SidePanel';
 import { BeltInspector } from './components/BeltInspector';
 import { SimContext } from './sim/SimContext';
-import { simulate, type Issue } from './sim/simulate';
+import { simulate, type EnergyResult, type Issue } from './sim/simulate';
 import { demoState, downloadJson, loadState, newId, sanitize, saveState } from './state/storage';
 import { useHistory, type Snapshot } from './state/useHistory';
 import { useClipboard } from './state/useClipboard';
@@ -57,6 +57,25 @@ export default function App() {
 function CanvasDebugCrash() {
   debugCrash('canvas');
   return null;
+}
+
+/** Consumo da planta; com geradores, "consumo / geração" (vermelho se faltar energia) */
+function EnergyChip({ energy }: { energy: EnergyResult }) {
+  if (!energy.generators)
+    return (
+      <span className="chip" title="Consumo de energia (sem geradores na planta)">
+        ⚡ {fmt(energy.consumption)} MW
+      </span>
+    );
+  const short = energy.consumption > energy.generation + 1e-6;
+  return (
+    <span
+      className={`chip energy-chip ${short ? 'err' : 'ok'}`}
+      title={`Consumo / geração${energy.boost > 1e-6 ? ` (com +${fmt(energy.boost)} MW do Alien Power Augmenter)` : ''}${short ? ' — falta energia' : ''}`}
+    >
+      ⚡ {fmt(energy.consumption)} / {fmt(energy.generation)} MW
+    </span>
+  );
 }
 
 const minimapColor = (n: FactoryNode) => {
@@ -420,7 +439,7 @@ function Planner() {
           <span className="logo">⚙️</span> Planejador <b>Satisfactory</b>
         </div>
         <div className="stats">
-          <span className="chip">⚡ {fmt(sim.power)} MW</span>
+          <EnergyChip energy={sim.energy} />
           <span className="chip">🏭 {sim.machines} máquinas</span>
           {sim.sloops > 0 && (
             <span className="chip sloop-chip" title="Somersloops em uso (existem 106 no mapa)">

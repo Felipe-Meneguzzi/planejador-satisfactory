@@ -1,5 +1,5 @@
 import { AMPLIFICATION, BELTS, BELT_TIERS, EXTRACTORS, GENERATORS, ITEMS, MACHINES, MINER_TIERS, OVERCLOCK, PIPES, PIPE_TIERS, PURITIES, extractorClockable, generatorClockable, generatorPorts, getRecipe, isFluid, withUnit } from '../game/data';
-import type { BeltItem, BeltTier, ExtractorData, FactoryData, GeneratorData, ItemId, MachineData, MinerData, PipeTier } from '../game/types';
+import type { BeltItem, BeltTier, ExtractorData, FactoryData, GeneratorData, GeneratorId, ItemId, MachineData, MinerData, PipeTier } from '../game/types';
 import { fmt } from '../format';
 
 /*
@@ -67,12 +67,35 @@ export interface Issue {
   /** a correção é de cano (nomes/tiers de cano) */
   fixPipe?: boolean;
 }
+/** Saldo de energia da planta (tudo em MW) */
+export interface EnergyResult {
+  /** consumo total: máquinas, mineradoras, extratores, pressurizadores, AWESOME Sinks */
+  consumption: number;
+  /** geração real total, já com o bônus dos Alien Power Augmenters */
+  generation: number;
+  /** geração sem o bônus: geradores + os MW próprios de cada APA */
+  base: number;
+  /** MW que o bônus dos APAs soma na rede */
+  boost: number;
+  /** bônus somado dos APAs (0,1 sem combustível, 0,3 abastecido, cada) */
+  boostRate: number;
+  /** quantidade de geradores (de qualquer tipo) */
+  generators: number;
+  /** por tipo de gerador: real (sem bônus) e nominal no clock escolhido */
+  byType: { generator: GeneratorId; count: number; generated: number; nominal: number }[];
+  /** insumos que os geradores consomem por minuto (combustível, água, Alien Power Matrix) */
+  fuel: { item: ItemId; rate: number }[];
+  /** consumo ÷ geração (null sem geradores) */
+  usage: number | null;
+}
 export interface SimResult {
   nodes: Record<string, NodeResult>;
   edges: Record<string, EdgeResult>;
   issues: Issue[];
   byTarget: Record<string, Issue[]>;
+  /** consumo de energia (MW) */
   power: number;
+  energy: EnergyResult;
   machines: number;
   /** total de Somersloops em uso */
   sloops: number;
@@ -396,6 +419,13 @@ export function simulate(nodes: SimNode[], edges: SimEdge[]): SimResult {
   let power = 0;
   let machines = 0;
   let sloops = 0;
+  // energia: geração sem bônus, bônus dos APAs, por tipo e insumos consumidos
+  let genBase = 0;
+  let boostRate = 0;
+  let generatorCount = 0;
+  let firstGenerator: string | undefined;
+  const byType = new Map<GeneratorId, { count: number; generated: number; nominal: number }>();
+  const fuelUsed = new Map<ItemId, number>();
 
   for (const n of nodes) {
     const d = n.data;
@@ -495,6 +525,17 @@ export function simulate(nodes: SimNode[], edges: SimEdge[]): SimResult {
         const outR = outs.map((x) => (!x.b ? 1 : Math.min(1, x.b.d / x.max)));
         const util = Math.min(minOf(inR), minOf(outR));
         const generated = nominal * util;
+        genBase += generated;
+        generatorCount++;
+        firstGenerator ??= n.id;
+        const t = byType.get(d.generator) ?? { count: 0, generated: 0, nominal: 0 };
+        byType.set(d.generator, { count: t.count + 1, generated: t.generated + generated, nominal: t.nominal + nominal });
+        ins.forEach((x) => x.b && !isWrong(x.b.item, x.item) && addTo(fuelUsed, x.item, flowOf(x.b)));
+        if (g.boost) {
+          // bônus do APA: +10% sem combustível, +30% abastecido (parcial = média proporcional)
+          const fed = ins.length ? supply(ins[0]) : 0;
+          boostRate += g.boost.unfueled + (g.boost.fueled - g.boost.unfueled) * fed;
+        }
         nodeResults[n.id] = {
           util,
           power: 0,
@@ -566,6 +607,28 @@ export function simulate(nodes: SimNode[], edges: SimEdge[]): SimResult {
     }
   }
 
+  // Saldo: (geração + MW próprios dos APAs) × (1 + bônus somado dos APAs)
+  const generation = genBase * (1 + boostRate);
+  if (firstGenerator && power > generation + EPS)
+    add(
+      'error',
+      'node',
+      firstGenerator,
+      'nopower',
+      `Falta energia: consumo de ${fmt(power)} MW, geração de ${fmt(generation)} MW — faltam ${fmt(power - generation)} MW (no jogo o disjuntor desarma e a rede para)`,
+    );
+  const energy: EnergyResult = {
+    consumption: power,
+    generation,
+    base: genBase,
+    boost: generation - genBase,
+    boostRate,
+    generators: generatorCount,
+    byType: [...byType.entries()].map(([generator, v]) => ({ generator, ...v })),
+    fuel: [...fuelUsed.entries()].map(([item, rate]) => ({ item, rate })),
+    usage: generatorCount ? (generation > EPS ? power / generation : power > EPS ? Infinity : 0) : null,
+  };
+
   const order: Record<IssueLevel, number> = { error: 0, warning: 1, info: 2 };
   issues.sort((a, b) => order[a.level] - order[b.level]);
   const byTargetIssues: Record<string, Issue[]> = {};
@@ -576,5 +639,5 @@ export function simulate(nodes: SimNode[], edges: SimEdge[]): SimResult {
     .filter((i) => items.has(i))
     .map((item) => ({ item, stored: stored.get(item) ?? 0, loose: loose.get(item) ?? 0 }));
 
-  return { nodes: nodeResults, edges: edgeResults, issues, byTarget: byTargetIssues, power, machines, sloops, production };
+  return { nodes: nodeResults, edges: edgeResults, issues, byTarget: byTargetIssues, power, energy, machines, sloops, production };
 }

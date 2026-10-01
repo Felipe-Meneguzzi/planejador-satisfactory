@@ -1603,3 +1603,58 @@ button.primary {
 .gen-output small {
   color: var(--muted);
 }
+.chip.energy-chip.ok {
+  border-color: #2e7d5b;
+  color: var(--ok);
+}
+.energy-table td:last-child {
+  text-align: right;
+  white-space: nowrap;
+}
+.energy-table small {
+  color: var(--muted);
+}
+.energy-table tr.total td {
+  font-weight: 600;
+  border-top: 1px solid var(--border);
+}
+.energy-table tr.good td:last-child {
+  color: var(--ok);
+}
+.energy-table tr.bad td:last-child {
+  color: var(--err);
+}
+.energy-usage {
+  margin-top: 6px;
+}
+.energy h4 {
+  margin: 10px 0 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.energy-fuel {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.energy-fuel li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 3px;
+}
+.energy-fuel li b {
+  margin-left: auto;
+  font-weight: 500;
+}
+table.energy-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.energy-table td {
+  padding: 3px 4px;
+  border-bottom: 1px solid var(--border);
+}

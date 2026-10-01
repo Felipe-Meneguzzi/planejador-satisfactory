@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react';
-import { BELTS, ITEMS, PIPES, withUnit } from '../game/data';
+import { BELTS, GENERATORS, ITEMS, PIPES, withUnit } from '../game/data';
 import type { PipeTier } from '../game/types';
 import { fmt } from '../format';
-import type { Issue, SimResult } from '../sim/simulate';
+import type { EnergyResult, Issue, SimResult } from '../sim/simulate';
 
 const ICON = { error: '⛔', warning: '⚠️', info: 'ℹ️' } as const;
 
@@ -47,6 +47,8 @@ export function SidePanel(props: {
           </table>
         )}
       </section>
+
+      <EnergySection energy={sim.energy} />
 
       <section className="issues">
         <h3>
@@ -97,5 +99,81 @@ function IssueItem({ issue, onFocus, onFixBelt }: { issue: Issue; onFocus: (i: I
         </button>
       )}
     </div>
+  );
+}
+
+/** Geração por tipo, consumo, saldo, uso da rede e insumos dos geradores */
+function EnergySection({ energy: e }: { energy: EnergyResult }) {
+  if (!e.generators)
+    return (
+      <section className="energy">
+        <h3>Energia</h3>
+        <p className="muted">
+          Consumo: <b>{fmt(e.consumption)} MW</b>. Sem geradores na planta — a energia vem de fora.
+        </p>
+      </section>
+    );
+  const balance = e.generation - e.consumption;
+  const short = balance < -1e-6;
+  const usage = e.usage ?? 0;
+  const pct = Number.isFinite(usage) ? Math.round(usage * 100) : null;
+  return (
+    <section className="energy">
+      <h3>Energia</h3>
+      <table className="energy-table">
+        <tbody>
+          {e.byType.map((t) => (
+            <tr key={t.generator}>
+              <td>
+                {t.count}× {GENERATORS[t.generator]?.name ?? t.generator}
+              </td>
+              <td title="real / nominal no clock escolhido">
+                {fmt(t.generated)}
+                {Math.abs(t.nominal - t.generated) > 1e-6 && <small> / {fmt(t.nominal)}</small>} MW
+              </td>
+            </tr>
+          ))}
+          {e.boostRate > 0 && (
+            <tr>
+              <td title="(geração + 500 MW de cada APA) × (1 + bônus)">Bônus do Alien Power Augmenter (+{fmt(e.boostRate * 100)}%)</td>
+              <td>+{fmt(e.boost)} MW</td>
+            </tr>
+          )}
+          <tr className="total">
+            <td>Geração</td>
+            <td>{fmt(e.generation)} MW</td>
+          </tr>
+          <tr>
+            <td>Consumo</td>
+            <td>{fmt(e.consumption)} MW</td>
+          </tr>
+          <tr className={`total ${short ? 'bad' : 'good'}`}>
+            <td>Saldo</td>
+            <td>
+              {balance >= 0 ? '+' : '−'}
+              {fmt(Math.abs(balance))} MW
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <div className="util energy-usage" title="Consumo ÷ geração">
+        <div className="util-fill" style={{ width: `${Math.min(100, pct ?? 100)}%`, background: short ? 'var(--err)' : 'var(--ok)' }} />
+        <span>{pct === null ? 'sem geração' : `${pct}% da rede em uso`}</span>
+      </div>
+      {e.fuel.length > 0 && (
+        <>
+          <h4>Insumos dos geradores</h4>
+          <ul className="energy-fuel">
+            {e.fuel.map((f) => (
+              <li key={f.item}>
+                <span className="dot" style={{ background: ITEMS[f.item].color }} />
+                {ITEMS[f.item].name}
+                <b>{withUnit(fmt(f.rate), f.item)}</b>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </section>
   );
 }
