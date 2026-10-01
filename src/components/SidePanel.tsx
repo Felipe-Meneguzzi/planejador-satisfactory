@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
-import { BELTS, ITEMS, withUnit } from '../game/data';
+import { BELTS, ITEMS, PIPES, withUnit } from '../game/data';
+import type { PipeTier } from '../game/types';
 import { fmt } from '../format';
 import type { Issue, SimResult } from '../sim/simulate';
 
@@ -92,7 +93,7 @@ function IssueItem({ issue, onFocus, onFixBelt }: { issue: Issue; onFocus: (i: I
             onFixBelt(issue.target.id, issue.fixTier);
           }}
         >
-          Usar {BELTS[issue.fixTier].name}
+          Usar {issue.fixPipe ? `cano ${PIPES[issue.fixTier as PipeTier].name}` : BELTS[issue.fixTier].name}
         </button>
       )}
     </div>

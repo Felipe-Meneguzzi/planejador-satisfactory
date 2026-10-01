@@ -25,6 +25,7 @@ describe('simulate', () => {
     const issue = r.issues.find((i) => i.id === 'b:belt');
     expect(issue?.level).toBe('error');
     expect(issue?.fixTier).toBe(2);
+    expect(issue?.fixPipe).toBeUndefined();
     expect(issue?.message).toMatch(/^Esteira Mk\.1 frac\w*: precisa levar 120\/min, aguenta 60\/min$/);
 
     // com Mk.2 o problema some
@@ -149,6 +150,7 @@ describe('simulate', () => {
     const issue = r.issues.find((i) => i.id === 'c:belt');
     expect(issue?.level).toBe('error');
     expect(issue?.fixTier).toBe(2);
+    expect(issue?.fixPipe).toBe(true); // o botão de correção fala de cano, não de esteira
     expect(issue?.message).toBe('Cano Mk.1 fraco: precisa levar 480 m³/min, aguenta 300 m³/min');
   });
 

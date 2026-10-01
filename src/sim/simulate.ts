@@ -61,6 +61,8 @@ export interface Issue {
   target: { kind: 'node' | 'edge'; id: string };
   message: string;
   fixTier?: BeltTier;
+  /** a correção é de cano (nomes/tiers de cano) */
+  fixPipe?: boolean;
 }
 export interface SimResult {
   nodes: Record<string, NodeResult>;
@@ -284,8 +286,8 @@ export function simulate(nodes: SimNode[], edges: SimEdge[]): SimResult {
 
   // 3) Resultados, problemas e resumo
   const issues: Issue[] = [];
-  const add = (level: IssueLevel, kind: 'node' | 'edge', id: string, code: string, message: string, fixTier?: BeltTier) =>
-    issues.push({ id: `${id}:${code}`, level, target: { kind, id }, message, fixTier });
+  const add = (level: IssueLevel, kind: 'node' | 'edge', id: string, code: string, message: string, fixTier?: BeltTier, fixPipe?: boolean) =>
+    issues.push({ id: `${id}:${code}`, level, target: { kind, id }, message, fixTier, ...(fixPipe ? { fixPipe } : {}) });
   const flowOf = (b?: Belt) => (b ? Math.min(b.s, b.d) : 0);
   const port = (handle: string, item: BeltItem, max: number, b?: Belt, actual?: number): PortResult => ({
     handle,
@@ -332,6 +334,7 @@ export function simulate(nodes: SimNode[], edges: SimEdge[]): SimResult {
         `${what} ${tierName} frac${b.pipe ? 'o' : 'a'}: precisa levar ${u(need)}, aguenta ${u(b.cap)}` +
           (fix ? '' : ` — nem ${b.pipe ? 'o' : 'a'} ${maxName} aguenta, divida em ${b.pipe ? 'mais canos' : 'mais esteiras'}`),
         fix,
+        b.pipe,
       );
     } else if (b.rawS > b.d + EPS && src.kind !== 'splitter' && tgt.kind !== 'merger') {
       // Sobra: reportada só na esteira "raiz" (antes do divisor / depois do mesclador)
