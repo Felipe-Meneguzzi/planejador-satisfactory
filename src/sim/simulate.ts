@@ -315,7 +315,9 @@ export function simulate(nodes: SimNode[], edges: SimEdge[]): SimResult {
         break;
       }
       case 'generator': {
-        // igual a uma máquina: combustível e água entram, resíduo sai (o que faltar limita o resto)
+        // igual a uma máquina: combustível e água entram, resíduo sai (o que faltar limita o resto).
+        // Simplificação: todo gerador queima no clock escolhido, inclusive o Biomass Burner (no
+        // jogo ele queima menos quando a rede pede menos) — a conta mostra o pior caso de consumo.
         const gp = generatorPorts(d);
         const k = generatorClock(d) / 100;
         const ins = gp.inputs.map((p, i) => ({ need: p.rate * k, item: p.item, optional: !!p.optional, b: inB(n.id, i) }));
