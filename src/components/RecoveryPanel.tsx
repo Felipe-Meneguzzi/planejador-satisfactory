@@ -66,3 +66,37 @@ export function RecoveryPanel({ error, componentStack, reset }: CrashInfo) {
     </div>
   );
 }
+
+/** Painel no lugar do canvas quando só ele quebra: paleta e painel lateral continuam funcionando */
+export function CanvasCrash({ error, componentStack, reset, onUndo }: CrashInfo & { onUndo?: () => void }) {
+  return (
+    <div className="crash-screen crash-canvas">
+      <div className="crash-card" role="alert">
+        <h2>⚠️ O canvas travou</h2>
+        <p>
+          O resto do app continua funcionando e <b>a planta salva está a salvo</b>: o salvamento automático fica pausado até o canvas voltar.
+        </p>
+        <CrashDetails error={error} componentStack={componentStack} />
+        <div className="crash-actions">
+          <button className="primary" onClick={reset}>
+            Tentar de novo
+          </button>
+          {onUndo && (
+            <button
+              onClick={() => {
+                onUndo();
+                reset();
+              }}
+              title="Desfaz a última alteração (que pode ter causado o erro) e tenta de novo"
+            >
+              Desfazer última alteração
+            </button>
+          )}
+          <button onClick={reload} title="Recarrega a página com a planta salva">
+            Voltar pro último estado salvo
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

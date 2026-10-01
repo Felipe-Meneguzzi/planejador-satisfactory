@@ -38,6 +38,8 @@ import { useClipboard } from './state/useClipboard';
 import { useBoxSelection } from './state/useBoxSelection';
 import { LabelRootContext, SettingsContext } from './state/settings';
 import { PlannerModal } from './components/PlannerModal';
+import { ErrorBoundary } from './components/ErrorBoundary';
+import { CanvasCrash } from './components/RecoveryPanel';
 import { debugCrash } from './errors';
 import { layoutPlan, type DistributionMode } from './planner/layout';
 import type { Plan } from './planner/plan';
@@ -48,6 +50,12 @@ export default function App() {
       <Planner />
     </ReactFlowProvider>
   );
+}
+
+/** Erro forçado de teste dentro do canvas (ver debugCrash) */
+function CanvasDebugCrash() {
+  debugCrash('canvas');
+  return null;
 }
 
 const minimapColor = (n: FactoryNode) => {
@@ -101,7 +109,9 @@ function Planner() {
   const [gridBelts, setGridBelts] = useState(initial.gridBelts ?? true);
   const [beltLabels, setBeltLabels] = useState(initial.beltLabels ?? true);
   const settings = useMemo(() => ({ gridBelts, beltLabels }), [gridBelts, beltLabels]);
-  // container dos rótulos das esteiras: procurado uma vez, depois que o canvas monta
+  // muda quando o canvas é remontado depois de um erro ("Tentar de novo")
+  const [canvasEpoch, setCanvasEpoch] = useState(0);
+  // container dos rótulos das esteiras: procurado de novo sempre que o canvas (re)monta
   const [labelRoot, setLabelRoot] = useState<Element | null>(null);
   useEffect(() => {
     let raf = 0;
@@ -112,7 +122,7 @@ function Planner() {
     };
     find();
     return () => cancelAnimationFrame(raf);
-  }, []);
+  }, [canvasEpoch]);
   const snapping = useAltHeld();
   const snappingRef = useRef(snapping);
   snappingRef.current = snapping;
@@ -220,10 +230,12 @@ function Planner() {
     }
   }, [nodesReady, fitView]);
 
+  // salvamento automático (pausado enquanto algum Error Boundary estiver em erro);
+  // canvasEpoch: salva o que foi feito com o canvas quebrado assim que ele volta
   useEffect(() => {
     const t = setTimeout(() => saveState({ version: 1, nodes, edges, defaultTier, defaultPipeTier, gridBelts, beltLabels }), 300);
     return () => clearTimeout(t);
-  }, [nodes, edges, defaultTier, defaultPipeTier, gridBelts, beltLabels]);
+  }, [nodes, edges, defaultTier, defaultPipeTier, gridBelts, beltLabels, canvasEpoch]);
 
   /* ---------- conexões ---------- */
 
@@ -469,6 +481,13 @@ function Planner() {
           }}
         />
         <div className="canvas" ref={canvasRef} onDragOver={onDragOver} onDrop={onDrop} {...clipboard.trackMouse}>
+          {/* se só o canvas quebrar, paleta e painel lateral continuam usáveis */}
+          <ErrorBoundary
+            name="canvas"
+            onReset={() => setCanvasEpoch((e) => e + 1)}
+            fallback={(crash) => <CanvasCrash {...crash} onUndo={canUndo ? undo : undefined} />}
+          >
+          <CanvasDebugCrash />
           <SettingsContext.Provider value={settings}>
           <LabelRootContext.Provider value={labelRoot}>
             <SimContext.Provider value={sim}>
@@ -505,6 +524,7 @@ function Planner() {
             </SimContext.Provider>
           </LabelRootContext.Provider>
           </SettingsContext.Provider>
+          </ErrorBoundary>
         </div>
         <SidePanel
           sim={sim}

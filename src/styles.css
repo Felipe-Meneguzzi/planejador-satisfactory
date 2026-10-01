@@ -1528,3 +1528,9 @@ button.primary {
 .backup-list li:last-child {
   border-bottom: 0;
 }
+/* no lugar do canvas: cobre só a área dele */
+.crash-canvas {
+  position: absolute;
+  inset: 0;
+  height: auto;
+}
