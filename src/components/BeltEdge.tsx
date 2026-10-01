@@ -111,6 +111,9 @@ function bendsPath(p: EdgeProps<BeltEdge>, s: Pt, t: Pt, bends: number[]): [stri
   return [d, last.x, last.y];
 }
 
+/** abaixo desse comprimento (px, |dx|+|dy|) a conexão não mostra rótulo sozinha */
+const SHORT_EDGE = 180;
+
 /** cor da borda do cano quando está tudo certo (aço) */
 const PIPE_RIM = '#8fa3b8';
 
@@ -132,6 +135,9 @@ function ConveyanceEdge(props: EdgeProps<BeltEdge> & { pipe: boolean }) {
   const a = data?.anchor;
   const planned = routing === 'grid' && data?.bends && a && Math.abs(a[0] - sp.x) < 1.5 && Math.abs(a[1] - sp.y) < 1.5 && Math.abs(a[2] - tp.x) < 1.5 && Math.abs(a[3] - tp.y) < 1.5;
   const [path, lx, ly] = planned ? bendsPath(props, sp, tp, data!.bends!) : routing === 'grid' ? gridPath(props, sp, tp) : getBezierPath(props);
+  // conexão curta (ex.: divisor colado na máquina): o rótulo cobriria os nodes e os números
+  // já aparecem nas portas; ele só aparece ao selecionar (e a dica do mouse continua valendo)
+  const short = Math.abs(sp.x - tp.x) + Math.abs(sp.y - tp.y) < SHORT_EDGE;
   const tier = data?.tier ?? 1;
   const tiers = pipe ? PIPE_TIERS : BELT_TIERS;
   const tierInfo = (t: number) => (pipe ? PIPES[t as PipeTier] : BELTS[t as BeltTier]) ?? (pipe ? PIPES[1] : BELTS[1]);
@@ -168,7 +174,7 @@ function ConveyanceEdge(props: EdgeProps<BeltEdge> & { pipe: boolean }) {
           ].join('\n')}
         </title>
       </path>
-      {(beltLabels || selected) &&
+      {((beltLabels && !short) || selected) &&
         labelRoot &&
         createPortal(
           <div
