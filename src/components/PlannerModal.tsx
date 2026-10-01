@@ -3,10 +3,16 @@ import { BELTS, BELT_TIERS, EXTRACTORS, ITEMS, MACHINES, MINER_TIERS, PIPES, PIP
 import type { BeltTier, ItemId, MinerTier, PipeTier, Purity } from '../game/types';
 import { fmt } from '../format';
 import { MINE, PLANNABLE_ITEMS, choiceOf, defaultOre, extractorFor, fluidSourceName, isResource, planLine, recipesProducing, type OreSetting, type Plan } from '../planner/plan';
-import type { DistributionMode } from '../planner/layout';
+import { layoutPlan, type DistributionMode } from '../planner/layout';
+import { optimize } from '../planner/optimize';
+import { planOptimized } from '../planner/optimizedPlan';
+import { simulate } from '../sim/simulate';
 import { itemColor } from './nodes';
+import { OPTIMIZER_DEFAULTS, OptimizerResults, OptimizerSettingsPanel, type OptimizerSettings } from './OptimizerPanel';
 
-interface PlannerSettings {
+interface PlannerSettings extends OptimizerSettings {
+  /** 'manual' = eu escolho as receitas; 'optimized' = o otimizador escolhe */
+  planner: 'manual' | 'optimized';
   item: ItemId;
   rate: number;
   choices: Record<ItemId, string>;
@@ -18,7 +24,32 @@ interface PlannerSettings {
 }
 
 const KEY = 'satisplanner:planner';
-const DEFAULTS: PlannerSettings = { item: 'iron-plate', rate: 30, choices: {}, ores: {}, maxClock: 100, maxBelt: 3, maxPipe: 1, mode: 'manifold' };
+const DEFAULTS: PlannerSettings = {
+  planner: 'manual',
+  item: 'iron-plate',
+  rate: 30,
+  choices: {},
+  ores: {},
+  maxClock: 100,
+  maxBelt: 3,
+  maxPipe: 1,
+  mode: 'manifold',
+  ...OPTIMIZER_DEFAULTS,
+};
+/** linha grande demais pra conferir na simulação a cada mudança (a janela travaria) */
+const VERIFY_LIMIT = 2500;
+
+/** Confere a linha na simulação, como ela vai ser desenhada: problemas (erros e avisos) ou null se grande demais */
+function verify(plan: Plan, mode: DistributionMode, maxBelt: BeltTier, maxPipe: PipeTier): string[] | null {
+  const size = plan.groups.reduce((a, g) => a + g.count * 3, 0);
+  if (size > VERIFY_LIMIT) return null;
+  const { nodes, edges } = layoutPlan(plan, mode, maxBelt, maxPipe, { x: 0, y: 0 });
+  const sim = simulate(
+    nodes.map((n) => ({ id: n.id, data: n.data })),
+    edges.map((e) => ({ id: e.id, source: e.source, sourceHandle: e.sourceHandle, target: e.target, targetHandle: e.targetHandle, tier: e.data!.tier, medium: e.type === 'pipe' ? 'pipe' : 'belt' })),
+  );
+  return sim.issues.filter((i) => i.level !== 'info').map((i) => i.message);
+}
 
 /** Preferências da janela (só conveniência; se o storage falhar, usa o padrão) */
 function loadSettings(): PlannerSettings {
@@ -56,7 +87,25 @@ export function PlannerModal(props: { onClose: () => void; onGenerate: (plan: Pl
     return () => window.removeEventListener('keydown', onKey);
   }, [props]);
 
-  const plan = useMemo(() => planLine(st), [st]);
+  const optimized = st.planner === 'optimized';
+  const manualPlan = useMemo(() => planLine(st), [st]);
+  const opt = useMemo(() => (optimized ? optimize(st) : undefined), [optimized, st]);
+  const optPlan = useMemo(
+    () => (opt ? planOptimized(opt, { item: st.item, ores: st.ores, maxClock: st.maxClock, maxBelt: st.maxBelt, maxPipe: st.maxPipe }) : undefined),
+    [opt, st.item, st.ores, st.maxClock, st.maxBelt, st.maxPipe],
+  );
+  // plano manual na mesma quantidade que o otimizador achou (no maximizar ela muda)
+  const comparePlan = useMemo(() => (opt && !opt.error ? planLine({ ...st, rate: opt.rate }) : undefined), [opt, st]);
+  const plan = optPlan ?? manualPlan;
+
+  // conferência na simulação (só no otimizado, onde há barramentos e reaproveitamento): depois de parar de mexer
+  const [verdict, setVerdict] = useState<{ plan: Plan; problems: string[] | null }>();
+  useEffect(() => {
+    if (!optPlan || optPlan.error || !optPlan.groups.length) return;
+    const t = setTimeout(() => setVerdict({ plan: optPlan, problems: verify(optPlan, st.mode, st.maxBelt, st.maxPipe) }), 250);
+    return () => clearTimeout(t);
+  }, [optPlan, st.mode, st.maxBelt, st.maxPipe]);
+  const check = verdict && verdict.plan === optPlan ? verdict.problems : undefined;
   const groupsByItem = useMemo(() => {
     const m = new Map<ItemId, Plan['groups']>();
     for (const g of plan.groups) m.set(g.item, [...(m.get(g.item) ?? []), g]);
@@ -190,6 +239,17 @@ export function PlannerModal(props: { onClose: () => void; onGenerate: (plan: Pl
         </header>
 
         <div className="planner-top">
+          <div className="pl-field">
+            <span>Modo</span>
+            <div className="seg" role="group" aria-label="Modo do gerador">
+              <button className={!optimized ? 'active' : ''} onClick={() => set({ planner: 'manual' })} title="Você escolhe a receita de cada item na árvore">
+                Eu escolho as receitas
+              </button>
+              <button className={optimized ? 'active' : ''} onClick={() => set({ planner: 'optimized' })} title="Programação linear escolhe as receitas e reaproveita subprodutos">
+                Otimizado
+              </button>
+            </div>
+          </div>
           <label className="pl-field grow">
             <span>Produto</span>
             <input
@@ -208,7 +268,7 @@ export function PlannerModal(props: { onClose: () => void; onGenerate: (plan: Pl
               ))}
             </datalist>
           </label>
-          <label className="pl-field">
+          <label className="pl-field" hidden={optimized && st.goal === 'maximize'}>
             <span>Quantidade</span>
             <span className="pl-inline">
               <input type="number" min={0} step="any" value={st.rate} onChange={(e) => set({ rate: Number(e.target.value) })} />
@@ -258,18 +318,34 @@ export function PlannerModal(props: { onClose: () => void; onGenerate: (plan: Pl
         </div>
 
         <div className="planner-body">
-          <section className="planner-tree">
-            <h3>Receitas</h3>
-            <div className="tree">
-              {ITEMS[st.item] && row(st.item, st.rate || 0, 0, st.item)}
-            </div>
-          </section>
+          {optimized ? (
+            <section className="planner-tree">
+              <OptimizerSettingsPanel value={st} onChange={set} />
+            </section>
+          ) : (
+            <section className="planner-tree">
+              <h3>Receitas</h3>
+              <div className="tree">{ITEMS[st.item] && row(st.item, st.rate || 0, 0, st.item)}</div>
+            </section>
+          )}
 
           <aside className="planner-side">
             {plan.error ? (
               <p className="pl-error">⛔ {plan.error}</p>
             ) : (
               <>
+                {opt && <OptimizerResults opt={opt} plan={plan} manual={comparePlan} item={st.item} goal={st.goal} maxClock={st.maxClock} />}
+                {opt && (
+                  <p className={`opt-verdict ${!check ? 'muted' : check.length ? 'loss' : 'gain'}`}>
+                    {check === undefined
+                      ? 'Conferindo na simulação…'
+                      : check === null
+                        ? 'Linha grande: confira no painel depois de gerar.'
+                        : check.length
+                          ? `⚠️ A simulação acusa ${check.length} problema(s): ${check[0]}`
+                          : '✅ Simulação: a linha fecha em 100%, sem sobra nem falta.'}
+                  </p>
+                )}
                 <h3>Resumo</h3>
                 <table className="prod">
                   <tbody>
@@ -297,10 +373,16 @@ export function PlannerModal(props: { onClose: () => void; onGenerate: (plan: Pl
                         <td>{PIPES[maxUsed.pipe].name}</td>
                       </tr>
                     )}
-                    {lines > 1 && (
+                    {!optimized && lines > 1 && (
                       <tr>
                         <td>Linhas paralelas</td>
                         <td>{lines} armazéns</td>
+                      </tr>
+                    )}
+                    {(plan.copies ?? 1) > 1 && (
+                      <tr>
+                        <td title="A linha foi dividida em cópias iguais pra caber no Mk máximo de esteira/cano">Linhas paralelas</td>
+                        <td>{plan.copies} cópias</td>
                       </tr>
                     )}
                   </tbody>
@@ -355,7 +437,7 @@ export function PlannerModal(props: { onClose: () => void; onGenerate: (plan: Pl
                   </>
                 )}
 
-                {byproducts.length > 0 && (
+                {!optimized && byproducts.length > 0 && (
                   <>
                     <h3>Subprodutos</h3>
                     {byproducts.map(([item, b]) => (
@@ -384,7 +466,10 @@ export function PlannerModal(props: { onClose: () => void; onGenerate: (plan: Pl
         </div>
 
         <footer className="modal-foot">
-          <span className="muted">Todas as máquinas de cada etapa ficam no mesmo clock. A linha entra minimizada e selecionada; Ctrl+Z desfaz.</span>
+          <span className="muted">
+            Todas as máquinas de cada etapa ficam no mesmo clock.
+            {optimized ? ' Item com várias fontes passa por um barramento (mescladores) antes de dividir.' : ''} A linha entra minimizada e selecionada; Ctrl+Z desfaz.
+          </span>
           <button onClick={props.onClose}>Cancelar</button>
           <button className="primary" disabled={!!plan.error || !plan.groups.length} onClick={() => props.onGenerate(plan, st.mode, st.maxBelt, st.maxPipe)}>
             Gerar ▶
