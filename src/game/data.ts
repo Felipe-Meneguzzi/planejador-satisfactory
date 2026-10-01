@@ -48,6 +48,36 @@ interface RawData {
     /** consumo variável em MW (ex.: Ballistic Warp Drive) */
     variablePower?: { min: number; max: number };
   }[];
+  /** geradores a combustível; energy = MJ por item (ou por m³ de fluido) */
+  generators: {
+    name: string;
+    power: number;
+    overclockable: boolean;
+    /** água em m³/min a 100% */
+    water?: number;
+    fuels: { item: string; energy: number; waste?: { item: string; perItem: number } }[];
+  }[];
+  geothermal: { name: string; overclockable: boolean; purities: Record<Purity, { min: number; max: number; avg: number }> };
+  augmenter: { name: string; power: number; overclockable: boolean; fuel: { item: string; rate: number }; boost: { unfueled: number; fueled: number } };
+  pressurizer: {
+    name: string;
+    power: number;
+    overclockable: boolean;
+    powerExponent: number;
+    extractor: { name: string; power: number; overclockable: boolean };
+    rates: Record<Purity, number>;
+    resources: string[];
+    wellsInWorld: Record<string, { wells: number; satellites: Record<Purity, number> }>;
+  };
+  sink: {
+    name: string;
+    power: number;
+    acceptsFluids: boolean;
+    points: Record<string, number>;
+    cannotBeSunk: string[];
+    dnaCapsule: { item: string; points: number };
+    coupons: { firstCount: number; firstCost: number; base: number; factor: number; capFrom: number; capCost: number };
+  };
 }
 const data = raw as unknown as RawData;
 
@@ -112,6 +142,9 @@ const fluidForm = new Map((data.fluids ?? []).map((f) => [slug(f.name), f.form])
 const itemNames = new Set<string>(data.resources);
 for (const r of recipesData) for (const p of [...r.inputs, ...r.outputs]) itemNames.add(p.item);
 for (const f of data.fluids ?? []) itemNames.add(f.name);
+// combustíveis e resíduos dos geradores (quase todos já aparecem nas receitas)
+for (const g of data.generators ?? []) for (const f of g.fuels) [f.item, f.waste?.item].forEach((n) => n && itemNames.add(n));
+if (data.augmenter) itemNames.add(data.augmenter.fuel.item);
 
 export interface ItemInfo {
   name: string;
@@ -278,3 +311,139 @@ export const getRecipe = (d: MachineData): Recipe => {
   const r = RECIPES[d.recipe];
   return r && r.machine === d.machine ? r : recipesFor(d.machine)[0];
 };
+
+/* ---------- energia ---------- */
+
+export type GeneratorId = string;
+
+export interface FuelInfo {
+  item: ItemId;
+  /** MJ por item (sólido) ou por m³ (fluido); 0 = não gera energia (Alien Power Matrix) */
+  energy: number;
+  /** consumo por minuto a 100% (= potência × 60 / energia) */
+  rate: number;
+  /** resíduo por minuto a 100% (Nuclear Power Plant) */
+  waste?: { item: ItemId; rate: number };
+}
+
+export interface GeneratorInfo {
+  id: GeneratorId;
+  name: string;
+  icon: string;
+  color: string;
+  /** MW a 100% (no geotérmico, a média da pureza normal) */
+  power: number;
+  overclockable: boolean;
+  /** água em m³/min a 100% */
+  water?: number;
+  /** combustíveis aceitos (vazio = não consome nada) */
+  fuels: FuelInfo[];
+  /** o combustível é opcional (Alien Power Augmenter) */
+  optionalFuel?: boolean;
+  /** geotérmico: MW por pureza do gêiser (mín./máx./média) */
+  geothermal?: Record<Purity, { min: number; max: number; avg: number }>;
+  /** Alien Power Augmenter: bônus na rede sem e com combustível */
+  boost?: { unfueled: number; fueled: number };
+}
+
+const GENERATOR_STYLE: Record<string, { icon: string; color: string }> = {
+  'biomass-burner': { icon: '🌿', color: '#4f7a2a' },
+  'coal-powered-generator': { icon: '🪨', color: '#4a4f5a' },
+  'fuel-powered-generator': { icon: '⛽', color: '#a0601c' },
+  'nuclear-power-plant': { icon: '☢️', color: '#3c7f3a' },
+  'geothermal-generator': { icon: '🌋', color: '#9a3c26' },
+  'alien-power-augmenter': { icon: '👽', color: '#6a3fa0' },
+};
+const genStyle = (id: string) => GENERATOR_STYLE[id] ?? { icon: '⚡', color: '#555b66' };
+
+const fuelGenerators: GeneratorInfo[] = (data.generators ?? []).map((g) => {
+  const id = slug(g.name);
+  return {
+    id,
+    name: g.name,
+    ...genStyle(id),
+    power: g.power,
+    overclockable: g.overclockable,
+    water: g.water,
+    fuels: g.fuels.map((f) => {
+      const rate = (g.power * 60) / f.energy;
+      return { item: slug(f.item), energy: f.energy, rate, waste: f.waste && { item: slug(f.waste.item), rate: rate * f.waste.perItem } };
+    }),
+  };
+});
+const geo = data.geothermal;
+const aug = data.augmenter;
+export const GENERATORS: Record<GeneratorId, GeneratorInfo> = Object.fromEntries(
+  [
+    ...fuelGenerators,
+    { id: slug(geo.name), name: geo.name, ...genStyle(slug(geo.name)), power: geo.purities.normal.avg, overclockable: geo.overclockable, fuels: [], geothermal: geo.purities },
+    {
+      id: slug(aug.name),
+      name: aug.name,
+      ...genStyle(slug(aug.name)),
+      power: aug.power,
+      overclockable: aug.overclockable,
+      fuels: [{ item: slug(aug.fuel.item), energy: 0, rate: aug.fuel.rate }],
+      optionalFuel: true,
+      boost: aug.boost,
+    },
+  ].map((g) => [g.id, g]),
+);
+export const GENERATOR_IDS = Object.keys(GENERATORS);
+/** combustível escolhido no gerador (cai no primeiro aceito se o salvo não servir) */
+export const fuelOf = (generator: GeneratorId, fuel?: ItemId): FuelInfo | undefined => {
+  const g = GENERATORS[generator];
+  return g?.fuels.find((f) => f.item === fuel) ?? g?.fuels[0];
+};
+
+/* ---------- poço de recurso ---------- */
+
+const pr = data.pressurizer;
+/**
+ * Limite de extratores-satélite por poço usado no gerador de linha: média de satélites por
+ * poço daquele recurso no mapa (wellsInWorld), arredondada pra cima.
+ */
+const satelliteLimit = Object.fromEntries(
+  Object.entries(pr.wellsInWorld).map(([name, w]) => {
+    const total = Object.values(w.satellites).reduce((a, b) => a + b, 0);
+    return [slug(name), Math.ceil(total / w.wells)];
+  }),
+) as Record<ItemId, number>;
+export const WELL = {
+  name: pr.name,
+  extractorName: pr.extractor.name,
+  /** MW do pressurizador a 100% (os satélites não consomem) */
+  power: pr.power,
+  powerExponent: pr.powerExponent,
+  overclockable: pr.overclockable,
+  /** m³/min de cada satélite a 100% do pressurizador */
+  rates: pr.rates,
+  resources: pr.resources.map(slug) as ItemId[],
+  satelliteLimit,
+  /** maior limite entre os recursos (teto do botão de adicionar satélite) */
+  maxSatellites: Math.max(...Object.values(satelliteLimit)),
+  wellsInWorld: Object.fromEntries(Object.entries(pr.wellsInWorld).map(([name, w]) => [slug(name), w])) as Record<ItemId, { wells: number; satellites: Record<Purity, number> }>,
+};
+
+/* ---------- AWESOME Sink ---------- */
+
+const sk = data.sink;
+export const SINK = {
+  name: sk.name,
+  /** MW enquanto recebe itens (parado não consome) */
+  power: sk.power,
+  /** pontos por item (só sólidos) */
+  points: Object.fromEntries(Object.entries(sk.points).map(([name, p]) => [slug(name), p])) as Record<ItemId, number>,
+  /** Alien DNA Capsule: contador de pontos separado */
+  dna: { item: slug(sk.dnaCapsule.item), points: sk.dnaCapsule.points },
+};
+/** pontos de um item no AWESOME Sink (undefined = não pode ser destruído lá) */
+export const sinkPoints = (item: ItemId): number | undefined => SINK.points[item];
+
+/** Pontos pra imprimir o n-ésimo cupom (n começa em 1) */
+export function couponCost(n: number): number {
+  const c = sk.coupons;
+  if (n <= c.firstCount) return c.firstCost;
+  if (n >= c.capFrom) return c.capCost;
+  return c.factor * (Math.ceil(n / 3) - 1) ** 2 + c.base;
+}
