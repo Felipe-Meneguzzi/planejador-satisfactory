@@ -1,5 +1,5 @@
-import { AMPLIFICATION, BELTS, BELT_TIERS, ITEMS, MACHINES, MINER_TIERS, OVERCLOCK, PURITIES, getRecipe } from '../game/data';
-import type { BeltItem, BeltTier, FactoryData, ItemId, MachineData, MinerData } from '../game/types';
+import { AMPLIFICATION, BELTS, BELT_TIERS, EXTRACTORS, ITEMS, MACHINES, MINER_TIERS, OVERCLOCK, PIPES, PIPE_TIERS, PURITIES, getRecipe, isFluid, withUnit } from '../game/data';
+import type { BeltItem, BeltTier, ExtractorData, FactoryData, ItemId, MachineData, MinerData, PipeTier } from '../game/types';
 import { fmt } from '../format';
 
 /*
@@ -24,11 +24,15 @@ export type SimEdge = {
   target: string;
   targetHandle?: string | null;
   tier: BeltTier;
+  /** 'pipe' = cano (capacidade em m³/min pelos tiers de cano) */
+  medium?: 'belt' | 'pipe';
 };
 
 export type EdgeStatus = 'idle' | 'ok' | 'excess' | 'bottleneck' | 'wrong-item';
 export interface EdgeResult {
   item: BeltItem;
+  /** é um cano (fluido) */
+  pipe: boolean;
   cap: number;
   /** oferta bruta (sem limite da esteira) */
   offered: number;
@@ -89,6 +93,11 @@ export const shardsFor = (clock: number) => {
 };
 export const minerRate = (d: MinerData) =>
   (MINER_TIERS[d.tier].base * PURITIES[d.purity].mult * clampClock(d.clock)) / 100;
+/** Vazão de um extrator de fluido (m³/min) no clock atual */
+export const extractorRate = (d: ExtractorData) => {
+  const info = EXTRACTORS[d.extractor];
+  return (info.rate(d.purity) * (info.overclockable ? clampClock(d.clock) : 100)) / 100;
+};
 /** Consumo de energia com overclock/underclock */
 export const powerAt = (base: number, clock: number) => base * Math.pow(clampClock(clock) / 100, OVERCLOCK.powerExponent);
 
@@ -119,6 +128,7 @@ export function shareWithUnbounded(total: number, others: number[]): number {
 
 interface Belt {
   id: string;
+  pipe: boolean;
   tier: BeltTier;
   cap: number;
   item: BeltItem;
@@ -135,8 +145,10 @@ export function simulate(nodes: SimNode[], edges: SimEdge[]): SimResult {
   const byTarget = new Map<string, Belt>();
   const valid = edges.filter((e) => nodeById.has(e.source) && nodeById.has(e.target));
   for (const e of valid) {
-    const tier = BELTS[e.tier] ? e.tier : 1;
-    const b: Belt = { id: e.id, tier, cap: BELTS[tier].rate, item: null, rawS: 0, rawD: 0, s: 0, d: 0 };
+    const pipe = e.medium === 'pipe';
+    const tier = (pipe ? (PIPES[e.tier as PipeTier] ? e.tier : 1) : BELTS[e.tier] ? e.tier : 1) as BeltTier;
+    const cap = pipe ? PIPES[tier as PipeTier].rate : BELTS[tier].rate;
+    const b: Belt = { id: e.id, pipe, tier, cap, item: null, rawS: 0, rawD: 0, s: 0, d: 0 };
     belts.set(e.id, b);
     bySource.set(key(e.source, e.sourceHandle), b);
     byTarget.set(key(e.target, e.targetHandle), b);
@@ -151,6 +163,7 @@ export function simulate(nodes: SimNode[], edges: SimEdge[]): SimResult {
     const d = n.data;
     switch (d.kind) {
       case 'miner':
+      case 'extractor':
         return [d.resource];
       case 'machine':
         return getRecipe(d).outputs.map((o) => o.item);
@@ -201,6 +214,11 @@ export function simulate(nodes: SimNode[], edges: SimEdge[]): SimResult {
       case 'miner': {
         const b = outB(n.id, 0);
         if (b) setS(b, minerRate(d));
+        break;
+      }
+      case 'extractor': {
+        const b = outB(n.id, 0);
+        if (b) setS(b, extractorRate(d));
         break;
       }
       case 'machine': {
@@ -287,6 +305,8 @@ export function simulate(nodes: SimNode[], edges: SimEdge[]): SimResult {
     const expected =
       tgt.kind === 'machine' ? getRecipe(tgt).inputs[Number(e.targetHandle?.split('-')[1])]?.item : undefined;
     const need = Math.min(b.rawS, b.rawD);
+    const u = (v: number) => withUnit(fmt(v), b.item);
+    const what = b.pipe ? 'Cano' : 'Esteira';
 
     if (expected && isWrong(b.item, expected)) {
       status = 'wrong-item';
@@ -296,19 +316,21 @@ export function simulate(nodes: SimNode[], edges: SimEdge[]): SimResult {
         e.id,
         'wrong',
         b.item === 'mixed'
-          ? 'Esteira com itens misturados entrando numa máquina'
+          ? `${what} com ${b.pipe ? 'fluidos' : 'itens'} misturados entrando numa máquina`
           : `${itemName(b.item)} não serve aqui — a máquina espera ${ITEMS[expected].name}`,
       );
     } else if (need > b.cap + EPS) {
       status = 'bottleneck';
-      const fix = BELT_TIERS.find((t) => BELTS[t].rate >= need - EPS);
+      const fix = b.pipe ? PIPE_TIERS.find((t) => PIPES[t].rate >= need - EPS) : BELT_TIERS.find((t) => BELTS[t].rate >= need - EPS);
+      const tierName = b.pipe ? PIPES[b.tier as PipeTier].name : BELTS[b.tier].name;
+      const maxName = b.pipe ? `Mk.${PIPE_TIERS[PIPE_TIERS.length - 1]}` : `Mk.${BELT_TIERS[BELT_TIERS.length - 1]}`;
       add(
         'error',
         'edge',
         e.id,
         'belt',
-        `Esteira ${BELTS[b.tier].name} fraca: precisa levar ${fmt(need)}/min, aguenta ${fmt(b.cap)}/min` +
-          (fix ? '' : ' — nem a Mk.6 aguenta, divida em mais esteiras'),
+        `${what} ${tierName} fraco${b.pipe ? '' : 'a'}: precisa levar ${u(need)}, aguenta ${u(b.cap)}` +
+          (fix ? '' : ` — nem ${b.pipe ? 'o' : 'a'} ${maxName} aguenta, divida em ${b.pipe ? 'mais canos' : 'mais esteiras'}`),
         fix,
       );
     } else if (b.rawS > b.d + EPS && src.kind !== 'splitter' && tgt.kind !== 'merger') {
@@ -319,10 +341,10 @@ export function simulate(nodes: SimNode[], edges: SimEdge[]): SimResult {
         'edge',
         e.id,
         'excess',
-        `Sobrando ${fmt(b.rawS - b.d)}/min de ${itemName(b.item)}: produz ${fmt(b.rawS)}/min, consome ${fmt(b.d)}/min`,
+        `Sobrando ${u(b.rawS - b.d)} de ${itemName(b.item)}: produz ${u(b.rawS)}, consome ${u(b.d)}`,
       );
     }
-    edgeResults[e.id] = { item: b.item, cap: b.cap, offered: b.rawS, wanted: b.d, flow, status };
+    edgeResults[e.id] = { item: b.item, pipe: b.pipe, cap: b.cap, offered: b.rawS, wanted: b.d, flow, status };
   }
 
   const nodeResults: Record<string, NodeResult> = {};
@@ -348,7 +370,21 @@ export function simulate(nodes: SimNode[], edges: SimEdge[]): SimResult {
         nodeResults[n.id] = { util: R > 0 ? actual / R : 0, power: p, inputs: [], outputs: [port('out-0', d.resource, R, b, actual)] };
         if (!b) {
           addTo(loose, d.resource, R);
-          add('info', 'node', n.id, 'free', `Saída livre: ${fmt(R)}/min de ${ITEMS[d.resource].name} disponíveis`);
+          add('info', 'node', n.id, 'free', `Saída livre: ${withUnit(fmt(R), d.resource)} de ${ITEMS[d.resource].name} disponíveis`);
+        }
+        break;
+      }
+      case 'extractor': {
+        const R = extractorRate(d);
+        const b = outB(n.id, 0);
+        const actual = b ? flowOf(b) : R;
+        const p = powerAt(EXTRACTORS[d.extractor].power, EXTRACTORS[d.extractor].overclockable ? d.clock : 100);
+        power += p;
+        machines++;
+        nodeResults[n.id] = { util: R > 0 ? actual / R : 0, power: p, inputs: [], outputs: [port('out-0', d.resource, R, b, actual)] };
+        if (!b) {
+          addTo(loose, d.resource, R);
+          add('info', 'node', n.id, 'free', `Saída livre: ${withUnit(fmt(R), d.resource)} de ${ITEMS[d.resource].name} disponíveis`);
         }
         break;
       }
@@ -372,24 +408,36 @@ export function simulate(nodes: SimNode[], edges: SimEdge[]): SimResult {
           inputs: ins.map((x, i) => port(`in-${i}`, x.item, x.need, x.b)),
           outputs: outs.map((x, i) => port(`out-${i}`, x.item, x.max, x.b, x.b ? undefined : x.max * util)),
         };
+        const uu = (v: number, item: ItemId) => withUnit(fmt(v), item);
         ins.forEach((x, i) => {
           const name = ITEMS[x.item].name;
           if (!x.b) {
-            add('warning', 'node', n.id, `in${i}`, `Entrada sem esteira — precisa de ${fmt(x.need)}/min de ${name}`);
+            add('warning', 'node', n.id, `in${i}`, `Entrada sem ${isFluid(x.item) ? 'cano' : 'esteira'} — precisa de ${uu(x.need, x.item)} de ${name}`);
           } else if (!isWrong(x.b.item, x.item) && x.b.s < x.need - EPS) {
             add(
               'warning',
               'node',
               n.id,
               `starve${i}`,
-              `Falta ${name}: recebe ${fmt(x.b.s)} de ${fmt(x.need)}/min (${Math.round((x.b.s / x.need) * 100)}%)`,
+              `Falta ${name}: recebe ${fmt(x.b.s)} de ${uu(x.need, x.item)} (${Math.round((x.b.s / x.need) * 100)}%)`,
             );
           }
         });
+        // Com mais de uma saída, uma saída sem destino trava a máquina no jogo (o estoque
+        // interno enche e ela para). Só é "livre" quando nenhuma saída está ligada (prévia).
+        const someOutLinked = outs.some((x) => x.b);
         outs.forEach((x, i) => {
           if (!x.b && x.max * util > EPS) {
             addTo(loose, x.item, x.max * util);
-            add('info', 'node', n.id, `free${i}`, `Saída livre: ${fmt(x.max * util)}/min de ${ITEMS[x.item].name}`);
+            if (outs.length > 1 && someOutLinked)
+              add(
+                'warning',
+                'node',
+                n.id,
+                `free${i}`,
+                `Subproduto sem destino: ${uu(x.max * util, x.item)} de ${ITEMS[x.item].name} — no jogo a máquina para quando o estoque interno encher`,
+              );
+            else add('info', 'node', n.id, `free${i}`, `Saída livre: ${uu(x.max * util, x.item)} de ${ITEMS[x.item].name}`);
           }
         });
         break;
@@ -403,8 +451,9 @@ export function simulate(nodes: SimNode[], edges: SimEdge[]): SimResult {
           inputs: [port('in-0', inp?.item ?? null, inp?.s ?? 0, inp)],
           outputs: outs.map((b, i) => port(`out-${i}`, b?.item ?? null, b?.s ?? 0, b)),
         };
-        if (!inp) add('info', 'node', n.id, 'noin', 'Divisor sem entrada');
-        else if (!outs.some(Boolean)) add('warning', 'node', n.id, 'noout', 'Divisor sem nenhuma saída conectada');
+        const label = d.fluid ? 'Junção' : 'Divisor';
+        if (!inp) add('info', 'node', n.id, 'noin', `${label} sem entrada`);
+        else if (!outs.some(Boolean)) add('warning', 'node', n.id, 'noout', `${label} sem nenhuma saída conectada`);
         break;
       }
       case 'merger': {
@@ -417,8 +466,9 @@ export function simulate(nodes: SimNode[], edges: SimEdge[]): SimResult {
           inputs: ins.map((b, i) => port(`in-${i}`, b?.item ?? null, b?.s ?? 0, b)),
           outputs: [port('out-0', out?.item ?? null, total, out)],
         };
-        if (!out && total > EPS) add('warning', 'node', n.id, 'noout', `Saída não conectada — ${fmt(total)}/min parados`);
-        if (out?.item === 'mixed') add('warning', 'node', n.id, 'mixed', 'Mesclando itens diferentes na mesma esteira');
+        const firstItem = present(ins)[0]?.item ?? null;
+        if (!out && total > EPS) add('warning', 'node', n.id, 'noout', `Saída não conectada — ${withUnit(fmt(total), firstItem)} parados`);
+        if (out?.item === 'mixed') add('warning', 'node', n.id, 'mixed', d.fluid ? 'Misturando fluidos diferentes no mesmo cano' : 'Mesclando itens diferentes na mesma esteira');
         break;
       }
       case 'sink': {
