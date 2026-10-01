@@ -40,6 +40,7 @@ import { LabelRootContext, SettingsContext } from './state/settings';
 import { PlannerModal } from './components/PlannerModal';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { CanvasCrash } from './components/RecoveryPanel';
+import { BackupMenu } from './components/Backups';
 import { debugCrash } from './errors';
 import { layoutPlan, type DistributionMode } from './planner/layout';
 import type { Plan } from './planner/plan';
@@ -459,6 +460,7 @@ function Planner() {
           <button onClick={exportJson}>Exportar</button>
           <button onClick={() => fileRef.current?.click()}>Importar</button>
           <input ref={fileRef} type="file" accept="application/json,.json" hidden onChange={importJson} />
+          <BackupMenu onRestore={replaceAll} />
         </div>
       </header>
 
