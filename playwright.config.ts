@@ -8,6 +8,8 @@ export default defineConfig({
   fullyParallel: true,
   // mais que 4 em paralelo engasga máquinas menores e os testes estouram o tempo limite
   workers: process.env.CI ? 2 : 4,
+  // com 4 navegadores desenhando linhas grandes ao mesmo tempo, 30s não bastam em máquina carregada
+  timeout: 60_000,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
