@@ -182,4 +182,57 @@ describe('simulate', () => {
     expect(problems(r)).toEqual([]);
     expect(r.production).toEqual([{ item: 'nitrogen-gas', stored: 300, loose: 0 }]);
   });
+
+  it('subproduto que volta pra mesma linha não trava (Alumina Solution → Scrap → Foundry com a silica)', () => {
+    // a Foundry usa a silica da Alumina Solution junto com a sucata que sai dela via Aluminum Scrap:
+    // começando tudo do zero, cada lado esperaria o outro (a Foundry não pediria silica sem sucata)
+    const nodes: SimNode[] = [
+      extractor('w', 'water', 'water', 'normal', 150),
+      miner('bx', 'bauxite', 'normal', 2),
+      miner('c', 'coal'),
+      machine('a', 'refinery', 'alumina-solution'),
+      machine('b', 'refinery', 'aluminum-scrap', 50),
+      machine('f', 'foundry', 'aluminum-ingot', (100 * 2) / 3),
+      splitter('sp'),
+      sink('kw'),
+      sink('ks'),
+      sink('ki'),
+    ];
+    const edges: SimEdge[] = [
+      belt('e1', 'bx', 0, 'a', 0, 2),
+      pipe('e2', 'w', 0, 'a', 1),
+      pipe('e3', 'a', 0, 'b', 0),
+      belt('e4', 'c', 0, 'b', 1),
+      belt('e5', 'a', 1, 'f', 1),
+      belt('e6', 'b', 0, 'sp', 0, 3),
+      belt('e7', 'sp', 0, 'f', 0, 2),
+      belt('e8', 'sp', 2, 'ks', 0, 2),
+      pipe('e9', 'b', 1, 'kw', 0),
+      belt('e10', 'f', 0, 'ki', 0),
+    ];
+    const r = simulate(nodes, edges);
+    expect(problems(r)).toEqual([]);
+    for (const id of ['a', 'b', 'f']) expect(r.nodes[id].util).toBeCloseTo(1);
+    expect(r.production.find((x) => x.item === 'aluminum-ingot')?.stored).toBeCloseTo(40);
+  });
+
+  it('laço sem nenhuma semente continua parado (Recycled Rubber ↔ Recycled Plastic)', () => {
+    const nodes: SimNode[] = [
+      { id: 'fuel', data: { kind: 'inbound', item: 'fuel', rate: 60 } },
+      splitter('jf', true),
+      machine('rr', 'refinery', 'alt-recycled-rubber'),
+      machine('rp', 'refinery', 'alt-recycled-plastic'),
+    ];
+    const edges: SimEdge[] = [
+      pipe('f0', 'fuel', 0, 'jf', 0),
+      pipe('f1', 'jf', 0, 'rr', 1),
+      pipe('f2', 'jf', 2, 'rp', 1),
+      belt('b1', 'rr', 0, 'rp', 0, 2),
+      belt('b2', 'rp', 0, 'rr', 0, 2),
+    ];
+    const r = simulate(nodes, edges);
+    expect(r.nodes.rr.util).toBe(0);
+    expect(r.nodes.rp.util).toBe(0);
+    expect(r.edges.b1.flow).toBe(0);
+  });
 });
