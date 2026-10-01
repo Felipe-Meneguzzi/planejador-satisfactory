@@ -59,14 +59,14 @@ export interface Lane {
   source?: string;
 }
 
-/** Coleta de um subproduto: máquinas [from, to) do grupo mandam a saída `output` pra um armazém */
+/** Coleta de um subproduto: máquinas [from, to) do grupo mandam a saída `output` pra um armazém (`sink`, definido por quem monta o plano) */
 export interface ByproductLane {
   output: number;
   item: ItemId;
   from: number;
   to: number;
   amount: number;
-  sink: string;
+  sink?: string;
 }
 
 /** De onde sai um fluido do chão: extrator de água/petróleo ou poço de recurso */
@@ -163,12 +163,112 @@ export const defaultOre = (): OreSetting => ({ purity: 'normal', tier: 1 });
 
 /* ---------- cálculo ---------- */
 
+/** Parte de PlanInput que define como os grupos são dimensionados */
+export type GroupSettings = Pick<PlanInput, 'ores' | 'maxClock' | 'maxBelt' | 'maxPipe'>;
+
+/** limite de uma faixa do item: Mk de cano pra fluido, de esteira pra sólido */
+export function capOfSettings(s: Pick<PlanInput, 'maxBelt' | 'maxPipe'>) {
+  const beltCap = BELTS[s.maxBelt].rate;
+  const pipeCap = PIPES[s.maxPipe]?.rate ?? PIPES[1].rate;
+  return (item: ItemId) => (isFluid(item) ? pipeCap : beltCap);
+}
+
+/** Divide `n` máquinas que pedem/produzem `q`/min cada em faixas contíguas que cabem numa esteira/cano */
+export function splitRanges(n: number, q: number, cap: number): [number, number][] {
+  let L = ceilSafe((n * q) / cap);
+  while (Math.ceil(n / L) * q > cap + EPS) L++;
+  const ranges: [number, number][] = [];
+  let from = 0;
+  for (let i = 0; i < L; i++) {
+    const size = Math.floor(n / L) + (i < n % L ? 1 : 0);
+    ranges.push([from, from + size]);
+    from += size;
+  }
+  return ranges;
+}
+
+/**
+ * Dimensiona um grupo que entrega `D`/min do item: máquinas no mesmo clock (até o máximo), cada
+ * porta dentro do Mk máximo. Cria as faixas de entrada (via `pushLane`) e as coletas de
+ * subproduto, sem destino (quem chama decide: armazém ou barramento).
+ */
+export function buildGroup(
+  id: string,
+  item: ItemId,
+  D: number,
+  recipe: Recipe | undefined,
+  level: number,
+  s: GroupSettings,
+  pushLane: (lane: Omit<Lane, 'id'>) => Lane,
+): Group {
+  const capFor = capOfSettings(s);
+  const cap = capFor(item);
+  const maxClock = Math.min(250, Math.max(1, s.maxClock));
+  const base: Pick<Group, 'id' | 'item' | 'demand' | 'feeds' | 'inputLanes' | 'byproducts'> = { id, item, demand: D, feeds: [], inputLanes: [], byproducts: [] };
+  if (!recipe && extractorFor(item) === 'well') {
+    // poço: satélites com a pureza escolhida, divididos em poços de até `limit` satélites
+    const ore = s.ores[item] ?? defaultOre();
+    const per100 = WELL.rates[ore.purity];
+    const count = Math.max(ceilSafe(D / ((per100 * maxClock) / 100)), ceilSafe(D / cap));
+    const clock = (D / (count * per100)) * 100;
+    const limit = WELL.satelliteLimit[item] ?? WELL.maxSatellites;
+    const nWells = ceilSafe(count / limit);
+    const wells = Array.from({ length: nWells }, (_, i) => Math.floor(count / nWells) + (i < count % nWells ? 1 : 0));
+    return {
+      ...base, kind: 'well', ore, wells, count, clock, perMachine: D / count, level: 0,
+      power: wellPower(clock) * nWells, shards: shardsFor(clock) * nWells,
+    };
+  }
+  if (!recipe && extractorFor(item)) {
+    // fluido tirado do chão: extrator de água ou de petróleo
+    const kind = extractorFor(item) as ExtractorKind;
+    const info = EXTRACTORS[kind];
+    const ore = s.ores[item] ?? defaultOre();
+    const per100 = info.rate(ore.purity);
+    const count = Math.max(ceilSafe(D / ((per100 * maxClock) / 100)), ceilSafe(D / cap));
+    const clock = (D / (count * per100)) * 100;
+    return {
+      ...base, kind: 'extractor', extractor: kind, ore, count, clock, perMachine: D / count, level: 0,
+      power: powerAt(info.power, clock) * count, shards: shardsFor(clock) * count,
+    };
+  }
+  if (!recipe) {
+    const ore = s.ores[item] ?? defaultOre();
+    const per100 = MINER_TIERS[ore.tier].base * PURITIES[ore.purity].mult;
+    const count = Math.max(ceilSafe(D / ((per100 * maxClock) / 100)), ceilSafe(D / cap));
+    const clock = (D / (count * per100)) * 100;
+    return {
+      ...base, kind: 'miner', ore, count, clock, perMachine: D / count, level: 0,
+      power: powerAt(MINER_TIERS[ore.tier].power, clock) * count, shards: shardsFor(clock) * count,
+    };
+  }
+  const out = recipe.outputs[0].rate;
+  // nenhuma porta de uma máquina pode passar do limite da esteira/cano dela
+  const count = Math.max(
+    ceilSafe(D / ((out * maxClock) / 100)),
+    ...recipe.inputs.map((p) => ceilSafe((D * p.rate) / out / capFor(p.item))),
+    ...recipe.outputs.map((p) => ceilSafe((D * p.rate) / out / capFor(p.item))),
+  );
+  const clock = (D / (count * out)) * 100;
+  const m = MACHINES[recipe.machine];
+  const group: Group = {
+    ...base, kind: 'machine', recipe, machine: recipe.machine, count, clock, perMachine: D / count, level,
+    power: powerAt(recipe.power ?? m.power, clock) * count, shards: shardsFor(clock) * count,
+  };
+  group.inputLanes = recipe.inputs.map((p, k) => {
+    const q = (D * p.rate) / out / count;
+    return splitRanges(count, q, capFor(p.item)).map(([from, to]) => pushLane({ consumer: id, input: k, item: p.item, from, to, demand: (to - from) * q }));
+  });
+  // subprodutos: coletados em faixas que cabem numa esteira/cano
+  recipe.outputs.slice(1).forEach((p, j) => {
+    const q = (D * p.rate) / out / count;
+    for (const [from, to] of splitRanges(count, q, capFor(p.item))) group.byproducts.push({ output: j + 1, item: p.item, from, to, amount: (to - from) * q });
+  });
+  return group;
+}
+
 export function planLine(input: PlanInput): Plan {
-  const beltCap = BELTS[input.maxBelt].rate;
-  const pipeCap = PIPES[input.maxPipe]?.rate ?? PIPES[1].rate;
-  /** limite de uma faixa desse item: Mk de cano pra fluido, de esteira pra sólido */
-  const capOf = (item: ItemId) => (isFluid(item) ? pipeCap : beltCap);
-  const maxClock = Math.min(250, Math.max(1, input.maxClock));
+  const capOf = capOfSettings(input);
   const empty: Plan = { groups: [], sinks: [], external: [], levels: {}, power: 0, shards: 0 };
   if (!(input.rate > 0)) return { ...empty, error: 'Informe uma quantidade maior que zero.' };
   if (!choiceOf(input.item, input.choices)) return { ...empty, error: 'Esse item não tem receita nas máquinas disponíveis.' };
@@ -214,20 +314,6 @@ export function planLine(input: PlanInput): Plan {
     return l;
   };
 
-  /** Divide `n` máquinas que pedem/produzem `q`/min cada em faixas contíguas que cabem numa esteira/cano */
-  const splitRanges = (n: number, q: number, cap: number) => {
-    let L = ceilSafe((n * q) / cap);
-    while (Math.ceil(n / L) * q > cap + EPS) L++;
-    const ranges: [number, number][] = [];
-    let from = 0;
-    for (let i = 0; i < L; i++) {
-      const size = Math.floor(n / L) + (i < n % L ? 1 : 0);
-      ranges.push([from, from + size]);
-      from += size;
-    }
-    return ranges;
-  };
-
   // Armazéns do produto final: faixas iguais que cabem numa esteira/cano
   const sinks: SinkPlan[] = [];
   const sinkCount = ceilSafe(input.rate / capOf(input.item));
@@ -265,71 +351,13 @@ export function planLine(input: PlanInput): Plan {
     }
 
     for (const bin of bins) {
-      const D = bin.total;
       const id = `g${gSeq++}`;
-      const base: Pick<Group, 'id' | 'item' | 'demand' | 'feeds' | 'inputLanes' | 'byproducts'> = { id, item, demand: D, feeds: bin.lanes, inputLanes: [], byproducts: [] };
-      let group: Group;
-      if (!recipe && extractorFor(item) === 'well') {
-        // poço: satélites com a pureza escolhida, divididos em poços de até `limit` satélites
-        const ore = input.ores[item] ?? defaultOre();
-        const per100 = WELL.rates[ore.purity];
-        const count = Math.max(ceilSafe(D / ((per100 * maxClock) / 100)), ceilSafe(D / cap));
-        const clock = (D / (count * per100)) * 100;
-        const limit = WELL.satelliteLimit[item] ?? WELL.maxSatellites;
-        const nWells = ceilSafe(count / limit);
-        const wells = Array.from({ length: nWells }, (_, i) => Math.floor(count / nWells) + (i < count % nWells ? 1 : 0));
-        group = {
-          ...base, kind: 'well', ore, wells, count, clock, perMachine: D / count, level: 0,
-          power: wellPower(clock) * nWells, shards: shardsFor(clock) * nWells,
-        };
-      } else if (!recipe && extractorFor(item)) {
-        // fluido tirado do chão: extrator de água ou de petróleo
-        const kind = extractorFor(item) as ExtractorKind;
-        const info = EXTRACTORS[kind];
-        const ore = input.ores[item] ?? defaultOre();
-        const per100 = info.rate(ore.purity);
-        const count = Math.max(ceilSafe(D / ((per100 * maxClock) / 100)), ceilSafe(D / cap));
-        const clock = (D / (count * per100)) * 100;
-        group = {
-          ...base, kind: 'extractor', extractor: kind, ore, count, clock, perMachine: D / count, level: 0,
-          power: powerAt(info.power, clock) * count, shards: shardsFor(clock) * count,
-        };
-      } else if (!recipe) {
-        const ore = input.ores[item] ?? defaultOre();
-        const per100 = MINER_TIERS[ore.tier].base * PURITIES[ore.purity].mult;
-        const count = Math.max(ceilSafe(D / ((per100 * maxClock) / 100)), ceilSafe(D / cap));
-        const clock = (D / (count * per100)) * 100;
-        group = {
-          ...base, kind: 'miner', ore, count, clock, perMachine: D / count, level: 0,
-          power: powerAt(MINER_TIERS[ore.tier].power, clock) * count, shards: shardsFor(clock) * count,
-        };
-      } else {
-        const out = recipe.outputs[0].rate;
-        // nenhuma porta de uma máquina pode passar do limite da esteira/cano dela
-        const count = Math.max(
-          ceilSafe(D / ((out * maxClock) / 100)),
-          ...recipe.inputs.map((p) => ceilSafe((D * p.rate) / out / capOf(p.item))),
-          ...recipe.outputs.map((p) => ceilSafe((D * p.rate) / out / capOf(p.item))),
-        );
-        const clock = (D / (count * out)) * 100;
-        const m = MACHINES[recipe.machine];
-        group = {
-          ...base, kind: 'machine', recipe, machine: recipe.machine, count, clock, perMachine: D / count, level: levels[item],
-          power: powerAt(recipe.power ?? m.power, clock) * count, shards: shardsFor(clock) * count,
-        };
-        group.inputLanes = recipe.inputs.map((p, k) => {
-          const q = (D * p.rate) / out / count;
-          return splitRanges(count, q, capOf(p.item)).map(([from, to]) => pushLane({ consumer: id, input: k, item: p.item, from, to, demand: (to - from) * q }));
-        });
-        // subprodutos: coletados em faixas que cabem numa esteira/cano, cada uma pra um armazém
-        recipe.outputs.slice(1).forEach((p, j) => {
-          const q = (D * p.rate) / out / count;
-          for (const [from, to] of splitRanges(count, q, capOf(p.item))) {
-            const sink = `by${bySeq++}`;
-            group.byproducts.push({ output: j + 1, item: p.item, from, to, amount: (to - from) * q, sink });
-            sinks.push({ id: sink, item: p.item, demand: (to - from) * q, byproduct: { group: id, output: j + 1 } });
-          }
-        });
+      const group = buildGroup(id, item, bin.total, recipe, levels[item], input, pushLane);
+      group.feeds = bin.lanes;
+      // subprodutos: cada faixa de coleta vai pra um armazém próprio
+      for (const b of group.byproducts) {
+        b.sink = `by${bySeq++}`;
+        sinks.push({ id: b.sink, item: b.item, demand: b.amount, byproduct: { group: id, output: b.output } });
       }
       for (const lane of bin.lanes) lane.source = id;
       groups.push(group);

@@ -397,7 +397,7 @@ export function layoutPlan(plan: Plan, mode: DistributionMode, maxBelt: BeltTier
     const g = band.group!;
     const src = band.source!;
     const feeds = [...g.feeds].sort((a, b) => (entries.get(a.id)?.pt.x ?? 0) - (entries.get(b.id)?.pt.x ?? 0));
-    for (const bp of band.byproductSources) pieces.push({ from: bp.port, to: sinkPorts.get(bp.lane.sink), flow: bp.lane.amount, item: bp.lane.item });
+    for (const bp of band.byproductSources) pieces.push({ from: bp.port, to: sinkPorts.get(bp.lane.sink!), flow: bp.lane.amount, item: bp.lane.item });
     if (feeds.length === 1) {
       pieces.push({ from: src, to: entries.get(feeds[0].id), flow: feeds[0].demand, item: g.item, riseX: src.side === 'right' ? src.pt.x + 40 : undefined });
       continue;
