@@ -1,4 +1,4 @@
-import { ALL_RECIPES, EXTRACTORS, GENERATORS, GENERATOR_IDS, ITEMS, MACHINES, MACHINE_IDS, MINER_TIERS, PURITIES, RECIPES, RESOURCES, SINK, WELL, recipesFor, withUnit } from './data';
+import { ALL_RECIPES, EXTRACTORS, GENERATORS, GENERATOR_IDS, ITEMS, MACHINES, MACHINE_IDS, MINER_TIERS, PURITIES, RECIPES, RESOURCES, SINK, WELL, getRecipe, recipesFor, withUnit } from './data';
 import { newFrame, newNote } from './annotations';
 import type { ExtractorKind, FactoryData, ItemId, Purity } from './types';
 import { fmt } from '../format';
@@ -203,4 +203,34 @@ export function allEntries(): PaletteEntry[] {
   WELL.resources.forEach((id) => push(wellEntry(id, `${ITEMS[id].name} (poço)`)));
   GENERATOR_IDS.forEach((id) => GENERATORS[id].fuels.forEach((f) => push(generatorEntry(id, f.item))));
   return out;
+}
+
+/** Palavras extras pra achar a entrada na busca rápida: itens de entrada/saída, recurso, combustível */
+export function entryKeywords(en: PaletteEntry): string {
+  const d = en.data;
+  switch (d.kind) {
+    case 'miner':
+      return `${ITEMS[d.resource].name} mineradora miner`;
+    case 'extractor':
+      return `${ITEMS[d.resource].name} ${EXTRACTORS[d.extractor].name} extrator`;
+    case 'well':
+      return `${ITEMS[d.resource].name} ${WELL.name} poço de recurso`;
+    case 'machine': {
+      const r = getRecipe(d);
+      return `${MACHINES[d.machine].name} ${[...r.inputs, ...r.outputs].map((p) => ITEMS[p.item].name).join(' ')}`;
+    }
+    case 'generator':
+      return `${d.fuel ? ITEMS[d.fuel]?.name ?? '' : ''} gerador energia`;
+    case 'splitter':
+    case 'merger':
+      return `${d.kind} ${d.fluid ? 'cano junção pipeline' : 'esteira'}`;
+    case 'sink':
+      return 'saída armazém sink storage';
+    case 'frame':
+      return 'moldura grupo área organização';
+    case 'note':
+      return 'anotação texto nota organização';
+    default:
+      return '';
+  }
 }
