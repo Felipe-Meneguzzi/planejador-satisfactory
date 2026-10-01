@@ -150,7 +150,7 @@ function NodeCard(props: {
       <div ref={contentRef}>
         <div className="fnode-header" style={{ background: props.color }}>
           <span className="fnode-icon">{props.icon}</span>
-          <span className="fnode-title">
+          <span className="fnode-title" title={props.subtitle ? `${props.title} · ${props.subtitle}` : props.title}>
             {props.title}
             {props.subtitle && <small>{props.subtitle}</small>}
           </span>

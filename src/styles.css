@@ -348,6 +348,11 @@ details summary {
 .fnode-title {
   font-weight: 600;
   flex: 1;
+  /* sempre uma linha: a altura do card minimizado precisa ser previsível (o gerador alinha por ela) */
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .fnode-title small {
   font-weight: 400;
