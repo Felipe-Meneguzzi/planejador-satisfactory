@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { planLine, type Group, type Plan, type PlanInput } from '../../src/planner/plan';
+import { defaultChoice, planLine, type Group, type Plan, type PlanInput } from '../../src/planner/plan';
 
 const base: Omit<PlanInput, 'item' | 'rate'> = { choices: {}, ores: {}, maxClock: 100, maxBelt: 3, maxPipe: 1 };
 const plan = (item: string, rate: number, extra: Partial<PlanInput> = {}) => planLine({ ...base, item, rate, ...extra });
@@ -11,6 +11,14 @@ const one = (p: Plan, item: string): Group => {
   expect(gs, `grupos de ${item}`).toHaveLength(1);
   return gs[0];
 };
+
+describe('defaultChoice', () => {
+  it('prefere a receita padrão com o mesmo nome do item', () => {
+    // "Residual Rubber" também é padrão e viria antes em ordem alfabética
+    expect(defaultChoice('rubber')).toBe('rubber');
+    expect(defaultChoice('plastic')).toBe('plastic');
+  });
+});
 
 describe('planLine', () => {
   it('25 Iron Plate → 2 Constructors a 62,5%', () => {

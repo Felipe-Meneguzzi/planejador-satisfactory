@@ -1,4 +1,4 @@
-import { BELTS, EXTRACTORS, MACHINES, MINER_TIERS, PIPES, PURITIES, RECIPES, RESOURCES, isFluid, type Recipe } from '../game/data';
+import { BELTS, EXTRACTORS, ITEMS, MACHINES, MINER_TIERS, PIPES, PURITIES, RECIPES, RESOURCES, isFluid, type Recipe } from '../game/data';
 import type { BeltTier, ExtractorKind, ItemId, MachineId, MinerTier, PipeTier, Purity } from '../game/types';
 import { powerAt, shardsFor } from '../sim/simulate';
 
@@ -134,7 +134,9 @@ export const PLANNABLE_ITEMS: ItemId[] = [...byMainOutput.keys()].sort();
 export function defaultChoice(item: ItemId): string | undefined {
   if (isResource(item)) return MINE;
   const rs = recipesProducing(item);
-  return rs.find((r) => !r.alternate)?.id ?? rs[0]?.id;
+  const std = rs.filter((r) => !r.alternate);
+  // entre as padrão, a que leva o nome do item (ex.: "Rubber", não "Residual Rubber")
+  return (std.find((r) => r.name === ITEMS[item]?.name) ?? std[0] ?? rs[0])?.id;
 }
 
 export function choiceOf(item: ItemId, choices: Record<ItemId, string>): string | undefined {
