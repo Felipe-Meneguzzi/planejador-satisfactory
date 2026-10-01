@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { simulate, type SimEdge, type SimNode } from '../../src/sim/simulate';
-import { demoState } from '../../src/state/storage';
+import { demoPlant } from '../../src/state/storage';
 import { belt, extractor, machine, merger, miner, pipe, sink, splitter, well } from './helpers';
 
 /** só os problemas que aparecem no painel (erro/aviso) */
@@ -68,7 +68,7 @@ describe('simulate', () => {
   });
 
   it('o exemplo padrão acusa a sobra de lingotes (e, por back-pressure, de minério)', () => {
-    const demo = demoState();
+    const demo = demoPlant();
     const r = simulate(
       demo.nodes.map((n) => ({ id: n.id, data: n.data })),
       demo.edges.map((e) => ({ ...e, tier: e.data!.tier, medium: 'belt' as const })),
