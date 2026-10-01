@@ -1,7 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
-import { BACKUP_INTERVAL, MAX_BACKUPS, loadBackups, restoreBackup, type Backup, type SavedState } from '../state/storage';
+import { BACKUP_INTERVAL, MAX_BACKUPS, loadBackups, projectCounts, restoreBackup, type Backup, type ProjectState } from '../state/storage';
 
 const when = (t: number) => new Date(t).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+
+/** "3 itens, 2 conexões" (e quantas fábricas, quando há mais de uma) */
+export function countsLabel(p: ProjectState) {
+  const c = projectCounts(p);
+  return `${c.factories > 1 ? `${c.factories} fábricas · ` : ''}${c.nodes} itens, ${c.edges} conexões`;
+}
 
 /** Lista das versões guardadas no backup rotativo, com o botão de restaurar cada uma */
 export function BackupList({ backups, onRestore }: { backups: Backup[]; onRestore: (b: Backup) => void }) {
@@ -11,7 +17,7 @@ export function BackupList({ backups, onRestore }: { backups: Backup[]; onRestor
       {backups.map((b) => (
         <li key={b.savedAt}>
           <span>
-            {when(b.savedAt)} <small className="muted">· {b.state.nodes.length} itens, {b.state.edges.length} conexões</small>
+            {when(b.savedAt)} <small className="muted">· {countsLabel(b.state)}</small>
           </span>
           <button onClick={() => onRestore(b)}>Restaurar</button>
         </li>
@@ -21,7 +27,7 @@ export function BackupList({ backups, onRestore }: { backups: Backup[]; onRestor
 }
 
 /** Botão discreto na barra de cima: abre as versões anteriores pra restaurar sem recarregar */
-export function BackupMenu({ onRestore }: { onRestore: (s: SavedState) => void }) {
+export function BackupMenu({ onRestore }: { onRestore: (s: ProjectState) => void }) {
   // null = fechado; a lista é lida do storage ao abrir
   const [backups, setBackups] = useState<Backup[] | null>(null);
   const ref = useRef<HTMLDivElement>(null);
@@ -40,14 +46,14 @@ export function BackupMenu({ onRestore }: { onRestore: (s: SavedState) => void }
 
   return (
     <div className="backup-menu" ref={ref}>
-      <button onClick={() => setBackups((b) => (b ? null : loadBackups()))} title="Versões anteriores da planta (backup automático)">
+      <button onClick={() => setBackups((b) => (b ? null : loadBackups()))} title="Versões anteriores do projeto (backup automático)">
         🕘
       </button>
       {backups && (
         <div className="backup-pop">
           <h3>Versões anteriores</h3>
           <p className="muted">
-            Guardadas sozinhas (as últimas {MAX_BACKUPS}, no máximo uma a cada {BACKUP_INTERVAL / 60_000} min). Restaurar guarda a planta atual antes.
+            Guardadas sozinhas (as últimas {MAX_BACKUPS}, no máximo uma a cada {BACKUP_INTERVAL / 60_000} min). Restaurar guarda o projeto atual antes.
           </p>
           <BackupList
             backups={backups}
