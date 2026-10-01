@@ -115,6 +115,20 @@ const GROUPS: { title: string; entries: PaletteEntry[] }[] = [
     ],
   },
   {
+    title: 'Entre fábricas',
+    entries: [
+      {
+        key: 'inbound',
+        label: 'Entrada externa',
+        sub: 'Item de fora ou de outra fábrica (aba)',
+        icon: '📥',
+        color: '#22707a',
+        data: { kind: 'inbound', item: 'iron-ore', rate: 60 },
+      },
+      { key: 'outbound', label: 'Saída externa', sub: 'Manda o que chega pra outra fábrica', icon: '📤', color: '#8a5a1f', data: { kind: 'outbound' } },
+    ],
+  },
+  {
     title: 'Saída',
     entries: [
       { key: 'sink', label: 'Armazém', sub: 'Consome tudo que chega', icon: '📦', color: '#2f7a52', data: { kind: 'sink' } },
@@ -256,6 +270,9 @@ export function Palette({
           <li><kbd>R</kbd> gira o selecionado (<kbd>Shift</kbd>+<kbd>R</kbd> ao contrário)</li>
           <li><kbd>Alt</kbd> + arrastar alinha ao grid</li>
           <li><kbd>Shift</kbd> + arrastar seleciona vários</li>
+          <li>Abas em cima do canvas: uma fábrica por aba (duplo clique renomeia, arraste pra reordenar)</li>
+          <li>Copie numa aba e cole em outra</li>
+          <li><b>Saída externa</b> numa fábrica + <b>Entrada externa</b> ligada nela em outra levam itens entre fábricas</li>
         </ul>
         <p className="version">Dados: Satisfactory {version} · satisfactory.wiki.gg</p>
       </section>

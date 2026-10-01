@@ -6,11 +6,13 @@ import type {
   ExtractorKind,
   ExtractorNode,
   GeneratorNode,
+  InboundNode,
   ItemId,
   MachineNode,
   MergerNode,
   MinerNode,
   MinerTier,
+  OutboundNode,
   Purity,
   Rotation,
   SinkNode,
@@ -20,6 +22,9 @@ import type {
 import { fmt } from '../format';
 import { GRID, snapUp } from '../grid';
 import { useSim } from '../sim/SimContext';
+import { useProject } from '../sim/ProjectContext';
+import type { FeedStatus } from '../sim/project';
+import { mediumsMatch, portMedium } from '../game/ports';
 import { CLOCK_MAX, CLOCK_MIN, ampOf, clampClock, extractorRate, generatorClock, generatorNominal, minerRate, shardsFor, sloopsOf, wellPower, wellSatelliteRates, type Issue } from '../sim/simulate';
 
 export const itemColor = (item: BeltItem) => (item && item !== 'mixed' ? ITEMS[item].color : item === 'mixed' ? '#d46ad8' : '#5b616b');
@@ -1065,6 +1070,220 @@ export function SinkNodeView({ id, data, selected }: NodeProps<SinkNode>) {
   );
 }
 
+/* ---------- entre fábricas ---------- */
+
+/** itens em ordem alfabética (seletor da Entrada externa) */
+const ITEM_OPTIONS = Object.keys(ITEMS).sort((a, b) => ITEMS[a].name.localeCompare(ITEMS[b].name));
+const EXT_IN_COLOR = '#22707a';
+const EXT_OUT_COLOR = '#8a5a1f';
+/** Texto curto do estado do link */
+const FEED_LABEL: Record<FeedStatus, string> = {
+  manual: 'manual',
+  linked: 'ligada',
+  cycle: 'ciclo: manual',
+  missing: 'link quebrado: manual',
+  mismatch: 'item diferente',
+  empty: 'nada chegando',
+};
+
+/*
+ * Entrada externa: item que vem de fora da fábrica. Sem link, a vazão é a manual; ligada numa
+ * Saída externa de outra fábrica, recebe o que chega naquela saída (calculado pelo projeto).
+ */
+export function InboundNodeView({ id, data, selected }: NodeProps<InboundNode>) {
+  const { updateNodeData, setEdges } = useReactFlow();
+  const { r, issues } = useNodeSim(id);
+  const project = useProject();
+  const feed = project.feeds[id];
+  const out = r?.outputs[0];
+  const max = out?.max ?? data.rate;
+  const collapsed = !!data.collapsed;
+  const fluid = isFluid(data.item);
+  useRemeasureOnChange(id, `${fluid}|${data.link ? 1 : 0}|${feed?.status}`);
+  const rotate = useRotation(id, data.rotation, collapsed);
+  const outSide = rotatePos(Position.Right, data.rotation);
+  const stripped = collapsed || isVertical(outSide);
+  const strips = stripped && <PortStrip side={outSide} ports={[{ type: 'out', handle: 'out-0', title: ITEMS[data.item].name, fluid }]} />;
+  const linkValue = data.link ? `${data.link.factory}|${data.link.node}` : '';
+  // saídas das outras fábricas, agrupadas por fábrica
+  const groups = new Map<string, typeof project.outbounds>();
+  for (const o of project.outbounds) if (o.factory !== project.factoryId) groups.set(o.factoryName, [...(groups.get(o.factoryName) ?? []), o]);
+  const known = project.outbounds.some((o) => `${o.factory}|${o.node}` === linkValue);
+
+  /** troca o item; se mudar de esteira pra cano (ou o contrário), a conexão de saída sai junto */
+  const changeItem = (item: ItemId, patch: Partial<InboundNode['data']> = {}) => {
+    if (!mediumsMatch(portMedium(data), portMedium({ ...data, item }))) setEdges((es) => es.filter((e) => e.source !== id));
+    updateNodeData(id, { item, ...patch });
+  };
+  const changeLink = (value: string) => {
+    if (!value) return updateNodeData(id, { link: undefined });
+    const o = project.outbounds.find((x) => `${x.factory}|${x.node}` === value);
+    if (!o) return;
+    const link = { factory: o.factory, node: o.node };
+    // já puxa o item que chega na saída (dá pra trocar depois)
+    if (o.item && o.item !== 'mixed' && o.item !== data.item) changeItem(o.item, { link });
+    else updateNodeData(id, { link });
+  };
+  const manualUsed = !feed || feed.status === 'manual' || feed.status === 'cycle' || feed.status === 'missing';
+  const from = feed?.source ? `${feed.source.factoryName} · ${feed.source.label}` : data.link ? 'saída apagada' : 'Fora do projeto';
+
+  const card = {
+    icon: '📥',
+    title: 'Entrada externa',
+    subtitle: ITEMS[data.item].name,
+    color: EXT_IN_COLOR,
+    selected,
+    issues,
+    className: 'external',
+    onRotate: rotate,
+    strips,
+    collapsed,
+    onToggleCollapse: () => updateNodeData(id, { collapsed: !collapsed }),
+  };
+  if (collapsed)
+    return (
+      <NodeCard {...card}>
+        <CollapsedSummary
+          line={<span className="collapsed-recipe" title={from}>← {from}</span>}
+          outputs={[{ item: data.item, actual: out?.actual ?? 0, max }]}
+          util={r?.util ?? 0}
+        />
+      </NodeCard>
+    );
+  return (
+    <NodeCard {...card}>
+      <Field label="Item">
+        <select className="nodrag" value={data.item} onChange={(e) => changeItem(e.target.value)}>
+          {ITEM_OPTIONS.map((it) => (
+            <option key={it} value={it}>
+              {ITEMS[it].name}
+            </option>
+          ))}
+        </select>
+      </Field>
+      <Field label="Vem de">
+        <select className="nodrag ext-link" value={linkValue} onChange={(e) => changeLink(e.target.value)} title="Ligue numa Saída externa de outra fábrica pra receber o que chega nela">
+          <option value="">Fora do projeto (vazão manual)</option>
+          {data.link && !known && <option value={linkValue}>(saída apagada)</option>}
+          {[...groups.entries()].map(([name, list]) => (
+            <optgroup key={name} label={name}>
+              {list.map((o) => (
+                <option key={o.node} value={`${o.factory}|${o.node}`}>
+                  {o.label} · {fmt(o.rate)}
+                  {isFluid(o.item) ? ' m³/min' : '/min'}
+                </option>
+              ))}
+            </optgroup>
+          ))}
+        </select>
+      </Field>
+      {manualUsed && (
+        <div className="field">
+          <span className="field-label">{data.link ? 'Manual' : 'Vazão'}</span>
+          <div className="field-control ext-rate">
+            <NumInput value={data.rate} min={0} max={1e6} onChange={(rate) => updateNodeData(id, { rate })} />
+            <span className="unit">{fluid ? 'm³/min' : '/min'}</span>
+          </div>
+        </div>
+      )}
+      {feed && feed.status !== 'manual' && (
+        <div className={`ext-status ${feed.status}`}>
+          {FEED_LABEL[feed.status]}
+          {feed.delivered && feed.status !== 'cycle' && (
+            <small>
+              {' '}
+              · chegam {fmt(feed.delivered.rate)}
+              {isFluid(feed.delivered.item) ? ' m³/min' : '/min'} na saída{feed.sharedBy && feed.sharedBy > 1 ? `, dividido entre ${feed.sharedBy}` : ''}
+            </small>
+          )}
+        </div>
+      )}
+      <PortBlock>
+        <PortRow type="out" handle="out-0" side={outSide} stripped={stripped} item={data.item} label={ITEMS[data.item].name} value={rate(out?.actual ?? 0, max, data.item)} />
+      </PortBlock>
+      <UtilBar value={r?.util ?? 0} />
+    </NodeCard>
+  );
+}
+
+/* Saída externa: recebe qualquer item (como o Armazém) e alimenta Entradas externas de outras fábricas */
+export function OutboundNodeView({ id, data, selected }: NodeProps<OutboundNode>) {
+  const { updateNodeData } = useReactFlow();
+  const { r, issues } = useNodeSim(id);
+  const project = useProject();
+  const dests = project.destinations[id] ?? [];
+  const inp = r?.inputs[0];
+  const item = inp?.item ?? null;
+  const rotate = useRotation(id, data.rotation);
+  const inSide = rotatePos(Position.Left, data.rotation);
+  const strips = isVertical(inSide) && <PortStrip side={inSide} ports={[{ type: 'in', handle: 'in-0', title: 'Entrada' }]} />;
+  useRemeasureOnChange(id, String(dests.length));
+  return (
+    <NodeCard
+      icon="📤"
+      title="Saída externa"
+      subtitle={data.name || 'Pra outras fábricas'}
+      color={EXT_OUT_COLOR}
+      selected={selected}
+      issues={issues}
+      className="external"
+      onRotate={rotate}
+      strips={strips}
+    >
+      <Field label="Nome">
+        <input
+          className="nodrag ext-name"
+          value={data.name ?? ''}
+          maxLength={60}
+          placeholder={item && item !== 'mixed' ? ITEMS[item].name : 'opcional'}
+          onChange={(e) => updateNodeData(id, { name: e.target.value || undefined })}
+        />
+      </Field>
+      <PortBlock>
+        <PortRow
+          type="in"
+          handle="in-0"
+          side={inSide}
+          item={item}
+          label={item === 'mixed' ? 'Misturado' : item ? ITEMS[item].name : 'Nada'}
+          value={
+            <>
+              <b>{fmt(inp?.actual ?? 0)}</b>
+              <small>{isFluid(item) ? ' m³/min' : '/min'}</small>
+            </>
+          }
+        />
+      </PortBlock>
+      <div className="ext-dests">
+        <span className="field-label">Vai para</span>
+        {dests.length === 0 ? (
+          <span className="muted">ninguém ainda</span>
+        ) : (
+          <ul>
+            {dests.map((d) => (
+              <li key={`${d.factory}|${d.node}`}>
+                <button className="link-btn nodrag" onClick={() => project.openFactory(d.factory)} title="Abrir essa fábrica">
+                  → {d.factoryName}
+                </button>
+                <span className="ext-dest-rate">
+                  {d.status === 'linked' ? (
+                    <>
+                      {fmt(d.rate)}
+                      {isFluid(item) ? ' m³/min' : '/min'}
+                    </>
+                  ) : (
+                    FEED_LABEL[d.status]
+                  )}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </NodeCard>
+  );
+}
+
 export const nodeTypes = {
   miner: MinerNodeView,
   extractor: ExtractorNodeView,
@@ -1074,4 +1293,6 @@ export const nodeTypes = {
   merger: MergerNodeView,
   sink: SinkNodeView,
   generator: GeneratorNodeView,
+  inbound: InboundNodeView,
+  outbound: OutboundNodeView,
 };
