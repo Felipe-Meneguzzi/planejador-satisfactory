@@ -18,9 +18,13 @@ const plant: { nodes: FactoryNode[]; edges: BeltEdge[] } = {
   ],
 };
 
-/** ids dos nodes do estado salvo no localStorage */
+/** ids dos nodes da fábrica aberta no projeto salvo no localStorage */
 const savedIds = (page: Page) =>
-  page.evaluate((k) => (JSON.parse(localStorage.getItem(k) ?? 'null')?.nodes ?? []).map((n: { id: string }) => n.id).sort(), KEY);
+  page.evaluate((k) => {
+    const p = JSON.parse(localStorage.getItem(k) ?? 'null');
+    const f = p?.factories?.find((x: { id: string }) => x.id === p.active);
+    return (f?.nodes ?? []).map((n: { id: string }) => n.id).sort();
+  }, KEY);
 
 /** Liga/desliga o erro de renderização forçado (só existe em `vite` dev, ver debugCrash) */
 const armCrash = (page: Page, where: 'app' | 'canvas' | null) =>
@@ -54,14 +58,15 @@ test('erro de renderização no app mostra o painel de recuperação e não perd
   // erro já mostrado pelo painel não vira aviso de segundo plano
   await expect(page.locator('.error-toast')).toHaveCount(0);
 
-  // o backup baixado é a planta boa
-  const [download] = await Promise.all([page.waitForEvent('download'), panel.getByRole('button', { name: 'Baixar backup da planta' }).click()]);
-  expect(download.suggestedFilename()).toMatch(/^fabrica-backup-.*\.json$/);
+  // o backup baixado é o projeto bom (formato v2, com a fábrica)
+  const [download] = await Promise.all([page.waitForEvent('download'), panel.getByRole('button', { name: 'Baixar backup do projeto' }).click()]);
+  expect(download.suggestedFilename()).toMatch(/^projeto-backup-.*\.json$/);
   let text = '';
   for await (const chunk of await download.createReadStream()) text += chunk;
   const backup = JSON.parse(text);
-  expect(backup.nodes.map((n: { id: string }) => n.id).sort()).toEqual(['miner', 'smelter']);
-  expect(backup.edges).toHaveLength(1);
+  expect(backup).toMatchObject({ version: 2, type: 'project' });
+  expect(backup.factories[0].nodes.map((n: { id: string }) => n.id).sort()).toEqual(['miner', 'smelter']);
+  expect(backup.factories[0].edges).toHaveLength(1);
 
   // sem o erro, "Tentar de novo" volta com a planta
   await armCrash(page, null);
@@ -134,7 +139,7 @@ test('o botão de versões restaura um backup sem recarregar', async ({ page }) 
   // o primeiro salvamento guarda a planta atual como a versão mais nova
   await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('satisplanner:backups:v1') ?? '[]').length)).toBe(2);
 
-  const open = () => page.getByTitle('Versões anteriores da planta').click();
+  const open = () => page.getByTitle('Versões anteriores do projeto').click();
   const pop = page.locator('.backup-pop');
   await open();
   await expect(pop.locator('.backup-list li')).toHaveCount(2);

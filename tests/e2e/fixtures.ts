@@ -15,7 +15,7 @@ export const test = base.extend<{ errors: string[] }>({
     page.on('console', (m) => {
       if ((m.type() === 'error' || m.type() === 'warning') && !m.text().includes('attribution')) errors.push(m.text());
     });
-    // "Limpar" e "Exemplo" pedem confirmação
+    // "Limpar esta fábrica" e "Apagar fábrica" pedem confirmação
     page.on('dialog', (d) => d.accept());
     await use(errors);
     expect(errors, 'erros no console').toEqual([]);
@@ -28,7 +28,8 @@ export async function openWith(page: Page, state: { nodes: FactoryNode[]; edges:
   await page.addInitScript(
     ([key, value]) => {
       // só na primeira carga: depois o app salva o que o usuário fizer
-      if (!sessionStorage.getItem('seeded')) {
+      // (about:blank não tem storage: ignora)
+      if (location.protocol.startsWith('http') && !sessionStorage.getItem('seeded')) {
         sessionStorage.setItem('seeded', '1');
         localStorage.setItem(key, value);
       }
@@ -38,6 +39,35 @@ export async function openWith(page: Page, state: { nodes: FactoryNode[]; edges:
   await page.goto('/');
   await expect(page.locator('.react-flow__node')).toHaveCount(state.nodes.length);
 }
+
+/** Fábrica de um projeto salvo (formato v2) */
+export interface SeedFactory {
+  id: string;
+  name: string;
+  nodes: FactoryNode[];
+  edges: BeltEdge[];
+}
+
+/** Abre o app com um projeto de várias fábricas salvo (formato v2) */
+export async function openProject(page: Page, factories: SeedFactory[], active = factories[0].id) {
+  const state = { version: 2, defaultTier: 1, defaultPipeTier: 1, gridBelts: true, beltLabels: true, factories, active };
+  await page.addInitScript(
+    ([key, value]) => {
+      if (location.protocol.startsWith('http') && !sessionStorage.getItem('seeded')) {
+        sessionStorage.setItem('seeded', '1');
+        localStorage.setItem(key, value);
+      }
+    },
+    [KEY, JSON.stringify(state)] as const,
+  );
+  await page.goto('/');
+  await expect(page.locator('.react-flow__node')).toHaveCount(factories.find((f) => f.id === active)!.nodes.length);
+}
+
+/** Aba da fábrica pelo nome exato */
+export const tab = (page: Page, name: string) => page.getByRole('tab').filter({ has: page.locator('.tab-name').getByText(name, { exact: true }) });
+/** Nomes das abas, na ordem */
+export const tabNames = (page: Page) => page.locator('.tab .tab-name');
 
 /** Abre o app no exemplo padrão (storage vazio) */
 export async function openDemo(page: Page) {
