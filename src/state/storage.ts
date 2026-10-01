@@ -1,4 +1,4 @@
-import type { BeltEdge, BeltTier, FactoryNode, PipeTier } from '../game/types';
+import type { BeltEdge, BeltTier, FactoryData, FactoryNode, PipeTier, Purity } from '../game/types';
 
 const KEY = 'satisplanner:v1';
 /** Versões boas anteriores (backup rotativo), da mais nova pra mais antiga */
@@ -45,7 +45,29 @@ function validEdge(e: unknown) {
   return isObj(e) && typeof e.id === 'string' && typeof e.source === 'string' && typeof e.target === 'string';
 }
 
-/** Mantém só o que importa (descarta seleção, medidas etc.) */
+const PURITY_VALUES: Purity[] = ['impure', 'normal', 'pure'];
+const isPurity = (v: unknown): v is Purity => PURITY_VALUES.includes(v as Purity);
+
+/**
+ * Migra formatos antigos de node pro atual:
+ *  - extrator de poço ('extractor' com extractor 'well', um satélite cujo clock era o do
+ *    pressurizador) vira um poço ('well') com aquele único satélite e o mesmo clock. As
+ *    conexões continuam valendo: a saída do satélite 1 é a mesma out-0.
+ *  - poço com lista de satélites quebrada fica só com as purezas válidas.
+ */
+function migrateNode(type: unknown, data: Record<string, unknown>): { type: string; data: FactoryData } {
+  if (data.kind === 'extractor' && data.extractor === 'well') {
+    const { purity, extractor: _e, ...rest } = data;
+    return { type: 'well', data: { ...rest, kind: 'well', satellites: [isPurity(purity) ? purity : 'normal'] } as FactoryData };
+  }
+  if (data.kind === 'well') {
+    const satellites = Array.isArray(data.satellites) ? data.satellites.filter(isPurity) : [];
+    return { type: 'well', data: { ...data, satellites } as FactoryData };
+  }
+  return { type: typeof type === 'string' ? type : String(data.kind), data: data as FactoryData };
+}
+
+/** Mantém só o que importa (descarta seleção, medidas etc.) e migra formatos antigos */
 export function sanitize(raw: unknown): SavedState | null {
   const p = raw as Partial<SavedState> | null;
   if (!p || p.version !== 1 || !Array.isArray(p.nodes) || !Array.isArray(p.edges)) return null;
@@ -57,7 +79,7 @@ export function sanitize(raw: unknown): SavedState | null {
     defaultPipeTier: p.defaultPipeTier ?? 1,
     gridBelts: p.gridBelts ?? true,
     beltLabels: p.beltLabels ?? true,
-    nodes: p.nodes.map((n) => ({ id: n.id, type: n.type, position: n.position, data: n.data }) as FactoryNode),
+    nodes: p.nodes.map((n) => ({ id: n.id, position: n.position, ...migrateNode(n.type, n.data as Record<string, unknown>) }) as FactoryNode),
     edges: p.edges.map((e) => ({
       id: e.id,
       type: e.type === 'pipe' ? ('pipe' as const) : ('belt' as const),

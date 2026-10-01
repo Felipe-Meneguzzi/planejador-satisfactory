@@ -17,6 +17,10 @@ import type { ByproductLane, Group, Lane, Plan } from './plan';
  *  - Entre faixas, as esteiras sobem pra um "corredor" de trilhos acima de tudo (um trilho
  *    por esteira), andam na horizontal e descem até o destino. Nada cruza máquina.
  *  - Fluidos usam cano e junções de cano no lugar de esteira, divisor e mesclador.
+ *  - Poço de recurso: cada satélite ocupa a "vaga" de uma máquina na coleta. O node do poço
+ *    fica na vaga do 1º satélite dele e cada cano de satélite desce, ao lado do poço, até a
+ *    vaga do seu mesclador. O satélite de cima vira mais longe do poço, então os canos de um
+ *    mesmo poço nunca se cruzam.
  *
  * As conexões que precisam de curvas extras levam `bends` (coordenadas das viradas) e
  * `anchor` (onde estavam as pontas na geração). Se um node for movido, a âncora deixa de
@@ -118,6 +122,14 @@ export function layoutPlan(plan: Plan, mode: DistributionMode, maxBelt: BeltTier
     const n = g.count;
     const K = g.recipe?.inputs.length ?? 0;
     const O = g.recipe?.outputs.length ?? 1;
+    // poço: satélites [wellStart[w], wellStart[w] + wells[w]) pertencem ao poço w
+    const wells = g.kind === 'well' ? g.wells! : [];
+    const wellStart = wells.map((_, w) => wells.slice(0, w).reduce((a, b) => a + b, 0));
+    const wellOf = (m: number) => {
+      let w = 0;
+      while (w + 1 < wells.length && wellStart[w + 1] <= m) w++;
+      return { w, i: m - wellStart[w], k: wells[w] };
+    };
     const H = machineHeight(O);
     const P = Math.max(STEP, STEP * K, STEP * O); // distância vertical entre máquinas
     const yin = (k: number) => stripOffset(k, K, H);
@@ -148,9 +160,14 @@ export function layoutPlan(plan: Plan, mode: DistributionMode, maxBelt: BeltTier
       band.top = Math.min(band.top, nd.position.y);
     };
 
-    // máquinas / mineradoras / extratores
+    // máquinas / mineradoras / extratores (ou um node por poço)
     const machines: string[] = [];
-    for (let m = 0; m < n; m++) {
+    wells.forEach((k, w) => {
+      const id = addNode({ kind: 'well', resource: g.item, clock: g.clock, satellites: Array(k).fill(g.ore!.purity), collapsed: true }, machineX, wellStart[w] * P);
+      machines.push(id);
+      track(id);
+    });
+    for (let m = 0; m < (wells.length ? 0 : n); m++) {
       const data: FactoryData =
         g.kind === 'miner'
           ? { kind: 'miner', resource: g.item, purity: g.ore!.purity, tier: g.ore!.tier, clock: g.clock, collapsed: true }
@@ -161,7 +178,23 @@ export function layoutPlan(plan: Plan, mode: DistributionMode, maxBelt: BeltTier
       track(machines[m]);
     }
     const machineIn = (m: number, k: number): Port => ({ node: machines[m], handle: `in-${k}`, side: 'left', pt: { x: machineX, y: m * P + yin(k) } });
-    const machineOut = (m: number, k = 0): Port => ({ node: machines[m], handle: `out-${k}`, side: 'right', pt: { x: machineX + MACH_W, y: m * P + yout(k) } });
+    const machineOut = (m: number, k = 0): Port => {
+      if (!wells.length) return { node: machines[m], handle: `out-${k}`, side: 'right', pt: { x: machineX + MACH_W, y: m * P + yout(k) } };
+      const s = wellOf(m);
+      return { node: machines[s.w], handle: `out-${s.i}`, side: 'right', pt: { x: machineX + MACH_W, y: wellStart[s.w] * P + stripOffset(s.i, s.k, machineHeight(s.k)) } };
+    };
+    /**
+     * Viradas da saída m até o mesclador. Máquina: `plain` (o desenho de sempre). Satélite de
+     * poço: vira numa coluna própria ao lado do poço (a de cima mais longe) e desce até a vaga.
+     */
+    const outBends = (m: number, to: Port, plain?: number[]) => {
+      if (!wells.length) return plain;
+      const s = wellOf(m);
+      const x = machineX + MACH_W + G * (s.k - s.i);
+      const y = machineOut(m).pt.y;
+      if (to.side === 'left') return y === to.pt.y ? undefined : [x, to.pt.y];
+      return [x, to.side === 'top' ? to.pt.y - G : to.pt.y + G, to.pt.x];
+    };
 
     // conexão de um ponto da coluna da entrada k até a máquina m (vira só perto da máquina)
     const toMachine = (from: Port, m: number, k: number, q: number, item: ItemId) => {
@@ -234,7 +267,7 @@ export function layoutPlan(plan: Plan, mode: DistributionMode, maxBelt: BeltTier
     }
 
     /* coleta da saída principal */
-    const gapOut = O > 1 ? G * (O + 2) : 40;
+    const gapOut = wells.length ? G * (Math.max(...wells) + 2) : O > 1 ? G * (O + 2) : 40;
     const mx0 = machineX + MACH_W + gapOut;
     let right = mx0 + CUBE;
     if (mode === 'manifold') {
@@ -244,7 +277,8 @@ export function layoutPlan(plan: Plan, mode: DistributionMode, maxBelt: BeltTier
         const y = outSlotTop(m, 0);
         const id = cube('merger', 270, mx0, y, mainItem);
         track(id);
-        belt(machineOut(m), cubePort(id, 'in-0', 'left', mx0, y), perOut, mainItem);
+        const into = cubePort(id, 'in-0', 'left', mx0, y);
+        belt(machineOut(m), into, perOut, mainItem, outBends(m, into));
         if (below) belt(cubePort(below, 'out-0', 'top', mx0, outSlotTop(m + 1, 0)), cubePort(id, 'in-1', 'bottom', mx0, y), perOut * (n - m - 1), mainItem);
         below = id;
         if (m === 0) band.source = cubePort(id, 'out-0', 'top', mx0, y);
@@ -262,7 +296,7 @@ export function layoutPlan(plan: Plan, mode: DistributionMode, maxBelt: BeltTier
           ins.forEach((h, i) => {
             const side: Side = h === 'in-0' ? 'top' : h === 'in-1' ? 'left' : 'bottom';
             const to = cubePort(id, h, side, x, y);
-            belt(machineOut(a + i), to, perOut, mainItem, side === 'left' ? undefined : [to.pt.x]);
+            belt(machineOut(a + i), to, perOut, mainItem, outBends(a + i, to, side === 'left' ? undefined : [to.pt.x]));
           });
           return { id, x, y, depth: 0 };
         }

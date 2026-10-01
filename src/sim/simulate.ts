@@ -1,5 +1,5 @@
-import { AMPLIFICATION, BELTS, BELT_TIERS, EXTRACTORS, GENERATORS, ITEMS, MACHINES, MINER_TIERS, OVERCLOCK, PIPES, PIPE_TIERS, PURITIES, extractorClockable, generatorClockable, generatorPorts, getRecipe, isFluid, withUnit } from '../game/data';
-import type { BeltItem, BeltTier, ExtractorData, FactoryData, GeneratorData, GeneratorId, ItemId, MachineData, MinerData, PipeTier } from '../game/types';
+import { AMPLIFICATION, BELTS, BELT_TIERS, EXTRACTORS, GENERATORS, ITEMS, MACHINES, MINER_TIERS, OVERCLOCK, PIPES, PIPE_TIERS, PURITIES, WELL, extractorClockable, generatorClockable, generatorPorts, getRecipe, isFluid, withUnit } from '../game/data';
+import type { BeltItem, BeltTier, ExtractorData, FactoryData, GeneratorData, GeneratorId, ItemId, MachineData, MinerData, PipeTier, WellData } from '../game/types';
 import { fmt } from '../format';
 
 /*
@@ -129,6 +129,11 @@ export const extractorRate = (d: ExtractorData) => {
 /** Consumo de energia com overclock/underclock */
 export const powerAt = (base: number, clock: number) => base * Math.pow(clampClock(clock) / 100, OVERCLOCK.powerExponent);
 
+/** Vazão de cada extrator-satélite do poço (m³/min): pureza dele × clock do pressurizador */
+export const wellSatelliteRates = (d: WellData) => d.satellites.map((p) => (WELL.rates[p] * clampClock(d.clock)) / 100);
+/** Consumo do Resource Well Pressurizer: fixo pro clock (não depende dos satélites nem do fluxo) */
+export const wellPower = (clock: number) => WELL.power * Math.pow(clampClock(clock) / 100, WELL.powerExponent);
+
 /** Clock efetivo do gerador (Geothermal e Alien Power Augmenter não aceitam: ficam em 100%) */
 export const generatorClock = (d: GeneratorData) => (generatorClockable(d) ? clampClock(d.clock) : 100);
 /**
@@ -206,6 +211,8 @@ export function simulate(nodes: SimNode[], edges: SimEdge[]): SimResult {
       case 'miner':
       case 'extractor':
         return [d.resource];
+      case 'well':
+        return d.satellites.map(() => d.resource);
       case 'machine':
         return getRecipe(d).outputs.map((o) => o.item);
       case 'generator':
@@ -262,6 +269,13 @@ export function simulate(nodes: SimNode[], edges: SimEdge[]): SimResult {
       case 'extractor': {
         const b = outB(n.id, 0);
         if (b) setS(b, extractorRate(d));
+        break;
+      }
+      case 'well': {
+        wellSatelliteRates(d).forEach((rate, i) => {
+          const b = outB(n.id, i);
+          if (b) setS(b, rate);
+        });
         break;
       }
       case 'machine': {
@@ -456,6 +470,29 @@ export function simulate(nodes: SimNode[], edges: SimEdge[]): SimResult {
           addTo(loose, d.resource, R);
           add('info', 'node', n.id, 'free', `Saída livre: ${withUnit(fmt(R), d.resource)} de ${ITEMS[d.resource].name} disponíveis`);
         }
+        break;
+      }
+      case 'well': {
+        // o pressurizador consome sempre o mesmo pro clock, mesmo com a saída entupida
+        const rates = wellSatelliteRates(d);
+        const outs = rates.map((R, i) => ({ R, b: outB(n.id, i) }));
+        const actual = outs.map((x) => (x.b ? flowOf(x.b) : x.R));
+        const total = sum(rates);
+        const p = wellPower(d.clock);
+        power += p;
+        machines++;
+        nodeResults[n.id] = {
+          util: total > 0 ? sum(actual) / total : 0,
+          power: p,
+          inputs: [],
+          outputs: outs.map((x, i) => port(`out-${i}`, d.resource, x.R, x.b, actual[i])),
+        };
+        if (!rates.length) add('warning', 'node', n.id, 'nosat', `Poço sem extratores-satélite: o ${WELL.name} consome ${fmt(p)} MW sem extrair nada`);
+        outs.forEach((x, i) => {
+          if (x.b) return;
+          addTo(loose, d.resource, x.R);
+          add('info', 'node', n.id, `free${i}`, `Satélite ${i + 1} com saída livre: ${withUnit(fmt(x.R), d.resource)} de ${ITEMS[d.resource].name} disponíveis`);
+        });
         break;
       }
       case 'machine': {

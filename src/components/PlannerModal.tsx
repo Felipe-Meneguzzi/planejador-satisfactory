@@ -1,8 +1,8 @@
 import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { BELTS, BELT_TIERS, EXTRACTORS, ITEMS, MACHINES, MINER_TIERS, PIPES, PIPE_TIERS, PURITIES, RECIPES, isFluid, withUnit } from '../game/data';
+import { BELTS, BELT_TIERS, EXTRACTORS, ITEMS, MACHINES, MINER_TIERS, PIPES, PIPE_TIERS, PURITIES, RECIPES, WELL, isFluid, withUnit } from '../game/data';
 import type { BeltTier, ItemId, MinerTier, PipeTier, Purity } from '../game/types';
 import { fmt } from '../format';
-import { MINE, PLANNABLE_ITEMS, choiceOf, defaultOre, extractorFor, isResource, planLine, recipesProducing, type OreSetting, type Plan } from '../planner/plan';
+import { MINE, PLANNABLE_ITEMS, choiceOf, defaultOre, extractorFor, fluidSourceName, isResource, planLine, recipesProducing, type OreSetting, type Plan } from '../planner/plan';
 import type { DistributionMode } from '../planner/layout';
 import { itemColor } from './nodes';
 
@@ -66,13 +66,18 @@ export function PlannerModal(props: { onClose: () => void; onGenerate: (plan: Pl
   const nameToItem = useMemo(() => new Map(PLANNABLE_ITEMS.map((id) => [ITEMS[id].name.toLowerCase(), id])), []);
   const machineCounts = useMemo(() => {
     const m = new Map<string, number>();
+    const put = (k: string, n: number) => m.set(k, (m.get(k) ?? 0) + n);
     for (const g of plan.groups) {
-      const k = g.kind === 'miner' ? `Mineradora ${MINER_TIERS[g.ore!.tier].name}` : g.kind === 'extractor' ? EXTRACTORS[g.extractor!].name : MACHINES[g.machine!].name;
-      m.set(k, (m.get(k) ?? 0) + g.count);
+      if (g.kind === 'well') {
+        put(WELL.name, g.wells!.length);
+        put(WELL.extractorName, g.count);
+        continue;
+      }
+      put(g.kind === 'miner' ? `Mineradora ${MINER_TIERS[g.ore!.tier].name}` : g.kind === 'extractor' ? EXTRACTORS[g.extractor!].name : MACHINES[g.machine!].name, g.count);
     }
     return [...m.entries()];
   }, [plan]);
-  const ores = useMemo(() => [...new Set(plan.groups.filter((g) => g.kind === 'miner' || g.kind === 'extractor').map((g) => g.item))], [plan]);
+  const ores = useMemo(() => [...new Set(plan.groups.filter((g) => g.kind !== 'machine').map((g) => g.item))], [plan]);
   /** maior Mk de esteira e de cano que a linha usa */
   const maxUsed = useMemo(() => {
     const flows = plan.groups.flatMap((g) => [
@@ -136,7 +141,7 @@ export function PlannerModal(props: { onClose: () => void; onGenerate: (plan: Pl
             <span className="tree-ext">⚠ fornecer de fora</span>
           ) : (
             <select value={choice} onChange={(e) => set({ choices: { ...st.choices, [item]: e.target.value } })}>
-              {isResource(item) && <option value={MINE}>{isFluid(item) ? `💧 Extrair (${EXTRACTORS[extractorFor(item)!].name})` : '⛏ Minerar'}</option>}
+              {isResource(item) && <option value={MINE}>{isFluid(item) ? `💧 Extrair (${fluidSourceName(extractorFor(item)!)})` : '⛏ Minerar'}</option>}
               {options.some((r) => !r.alternate) && (
                 <optgroup label="Padrão">
                   {options.filter((r) => !r.alternate).map((r) => (
@@ -308,6 +313,7 @@ export function PlannerModal(props: { onClose: () => void; onGenerate: (plan: Pl
                       const gs = groupsByItem.get(item) ?? [];
                       const ext = gs[0]?.extractor;
                       const info = ext ? EXTRACTORS[ext] : undefined;
+                      const well = gs[0]?.kind === 'well';
                       return (
                         <div key={item} className="ore-row">
                           <div className="ore-name">
@@ -315,7 +321,7 @@ export function PlannerModal(props: { onClose: () => void; onGenerate: (plan: Pl
                             {ITEMS[item].name}
                             <small>{withUnit(fmt(gs.reduce((a, g) => a + g.demand, 0)), item)}</small>
                           </div>
-                          {(!info || info.usesPurity) && (
+                          {(!info || info.usesPurity || well) && (
                             <div className="seg">
                               {(Object.keys(PURITIES) as Purity[]).map((p) => (
                                 <button key={p} className={ore(item).purity === p ? 'active' : ''} onClick={() => setOre(item, { purity: p })}>
@@ -324,7 +330,7 @@ export function PlannerModal(props: { onClose: () => void; onGenerate: (plan: Pl
                               ))}
                             </div>
                           )}
-                          {!info && (
+                          {!info && !well && (
                             <div className="seg">
                               {([1, 2, 3] as MinerTier[]).map((t) => (
                                 <button key={t} className={ore(item).tier === t ? 'active' : ''} onClick={() => setOre(item, { tier: t })}>
@@ -333,10 +339,16 @@ export function PlannerModal(props: { onClose: () => void; onGenerate: (plan: Pl
                               ))}
                             </div>
                           )}
-                          <small className="muted">
-                            {gs.reduce((a, g) => a + g.count, 0)}× {info ? info.name : 'mineradora'} @ {gs.map((g) => pct(g.clock)).join(' / ')}
-                            {info?.clockByPressurizer ? ' (clock do pressurizador; consumo dele fora da conta)' : ''}
-                          </small>
+                          {well ? (
+                            <small className="muted">
+                              {gs.reduce((a, g) => a + g.wells!.length, 0)}× {WELL.name} @ {gs.map((g) => pct(g.clock)).join(' / ')} com{' '}
+                              {gs.reduce((a, g) => a + g.count, 0)} satélites (até {WELL.satelliteLimit[item] ?? WELL.maxSatellites} por poço, todos com essa pureza)
+                            </small>
+                          ) : (
+                            <small className="muted">
+                              {gs.reduce((a, g) => a + g.count, 0)}× {info ? info.name : 'mineradora'} @ {gs.map((g) => pct(g.clock)).join(' / ')}
+                            </small>
+                          )}
                         </div>
                       );
                     })}

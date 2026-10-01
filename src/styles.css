@@ -1658,3 +1658,36 @@ table.energy-table {
   padding: 3px 4px;
   border-bottom: 1px solid var(--border);
 }
+
+/* ---------- poço de recurso ---------- */
+
+.well-sat .sat-name {
+  color: var(--muted);
+  min-width: 10px;
+}
+.well-sat .sat-purity {
+  flex: 1;
+  min-width: 0;
+  padding: 1px 2px;
+  font-size: 11px;
+}
+.well-sat .port-value {
+  white-space: nowrap;
+}
+.sat-remove {
+  padding: 0 5px;
+  line-height: 16px;
+  font-size: 11px;
+  border-radius: 4px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--muted);
+}
+.sat-remove:hover {
+  color: var(--err);
+  border-color: var(--err);
+}
+.sat-add {
+  font-size: 11px;
+  padding: 3px 8px;
+}

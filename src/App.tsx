@@ -81,7 +81,7 @@ function EnergyChip({ energy }: { energy: EnergyResult }) {
 const minimapColor = (n: FactoryNode) => {
   const d = n.data;
   if (d.kind === 'miner') return '#7d5236';
-  if (d.kind === 'extractor') return '#1f5f8b';
+  if (d.kind === 'extractor' || d.kind === 'well') return '#1f5f8b';
   if ((d.kind === 'splitter' || d.kind === 'merger') && d.fluid) return '#3b6f99';
   if (d.kind === 'machine') return MACHINES[d.machine].color;
   if (d.kind === 'sink') return '#2f7a52';
@@ -417,7 +417,7 @@ function Planner() {
 
   /* ---------- minimizar ---------- */
 
-  const collapsible = (n: FactoryNode) => n.data.kind === 'machine' || n.data.kind === 'miner' || n.data.kind === 'generator';
+  const collapsible = (n: FactoryNode) => ['machine', 'miner', 'generator', 'well'].includes(n.data.kind);
   const anyExpanded = nodes.some((n) => collapsible(n) && !(n.data as { collapsed?: boolean }).collapsed);
   const toggleCollapseAll = () => {
     // Com seleção, age só nos selecionados; sem seleção, em tudo

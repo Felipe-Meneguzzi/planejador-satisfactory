@@ -15,6 +15,11 @@ export const extractor = (id: string, kind: ExtractorKind, resource: string, pur
   id,
   data: { kind: 'extractor', extractor: kind, resource, purity, clock },
 });
+/** poço de recurso: pressurizador no `clock` com um satélite por pureza da lista */
+export const well = (id: string, resource: string, satellites: Purity[], clock = 100): SimNode => ({
+  id,
+  data: { kind: 'well', resource, satellites, clock },
+});
 export const splitter = (id: string, fluid = false): SimNode => ({ id, data: { kind: 'splitter', ...(fluid ? { fluid } : {}) } });
 export const merger = (id: string, fluid = false): SimNode => ({ id, data: { kind: 'merger', ...(fluid ? { fluid } : {}) } });
 export const sink = (id: string): SimNode => ({ id, data: { kind: 'sink' } });

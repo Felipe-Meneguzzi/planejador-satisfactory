@@ -10,6 +10,7 @@ export function portMedium(data: FactoryData, handle?: string | null): Medium | 
     case 'miner':
       return 'solid';
     case 'extractor':
+    case 'well':
       return 'fluid';
     case 'splitter':
     case 'merger':

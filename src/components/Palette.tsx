@@ -1,5 +1,5 @@
 import { useMemo, useState, type DragEvent } from 'react';
-import { ALL_RECIPES, BELTS, BELT_TIERS, EXTRACTORS, GENERATORS, GENERATOR_IDS, ITEMS, MACHINES, MACHINE_IDS, MINER_TIERS, PIPES, PIPE_TIERS, PURITIES, RECIPES, RESOURCES, recipesFor, withUnit } from '../game/data';
+import { ALL_RECIPES, BELTS, BELT_TIERS, EXTRACTORS, GENERATORS, GENERATOR_IDS, ITEMS, MACHINES, MACHINE_IDS, MINER_TIERS, PIPES, PIPE_TIERS, PURITIES, RECIPES, RESOURCES, WELL, recipesFor, withUnit } from '../game/data';
 import type { BeltTier, ExtractorKind, FactoryData, ItemId, PipeTier, Purity } from '../game/types';
 import { fmt } from '../format';
 
@@ -53,15 +53,24 @@ const extractorEntry = (extractor: ExtractorKind, resource: ItemId, label: strin
     key: `extractor-${extractor}-${resource}`,
     label,
     sub: `${info.name} · ${fmt(info.rate('normal'))} m³/min${info.usesPurity ? ' (normal)' : ''}`,
-    icon: extractor === 'water' ? '💧' : extractor === 'oil' ? '🛢️' : '🕳️',
+    icon: extractor === 'water' ? '💧' : '🛢️',
     color: FLUID_COLOR,
     data: { kind: 'extractor', extractor, resource, purity: 'normal', clock: 100 },
   };
 };
+/** Poço de recurso: pressurizador com um satélite normal pra começar */
+const wellEntry = (resource: ItemId, label: string): PaletteEntry => ({
+  key: `well-${resource}`,
+  label,
+  sub: `${WELL.name} · ${fmt(WELL.power)} MW · ${fmt(WELL.rates.normal)} m³/min por satélite normal`,
+  icon: '🕳️',
+  color: FLUID_COLOR,
+  data: { kind: 'well', resource, clock: 100, satellites: ['normal'] },
+});
 const fluidEntries: PaletteEntry[] = [
   extractorEntry('water', EXTRACTORS.water.resources[0], 'Água'),
   extractorEntry('oil', EXTRACTORS.oil.resources[0], 'Petróleo'),
-  extractorEntry('well', EXTRACTORS.well.resources.find((r) => r === 'nitrogen-gas') ?? EXTRACTORS.well.resources[0], 'Poço de recurso'),
+  wellEntry(WELL.resources.find((r) => r === 'nitrogen-gas') ?? WELL.resources[0], 'Poço de recurso'),
   { key: 'pipe-split', label: 'Junção (divide)', sub: 'Pipeline Junction · 1 cano → 3', icon: '💧', color: '#3b6f99', data: { kind: 'splitter', fluid: true } },
   { key: 'pipe-merge', label: 'Junção (junta)', sub: 'Pipeline Junction · 3 canos → 1', icon: '💧', color: '#3b6f99', data: { kind: 'merger', fluid: true } },
 ];
@@ -131,13 +140,14 @@ function search(q: string): PaletteEntry[] {
   const fluidSources = (Object.keys(EXTRACTORS) as ExtractorKind[]).flatMap((k) =>
     EXTRACTORS[k].resources.filter((id) => norm(ITEMS[id].name).includes(t)).map((id) => extractorEntry(k, id, ITEMS[id].name)),
   );
+  const wells = WELL.resources.filter((id) => norm(ITEMS[id].name).includes(t) || norm('poco de recurso resource well').includes(t)).map((id) => wellEntry(id, `${ITEMS[id].name} (poço)`));
   // geradores pelo nome ou pelo combustível (ex.: "coal" acha o Coal-Powered Generator com Coal)
   const generators = GENERATOR_IDS.flatMap((id) => {
     const g = GENERATORS[id];
     if (norm(g.name).includes(t)) return [generatorEntry(id)];
     return g.fuels.filter((f) => !g.optionalFuel && norm(ITEMS[f.item].name).includes(t)).map((f) => generatorEntry(id, f.item));
   });
-  return [...ores, ...fluidSources, ...generators, ...recipes];
+  return [...ores, ...fluidSources, ...wells, ...generators, ...recipes];
 }
 
 export const DND_TYPE = 'application/x-satisplanner';

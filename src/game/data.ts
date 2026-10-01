@@ -34,7 +34,6 @@ interface RawData {
   extractors: {
     water: { name: string; resource: string; rate: number; power: number; overclockable: boolean };
     oil: { name: string; resource: string; rates: Record<Purity, number>; power: number; overclockable: boolean };
-    well: { name: string; resources: string[]; rates: Record<Purity, number>; power: number; overclockable: boolean; pressurizerName: string; pressurizerPower: number };
   };
   recipes: {
     name: string;
@@ -194,7 +193,7 @@ export const PIPES = Object.fromEntries((data.pipes ?? []).map((p) => [p.tier, {
 >;
 export const PIPE_TIERS = (data.pipes ?? []).map((p) => p.tier) as PipeTier[];
 
-/** Extratores de fluido. `rate(pureza)` = m³/min a 100% de clock */
+/** Extratores de fluido (o poço de recurso é um node à parte, ver WELL). `rate(pureza)` = m³/min a 100% de clock */
 export interface ExtractorInfo {
   kind: ExtractorKind;
   name: string;
@@ -202,23 +201,17 @@ export interface ExtractorInfo {
   usesPurity: boolean;
   /** aceita overclock no próprio extrator */
   overclockable: boolean;
-  /** o clock vem do pressurizador do poço (vale pra todos os extratores dele) */
-  clockByPressurizer: boolean;
   rate: (purity: Purity) => number;
-  /** MW a 100% (o poço é alimentado pelo pressurizador, que entra separado) */
+  /** MW a 100% */
   power: number;
 }
 const ex = data.extractors;
 export const EXTRACTORS: Record<ExtractorKind, ExtractorInfo> = {
-  water: { kind: 'water', name: ex.water.name, resources: [slug(ex.water.resource)], usesPurity: false, overclockable: ex.water.overclockable, clockByPressurizer: false, rate: () => ex.water.rate, power: ex.water.power },
-  oil: { kind: 'oil', name: ex.oil.name, resources: [slug(ex.oil.resource)], usesPurity: true, overclockable: ex.oil.overclockable, clockByPressurizer: false, rate: (p) => ex.oil.rates[p], power: ex.oil.power },
-  well: { kind: 'well', name: ex.well.name, resources: ex.well.resources.map(slug), usesPurity: true, overclockable: ex.well.overclockable, clockByPressurizer: true, rate: (p) => ex.well.rates[p], power: ex.well.power },
+  water: { kind: 'water', name: ex.water.name, resources: [slug(ex.water.resource)], usesPurity: false, overclockable: ex.water.overclockable, rate: () => ex.water.rate, power: ex.water.power },
+  oil: { kind: 'oil', name: ex.oil.name, resources: [slug(ex.oil.resource)], usesPurity: true, overclockable: ex.oil.overclockable, rate: (p) => ex.oil.rates[p], power: ex.oil.power },
 };
-export const WELL_PRESSURIZER_NAME = ex.well.pressurizerName;
-/** dá pra mudar o clock (no extrator, ou no pressurizador no caso do poço) */
-export const extractorClockable = (k: ExtractorKind) => EXTRACTORS[k].overclockable || EXTRACTORS[k].clockByPressurizer;
-/** consumo do pressurizador de poço (um por poço, alimenta todos os extratores dele) */
-export const WELL_PRESSURIZER_POWER = ex.well.pressurizerPower;
+/** dá pra mudar o clock do extrator */
+export const extractorClockable = (k: ExtractorKind) => !!EXTRACTORS[k]?.overclockable;
 
 export const OVERCLOCK = data.overclock;
 
@@ -425,6 +418,8 @@ const satelliteLimit = Object.fromEntries(
   }),
 ) as Record<ItemId, number>;
 export const WELL = {
+  /** o poço em si (nome da página do wiki); o node representa o poço inteiro */
+  title: 'Resource Well',
   name: pr.name,
   extractorName: pr.extractor.name,
   /** MW do pressurizador a 100% (os satélites não consomem) */

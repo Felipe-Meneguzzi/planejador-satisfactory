@@ -7439,23 +7439,6 @@
       },
       "power": 40,
       "overclockable": true
-    },
-    "well": {
-      "name": "Resource Well Extractor",
-      "resources": [
-        "Water",
-        "Crude Oil",
-        "Nitrogen Gas"
-      ],
-      "rates": {
-        "impure": 30,
-        "normal": 60,
-        "pure": 120
-      },
-      "power": 0,
-      "overclockable": false,
-      "pressurizerName": "Resource Well Pressurizer",
-      "pressurizerPower": 150
     }
   },
   "generatorNotes": "Geradores (1.2.4.0): Template:DocsBuildings.json + páginas de cada gerador e Template:FuelConsumptionMasterTable. energy = MJ por item (sólido) ou por m³ (fluido); consumo/min a 100% = power × 60 / energy. Potência, combustível, água e resíduo escalam 1:1 com o clock (linear), até 250% com 3 Power Shards. waste.perItem = resíduo por item queimado.",

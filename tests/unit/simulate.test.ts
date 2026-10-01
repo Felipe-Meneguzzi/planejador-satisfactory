@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { simulate, type SimEdge, type SimNode } from '../../src/sim/simulate';
 import { demoState } from '../../src/state/storage';
-import { belt, extractor, machine, merger, miner, pipe, sink, splitter } from './helpers';
+import { belt, extractor, machine, merger, miner, pipe, sink, splitter, well } from './helpers';
 
 /** só os problemas que aparecem no painel (erro/aviso) */
 const problems = (r: ReturnType<typeof simulate>) => r.issues.filter((i) => i.level !== 'info');
@@ -172,12 +172,13 @@ describe('simulate', () => {
     expect(preview.issues.find((i) => i.id === 'r:free1')?.level).toBe('info');
   });
 
-  it('extrator de poço usa o clock do pressurizador e não consome energia própria', () => {
-    const r = simulate([extractor('w', 'well', 'nitrogen-gas', 'pure', 250), sink('k')], [pipe('p', 'w', 0, 'k', 0, 2)]);
+  it('poço: o clock do pressurizador vale pros satélites e só o pressurizador consome energia', () => {
+    const r = simulate([well('w', 'nitrogen-gas', ['pure'], 250), sink('k')], [pipe('p', 'w', 0, 'k', 0, 2)]);
     expect(r.nodes.w.outputs[0].max).toBeCloseTo(300);
     expect(r.edges.p.flow).toBeCloseTo(300);
     expect(r.edges.p.item).toBe('nitrogen-gas');
-    expect(r.nodes.w.power).toBe(0);
+    // 150 MW × 2,5^1,321928 (wiki: 503,66 MW a 250%)
+    expect(r.nodes.w.power).toBeCloseTo(503.66, 1);
     expect(problems(r)).toEqual([]);
     expect(r.production).toEqual([{ item: 'nitrogen-gas', stored: 300, loose: 0 }]);
   });

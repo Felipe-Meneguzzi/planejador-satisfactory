@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { Handle, Position, useNodeId, useReactFlow, useUpdateNodeInternals, type NodeProps } from '@xyflow/react';
-import { AMPLIFICATION, EXTRACTORS, GENERATORS, ITEMS, MACHINES, MINER_TIERS, PURITIES, RECIPES, RESOURCES, WELL_PRESSURIZER_NAME, WELL_PRESSURIZER_POWER, extractorClockable, fuelOf, generatorPorts, getRecipe, isFluid, recipesFor } from '../game/data';
+import { AMPLIFICATION, EXTRACTORS, GENERATORS, ITEMS, MACHINES, MINER_TIERS, PURITIES, RECIPES, RESOURCES, WELL, extractorClockable, fuelOf, generatorPorts, getRecipe, isFluid, recipesFor } from '../game/data';
 import type {
   BeltItem,
   ExtractorKind,
@@ -15,11 +15,12 @@ import type {
   Rotation,
   SinkNode,
   SplitterNode,
+  WellNode,
 } from '../game/types';
 import { fmt } from '../format';
 import { GRID, snapUp } from '../grid';
 import { useSim } from '../sim/SimContext';
-import { CLOCK_MAX, CLOCK_MIN, ampOf, clampClock, extractorRate, generatorClock, generatorNominal, minerRate, shardsFor, sloopsOf, type Issue } from '../sim/simulate';
+import { CLOCK_MAX, CLOCK_MIN, ampOf, clampClock, extractorRate, generatorClock, generatorNominal, minerRate, shardsFor, sloopsOf, wellPower, wellSatelliteRates, type Issue } from '../sim/simulate';
 
 export const itemColor = (item: BeltItem) => (item && item !== 'mixed' ? ITEMS[item].color : item === 'mixed' ? '#d46ad8' : '#5b616b');
 
@@ -426,7 +427,7 @@ function PortBlock({ children }: { children: ReactNode }) {
 /** Conteúdo do node minimizado: só o essencial */
 function CollapsedSummary(props: {
   line: ReactNode;
-  outputs: { item: ItemId; actual: number; max: number }[];
+  outputs: { item: ItemId; actual: number; max: number; label?: string }[];
   util: number;
   chips?: ReactNode;
   hideName?: boolean;
@@ -438,11 +439,11 @@ function CollapsedSummary(props: {
         {props.line}
         {props.chips}
       </div>
-      {props.outputs.map((o) => (
-        <div key={o.item} className="collapsed-out">
+      {props.outputs.map((o, i) => (
+        <div key={`${o.item}-${i}`} className="collapsed-out">
           <span className="dot" style={{ background: itemColor(o.item) }} />
           {/* não repete o nome quando ele já é o da receita/linha de cima */}
-          <span className="port-item">{props.hideName ? '' : ITEMS[o.item].name}</span>
+          <span className="port-item">{o.label ?? (props.hideName ? '' : ITEMS[o.item].name)}</span>
           <span className="port-value">{rate(o.actual, o.max, o.item)}</span>
         </div>
       ))}
@@ -535,7 +536,7 @@ export function ExtractorNodeView({ id, data, selected }: NodeProps<ExtractorNod
   const stripped = collapsed || isVertical(outSide);
   const strips = stripped && <PortStrip side={outSide} ports={[{ type: 'out', handle: 'out-0', title: ITEMS[data.resource].name, fluid: true }]} />;
   const card = {
-    icon: data.extractor === 'water' ? '💧' : data.extractor === 'oil' ? '🛢️' : '🕳️',
+    icon: data.extractor === 'water' ? '💧' : '🛢️',
     title: info.name,
     color: '#1f5f8b',
     selected,
@@ -575,17 +576,122 @@ export function ExtractorNodeView({ id, data, selected }: NodeProps<ExtractorNod
           <Seg value={data.purity} options={PURITY_OPTIONS} onChange={(purity) => updateNodeData(id, { purity })} />
         </Field>
       )}
-      {data.extractor === 'well' && (
-        <div className="note">
-          Fica num nó-satélite do poço e não consome energia. O clock aqui é o do {WELL_PRESSURIZER_NAME} (vale pra todos os extratores do poço); o consumo dele ({fmt(WELL_PRESSURIZER_POWER)} MW) não entra na conta.
-        </div>
-      )}
       {extractorClockable(data.extractor) && (
         <ClockControl clock={data.clock} baseRate={info.rate(data.purity)} item={data.resource} onChange={(clock) => updateNodeData(id, { clock })} />
       )}
       <PortBlock>
         <PortRow type="out" handle="out-0" side={outSide} stripped={stripped} item={data.resource} label={ITEMS[data.resource].name} value={rate(out?.actual ?? max, max, data.resource)} />
       </PortBlock>
+      <UtilBar value={r?.util ?? 1} />
+    </NodeCard>
+  );
+}
+
+const wellResourceOptions = WELL.resources.map((it) => ({ value: it, label: ITEMS[it].name }));
+
+/*
+ * Poço de recurso: o Resource Well Pressurizer (clock e energia) e os Resource Well Extractors
+ * nos nós-satélite. Cada satélite tem a pureza dele e a própria saída de cano (out-i).
+ */
+export function WellNodeView({ id, data, selected }: NodeProps<WellNode>) {
+  const { updateNodeData, setEdges } = useReactFlow();
+  const { r, issues } = useNodeSim(id);
+  const rates = wellSatelliteRates(data);
+  const sats = data.satellites;
+  useRemeasureOnChange(id, String(sats.length));
+  const collapsed = !!data.collapsed;
+  const rotate = useRotation(id, data.rotation, collapsed);
+  const outSide = rotatePos(Position.Right, data.rotation);
+  const stripped = collapsed || isVertical(outSide);
+  const satName = (i: number) => `Satélite ${i + 1}`;
+  const strips = stripped && (
+    <PortStrip side={outSide} ports={sats.map((_, i) => ({ type: 'out', handle: `out-${i}`, title: `${satName(i)} · ${ITEMS[data.resource].name}`, fluid: true }))} />
+  );
+
+  const setSats = (satellites: Purity[]) => updateNodeData(id, { satellites });
+  const addSat = () => setSats([...sats, sats[sats.length - 1] ?? 'normal']);
+  // tirar um satélite remove o cano dele e renumera as saídas seguintes
+  const removeSat = (i: number) => {
+    setEdges((es) =>
+      es.flatMap((e) => {
+        if (e.source !== id) return [e];
+        const k = Number(e.sourceHandle?.split('-')[1]);
+        if (k === i) return [];
+        return [k > i ? { ...e, sourceHandle: `out-${k - 1}` } : e];
+      }),
+    );
+    setSats(sats.filter((_, j) => j !== i));
+  };
+  const base100 = sats.reduce((a, p) => a + WELL.rates[p], 0);
+
+  const card = {
+    icon: '🕳️',
+    title: WELL.title,
+    subtitle: ITEMS[data.resource].name,
+    color: '#1f5f8b',
+    selected,
+    issues,
+    power: r?.power ?? wellPower(data.clock),
+    onRotate: rotate,
+    strips,
+    collapsed,
+    onToggleCollapse: () => updateNodeData(id, { collapsed: !collapsed }),
+  };
+  if (collapsed)
+    return (
+      <NodeCard {...card}>
+        <CollapsedSummary
+          line={
+            <span className="collapsed-recipe">
+              {sats.length} satélite{sats.length === 1 ? '' : 's'}
+            </span>
+          }
+          chips={clockChip(data.clock)}
+          outputs={sats.map((p, i) => ({ item: data.resource, label: `${i + 1} · ${PURITIES[p].name}`, actual: r?.outputs[i]?.actual ?? rates[i], max: rates[i] }))}
+          util={r?.util ?? 1}
+        />
+      </NodeCard>
+    );
+  return (
+    <NodeCard {...card}>
+      <Field label="Recurso">
+        <select className="nodrag" value={data.resource} onChange={(e) => updateNodeData(id, { resource: e.target.value as ItemId })}>
+          {wellResourceOptions.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+      </Field>
+      <ClockControl clock={data.clock} baseRate={base100 || WELL.rates.normal} item={data.resource} onChange={(clock) => updateNodeData(id, { clock })} />
+      <div className="note">
+        Clock do {WELL.name}: vale pra todos os satélites. Ele consome {fmt(wellPower(data.clock))} MW fixos (mesmo com a saída parada); os {WELL.extractorName}s não consomem.
+      </div>
+      {sats.length > 0 && (
+        <PortBlock>
+          {sats.map((p, i) => (
+            <div key={i} className="port-row out well-sat">
+              {!stripped && <Handle type="source" position={outSide} id={`out-${i}`} className="port-handle out fluid" />}
+              <span className="dot" style={{ background: itemColor(data.resource) }} />
+              <span className="sat-name">{i + 1}</span>
+              <select className="nodrag sat-purity" value={p} title={`Pureza do ${satName(i)}`} onChange={(e) => setSats(sats.map((x, j) => (j === i ? (e.target.value as Purity) : x)))}>
+                {PURITY_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+              <span className="port-value">{rate(r?.outputs[i]?.actual ?? rates[i], rates[i], data.resource)}</span>
+              <button className="sat-remove nodrag" title={`Remover o ${satName(i)}`} onClick={() => removeSat(i)}>
+                ✕
+              </button>
+            </div>
+          ))}
+        </PortBlock>
+      )}
+      <button className="sat-add nodrag" onClick={addSat} disabled={sats.length >= WELL.maxSatellites} title={`Até ${WELL.maxSatellites} por poço`}>
+        + {WELL.extractorName}
+      </button>
       <UtilBar value={r?.util ?? 1} />
     </NodeCard>
   );
@@ -936,6 +1042,7 @@ export function SinkNodeView({ id, data, selected }: NodeProps<SinkNode>) {
 export const nodeTypes = {
   miner: MinerNodeView,
   extractor: ExtractorNodeView,
+  well: WellNodeView,
   machine: MachineNodeView,
   splitter: SplitterNodeView,
   merger: MergerNodeView,

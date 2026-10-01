@@ -11,8 +11,8 @@ export type BeltTier = 1 | 2 | 3 | 4 | 5 | 6;
 export type PipeTier = 1 | 2;
 /** Meio de transporte de uma porta: sólido (esteira) ou fluido (cano) */
 export type Medium = 'solid' | 'fluid';
-/** Tipo de extrator de fluido */
-export type ExtractorKind = 'water' | 'oil' | 'well';
+/** Tipo de extrator de fluido (o poço de recurso é o node 'well') */
+export type ExtractorKind = 'water' | 'oil';
 /** slug do nome oficial da máquina, ex.: 'constructor' */
 export type MachineId = string;
 
@@ -22,13 +22,26 @@ export type Rotation = 0 | 90 | 180 | 270;
 export type MinerData = { kind: 'miner'; resource: ItemId; purity: Purity; tier: MinerTier; clock: number; rotation?: Rotation; collapsed?: boolean };
 /** sloops = Somersloops inseridos (amplificação de produção) */
 export type MachineData = { kind: 'machine'; machine: MachineId; recipe: string; clock: number; sloops?: number; rotation?: Rotation; collapsed?: boolean };
-/** Extrator de fluido (água, petróleo ou poço de recurso) */
+/** Extrator de fluido (água ou petróleo) */
 export type ExtractorData = {
   kind: 'extractor';
   extractor: ExtractorKind;
   resource: ItemId;
   purity: Purity;
   clock: number;
+  rotation?: Rotation;
+  collapsed?: boolean;
+};
+/**
+ * Poço de recurso: o Resource Well Pressurizer (clock e energia) com seus extratores-satélite.
+ * Cada satélite tem a pureza do nó dele e a própria saída de cano (out-0, out-1, ...).
+ */
+export type WellData = {
+  kind: 'well';
+  resource: ItemId;
+  /** clock do pressurizador: vale pra todos os satélites */
+  clock: number;
+  satellites: Purity[];
   rotation?: Rotation;
   collapsed?: boolean;
 };
@@ -51,16 +64,17 @@ export type GeneratorData = {
   rotation?: Rotation;
   collapsed?: boolean;
 };
-export type FactoryData = MinerData | ExtractorData | MachineData | SplitterData | MergerData | SinkData | GeneratorData;
+export type FactoryData = MinerData | ExtractorData | WellData | MachineData | SplitterData | MergerData | SinkData | GeneratorData;
 
 export type MinerNode = Node<MinerData, 'miner'>;
 export type ExtractorNode = Node<ExtractorData, 'extractor'>;
+export type WellNode = Node<WellData, 'well'>;
 export type MachineNode = Node<MachineData, 'machine'>;
 export type SplitterNode = Node<SplitterData, 'splitter'>;
 export type MergerNode = Node<MergerData, 'merger'>;
 export type SinkNode = Node<SinkData, 'sink'>;
 export type GeneratorNode = Node<GeneratorData, 'generator'>;
-export type FactoryNode = MinerNode | ExtractorNode | MachineNode | SplitterNode | MergerNode | SinkNode | GeneratorNode;
+export type FactoryNode = MinerNode | ExtractorNode | WellNode | MachineNode | SplitterNode | MergerNode | SinkNode | GeneratorNode;
 
 /** 'grid' = ângulos retos alinhados ao grid; 'curve' = curva livre. Sem valor = segue o padrão global */
 export type BeltRouting = 'grid' | 'curve';

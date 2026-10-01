@@ -1,4 +1,4 @@
-import { BELTS, BELT_TIERS, EXTRACTORS, GENERATORS, ITEMS, MACHINES, PIPES, PIPE_TIERS, generatorPorts, getRecipe } from '../game/data';
+import { BELTS, BELT_TIERS, EXTRACTORS, GENERATORS, ITEMS, WELL, MACHINES, PIPES, PIPE_TIERS, generatorPorts, getRecipe } from '../game/data';
 import type { BeltEdge, BeltItem, BeltRouting, BeltTier, FactoryNode, PipeTier } from '../game/types';
 import { fmt } from '../format';
 import type { EdgeResult, Issue } from '../sim/simulate';
@@ -15,6 +15,8 @@ export function nodeLabel(n?: FactoryNode): string {
       return `Mineradora · ${ITEMS[d.resource].name}`;
     case 'extractor':
       return `${EXTRACTORS[d.extractor].name} · ${ITEMS[d.resource].name}`;
+    case 'well':
+      return `${WELL.title} · ${ITEMS[d.resource].name}`;
     case 'machine': {
       const r = getRecipe(d);
       return `${MACHINES[d.machine].name} · ${r.name.replace(/^Alternate: /, '')}`;

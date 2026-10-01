@@ -35,6 +35,9 @@ const CASES: [item: string, rate: number][] = [
   ['aluminum-ingot', 30],
   ['turbofuel', 20],
   ['computer', 2],
+  // Nitrogen Gas vem de poço de recurso (pressurizador + satélites)
+  ['nitric-acid', 30],
+  ['nitrogen-gas', 1500],
 ];
 const MODES: DistributionMode[] = ['manifold', 'tree'];
 
@@ -48,6 +51,8 @@ function sizeOf(n: FactoryNode): { w: number; h: number } {
     case 'extractor':
     case 'generator':
       return { w: 240, h: 100 };
+    case 'well':
+      return { w: 240, h: 100 + 20 * (d.satellites.length - 1) };
     case 'splitter':
     case 'merger':
       return { w: 120, h: 120 };

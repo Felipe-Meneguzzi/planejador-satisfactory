@@ -1,6 +1,6 @@
-import { BELTS, EXTRACTORS, ITEMS, MACHINES, MINER_TIERS, PIPES, PURITIES, RECIPES, RESOURCES, isFluid, type Recipe } from '../game/data';
+import { BELTS, EXTRACTORS, ITEMS, MACHINES, MINER_TIERS, PIPES, PURITIES, RECIPES, RESOURCES, WELL, isFluid, type Recipe } from '../game/data';
 import type { BeltTier, ExtractorKind, ItemId, MachineId, MinerTier, PipeTier, Purity } from '../game/types';
-import { powerAt, shardsFor } from '../sim/simulate';
+import { powerAt, shardsFor, wellPower } from '../sim/simulate';
 
 /*
  * Cálculo da linha de produção (sem desenho).
@@ -16,6 +16,10 @@ import { powerAt, shardsFor } from '../sim/simulate';
  *  - sólidos andam em esteira (limite = Mk de esteira), fluidos em cano (limite = Mk de cano);
  *  - subprodutos (2ª saída de uma receita, ex.: Heavy Oil Residue do Plastic) vão pra
  *    armazéns próprios: no jogo, uma saída sem destino trava a máquina.
+ *  - fluido de poço (Nitrogen Gas): cada satélite conta como uma "máquina" do grupo; eles
+ *    são agrupados em poços de até WELL.satelliteLimit satélites (média de satélites por
+ *    poço daquele recurso no mapa, arredondada pra cima), todos com a pureza escolhida e o
+ *    pressurizador no clock do grupo.
  */
 
 export const MINE = '__mine__';
@@ -65,14 +69,20 @@ export interface ByproductLane {
   sink: string;
 }
 
+/** De onde sai um fluido do chão: extrator de água/petróleo ou poço de recurso */
+export type FluidSource = ExtractorKind | 'well';
+
 export interface Group {
   id: string;
   item: ItemId;
-  kind: 'machine' | 'miner' | 'extractor';
+  /** 'well': `count` = satélites, `wells` = satélites em cada poço */
+  kind: 'machine' | 'miner' | 'extractor' | 'well';
   recipe?: Recipe;
   machine?: MachineId;
   ore?: OreSetting;
   extractor?: ExtractorKind;
+  /** satélites de cada poço (só no grupo de poço) */
+  wells?: number[];
   demand: number;
   count: number;
   clock: number;
@@ -123,9 +133,12 @@ for (const list of byMainOutput.values()) list.sort((a, b) => Number(a.alternate
 export const recipesProducing = (item: ItemId) => byMainOutput.get(item) ?? [];
 
 /** Extrator que tira esse fluido do chão (água/petróleo antes do poço) */
-export function extractorFor(item: ItemId): ExtractorKind | undefined {
-  return (['water', 'oil', 'well'] as ExtractorKind[]).find((k) => EXTRACTORS[k].resources.includes(item));
+export function extractorFor(item: ItemId): FluidSource | undefined {
+  const k = (['water', 'oil'] as ExtractorKind[]).find((x) => EXTRACTORS[x].resources.includes(item));
+  return k ?? (WELL.resources.includes(item) ? 'well' : undefined);
 }
+/** Nome do que extrai o fluido (pro seletor de receita) */
+export const fluidSourceName = (src: FluidSource) => (src === 'well' ? WELL.title : EXTRACTORS[src].name);
 /** Recurso que dá pra minerar (sólido) ou extrair (fluido) */
 export const isResource = (item: ItemId) => RESOURCES.includes(item) || !!extractorFor(item);
 /** itens que dá pra pedir no gerador */
@@ -256,18 +269,30 @@ export function planLine(input: PlanInput): Plan {
       const id = `g${gSeq++}`;
       const base: Pick<Group, 'id' | 'item' | 'demand' | 'feeds' | 'inputLanes' | 'byproducts'> = { id, item, demand: D, feeds: bin.lanes, inputLanes: [], byproducts: [] };
       let group: Group;
-      if (!recipe && extractorFor(item)) {
-        // fluido tirado do chão: extrator de água, de petróleo ou de poço
-        const kind = extractorFor(item)!;
+      if (!recipe && extractorFor(item) === 'well') {
+        // poço: satélites com a pureza escolhida, divididos em poços de até `limit` satélites
+        const ore = input.ores[item] ?? defaultOre();
+        const per100 = WELL.rates[ore.purity];
+        const count = Math.max(ceilSafe(D / ((per100 * maxClock) / 100)), ceilSafe(D / cap));
+        const clock = (D / (count * per100)) * 100;
+        const limit = WELL.satelliteLimit[item] ?? WELL.maxSatellites;
+        const nWells = ceilSafe(count / limit);
+        const wells = Array.from({ length: nWells }, (_, i) => Math.floor(count / nWells) + (i < count % nWells ? 1 : 0));
+        group = {
+          ...base, kind: 'well', ore, wells, count, clock, perMachine: D / count, level: 0,
+          power: wellPower(clock) * nWells, shards: shardsFor(clock) * nWells,
+        };
+      } else if (!recipe && extractorFor(item)) {
+        // fluido tirado do chão: extrator de água ou de petróleo
+        const kind = extractorFor(item) as ExtractorKind;
         const info = EXTRACTORS[kind];
         const ore = input.ores[item] ?? defaultOre();
         const per100 = info.rate(ore.purity);
-        // poço: o clock é do pressurizador (os shards dele não entram na conta)
         const count = Math.max(ceilSafe(D / ((per100 * maxClock) / 100)), ceilSafe(D / cap));
         const clock = (D / (count * per100)) * 100;
         group = {
           ...base, kind: 'extractor', extractor: kind, ore, count, clock, perMachine: D / count, level: 0,
-          power: powerAt(info.power, clock) * count, shards: info.overclockable ? shardsFor(clock) * count : 0,
+          power: powerAt(info.power, clock) * count, shards: shardsFor(clock) * count,
         };
       } else if (!recipe) {
         const ore = input.ores[item] ?? defaultOre();
