@@ -2,7 +2,7 @@ import { generatorPorts, getRecipe, isFluid } from './data';
 import type { FactoryData, Medium } from './types';
 
 /**
- * Meio de uma porta: 'solid' (esteira) ou 'fluid' (cano). O Armazém aceita os dois ('any'); o AWESOME Sink, só esteira.
+ * Meio de uma porta: 'solid' (esteira) ou 'fluid' (cano). O Armazém e a Saída externa aceitam os dois ('any'); o AWESOME Sink, só esteira.
  * Nas máquinas e geradores depende do item (receita/combustível) naquela porta.
  */
 export function portMedium(data: FactoryData, handle?: string | null): Medium | 'any' {
@@ -18,6 +18,11 @@ export function portMedium(data: FactoryData, handle?: string | null): Medium | 
     case 'sink':
       // o AWESOME Sink só tem entrada de esteira
       return data.mode === 'awesome' ? 'solid' : 'any';
+    case 'inbound':
+      return isFluid(data.item) ? 'fluid' : 'solid';
+    case 'outbound':
+      // como o Armazém: aceita esteira e cano
+      return 'any';
     case 'machine': {
       const r = getRecipe(data);
       const idx = Number(handle?.split('-')[1]);

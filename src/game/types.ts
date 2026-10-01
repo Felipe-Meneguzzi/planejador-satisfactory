@@ -66,7 +66,16 @@ export type GeneratorData = {
   rotation?: Rotation;
   collapsed?: boolean;
 };
-export type FactoryData = MinerData | ExtractorData | WellData | MachineData | SplitterData | MergerData | SinkData | GeneratorData;
+/** Fábrica + node de outra fábrica (Saída externa) de onde uma Entrada externa puxa */
+export type ExternalLink = { factory: string; node: string };
+/**
+ * Entrada externa: item que chega de fora da fábrica. `rate` é a vazão manual; com `link`,
+ * a vazão vem do que chega na Saída externa ligada (a manual vale quando não dá pra usar o link).
+ */
+export type InboundData = { kind: 'inbound'; item: ItemId; rate: number; link?: ExternalLink; rotation?: Rotation; collapsed?: boolean };
+/** Saída externa: recebe qualquer item (como o Armazém) e pode alimentar Entradas externas de outras fábricas */
+export type OutboundData = { kind: 'outbound'; name?: string; rotation?: Rotation };
+export type FactoryData = MinerData | ExtractorData | WellData | MachineData | SplitterData | MergerData | SinkData | GeneratorData | InboundData | OutboundData;
 
 export type MinerNode = Node<MinerData, 'miner'>;
 export type ExtractorNode = Node<ExtractorData, 'extractor'>;
@@ -76,7 +85,9 @@ export type SplitterNode = Node<SplitterData, 'splitter'>;
 export type MergerNode = Node<MergerData, 'merger'>;
 export type SinkNode = Node<SinkData, 'sink'>;
 export type GeneratorNode = Node<GeneratorData, 'generator'>;
-export type FactoryNode = MinerNode | ExtractorNode | WellNode | MachineNode | SplitterNode | MergerNode | SinkNode | GeneratorNode;
+export type InboundNode = Node<InboundData, 'inbound'>;
+export type OutboundNode = Node<OutboundData, 'outbound'>;
+export type FactoryNode = MinerNode | ExtractorNode | WellNode | MachineNode | SplitterNode | MergerNode | SinkNode | GeneratorNode | InboundNode | OutboundNode;
 
 /** 'grid' = ângulos retos alinhados ao grid; 'curve' = curva livre. Sem valor = segue o padrão global */
 export type BeltRouting = 'grid' | 'curve';

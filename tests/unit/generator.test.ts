@@ -57,7 +57,11 @@ function sizeOf(n: FactoryNode): { w: number; h: number } {
     case 'merger':
       return { w: 120, h: 120 };
     case 'sink':
+    case 'outbound':
       return { w: 280, h: 100 };
+    case 'inbound':
+      // gerada minimizada e com a saída em cima
+      return { w: 240, h: 100 };
   }
 }
 

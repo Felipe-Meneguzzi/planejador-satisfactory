@@ -29,6 +29,10 @@ export function nodeLabel(n?: FactoryNode): string {
       return d.mode === 'awesome' ? SINK.name : 'Armazém';
     case 'generator':
       return GENERATORS[d.generator]?.name ?? 'Gerador';
+    case 'inbound':
+      return `Entrada externa · ${ITEMS[d.item]?.name ?? d.item}`;
+    case 'outbound':
+      return d.name ? `Saída externa · ${d.name}` : 'Saída externa';
   }
 }
 

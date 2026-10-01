@@ -1,5 +1,5 @@
 import { AMPLIFICATION, BELTS, BELT_TIERS, EXTRACTORS, GENERATORS, ITEMS, MACHINES, MINER_TIERS, OVERCLOCK, PIPES, PIPE_TIERS, PURITIES, SINK, WELL, extractorClockable, generatorClockable, generatorPorts, getRecipe, isFluid, sinkPoints, withUnit } from '../game/data';
-import type { BeltItem, BeltTier, ExtractorData, FactoryData, GeneratorData, GeneratorId, ItemId, MachineData, MinerData, PipeTier, SinkData, WellData } from '../game/types';
+import type { BeltItem, BeltTier, ExtractorData, FactoryData, GeneratorData, GeneratorId, InboundData, ItemId, MachineData, MinerData, PipeTier, SinkData, WellData } from '../game/types';
 import { fmt } from '../format';
 
 /*
@@ -56,6 +56,8 @@ export interface NodeResult {
   generated?: number;
   /** pontos/min do AWESOME Sink */
   points?: number;
+  /** Entrada externa: quanto o lado de baixo consegue absorver (já limitado pela esteira) */
+  demand?: number;
   inputs: PortResult[];
   outputs: PortResult[];
 }
@@ -68,6 +70,13 @@ export interface Issue {
   fixTier?: BeltTier;
   /** a correção é de cano (nomes/tiers de cano) */
   fixPipe?: boolean;
+}
+/** Item que entra (Entrada externa) ou sai (Saída externa) da fábrica, por node */
+export interface Transfer {
+  node: string;
+  item: BeltItem;
+  /** vazão real (o que passa na esteira/cano) */
+  rate: number;
 }
 /** Saldo de energia da planta (tudo em MW) */
 export interface EnergyResult {
@@ -105,6 +114,8 @@ export interface SimResult {
   production: { item: ItemId; stored: number; loose: number; sunk?: number }[];
   /** AWESOME Sinks: quantos há, pontos/min e pontos/min do contador de DNA */
   sink: { count: number; points: number; dna: number };
+  /** o que entra pelas Entradas externas e sai pelas Saídas externas */
+  transfers: { imports: Transfer[]; exports: Transfer[] };
 }
 
 const EPS = 1e-6;
@@ -126,6 +137,8 @@ export const shardsFor = (clock: number) => {
 };
 export const minerRate = (d: MinerData) =>
   (MINER_TIERS[d.tier].base * PURITIES[d.purity].mult * clampClock(d.clock)) / 100;
+/** Vazão de uma Entrada externa (a manual, ou a que o projeto calculou pelo link) */
+export const inboundRate = (d: InboundData) => (Number.isFinite(d.rate) ? Math.max(0, d.rate) : 0);
 /** Vazão de um extrator de fluido (m³/min) no clock atual */
 export const extractorRate = (d: ExtractorData) => {
   const info = EXTRACTORS[d.extractor];
@@ -245,7 +258,10 @@ export function simulate(nodes: SimNode[], edges: SimEdge[]): SimResult {
         const items = new Set(present(three.map((i) => inB(n.id, i))).map((b) => b.item).filter((x) => x !== null));
         return [items.size === 0 ? null : items.size === 1 ? [...items][0] : 'mixed'];
       }
+      case 'inbound':
+        return [d.item];
       case 'sink':
+      case 'outbound':
         return [];
     }
   };
@@ -371,6 +387,17 @@ export function simulate(nodes: SimNode[], edges: SimEdge[]): SimResult {
         if (b) setD(b, sinkRefuses(d, b.item) ? 0 : Infinity);
         break;
       }
+      case 'inbound': {
+        const b = outB(n.id, 0);
+        if (b) setS(b, inboundRate(d));
+        break;
+      }
+      case 'outbound': {
+        // como o Armazém: leva tudo que chegar
+        const b = inB(n.id, 0);
+        if (b) setD(b, Infinity);
+        break;
+      }
     }
   };
   for (let iter = 0; iter < 5000; iter++) {
@@ -469,6 +496,8 @@ export function simulate(nodes: SimNode[], edges: SimEdge[]): SimResult {
   let sinkPointsTotal = 0;
   let sinkDna = 0;
   const fuelUsed = new Map<ItemId, number>();
+  const imports: Transfer[] = [];
+  const exports: Transfer[] = [];
 
   for (const n of nodes) {
     const d = n.data;
@@ -695,6 +724,23 @@ export function simulate(nodes: SimNode[], edges: SimEdge[]): SimResult {
         else addTo(sunk, item, flow);
         break;
       }
+      case 'inbound': {
+        const R = inboundRate(d);
+        const b = outB(n.id, 0);
+        const actual = b ? flowOf(b) : 0;
+        nodeResults[n.id] = { util: R > 0 ? actual / R : 0, power: 0, demand: b?.d ?? 0, inputs: [], outputs: [port('out-0', d.item, R, b, actual)] };
+        imports.push({ node: n.id, item: d.item, rate: actual });
+        if (!b && R > EPS) add('info', 'node', n.id, 'free', `Entrada externa sem ${isFluid(d.item) ? 'cano' : 'esteira'}: ${withUnit(fmt(R), d.item)} de ${ITEMS[d.item]?.name ?? d.item} disponíveis`);
+        break;
+      }
+      case 'outbound': {
+        const b = inB(n.id, 0);
+        const flow = flowOf(b);
+        nodeResults[n.id] = { util: 1, power: 0, inputs: [port('in-0', b?.item ?? null, b?.cap ?? 0, b)], outputs: [] };
+        exports.push({ node: n.id, item: b?.item ?? null, rate: flow });
+        if (b?.item === 'mixed') add('warning', 'node', n.id, 'mixed', 'Itens misturados chegando: a Entrada externa ligada nesta saída não vai receber nada');
+        break;
+      }
     }
   }
 
@@ -731,5 +777,5 @@ export function simulate(nodes: SimNode[], edges: SimEdge[]): SimResult {
     .map((item) => ({ item, stored: stored.get(item) ?? 0, loose: loose.get(item) ?? 0, ...(sunk.has(item) ? { sunk: sunk.get(item)! } : {}) }));
 
   const sink = { count: sinkCount, points: sinkPointsTotal, dna: sinkDna };
-  return { nodes: nodeResults, edges: edgeResults, issues, byTarget: byTargetIssues, power, energy, machines, sloops, production, sink };
+  return { nodes: nodeResults, edges: edgeResults, issues, byTarget: byTargetIssues, power, energy, machines, sloops, production, sink, transfers: { imports, exports } };
 }
