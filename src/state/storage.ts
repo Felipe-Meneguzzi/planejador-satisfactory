@@ -1,6 +1,12 @@
 import type { BeltEdge, BeltTier, FactoryNode, PipeTier } from '../game/types';
 
 const KEY = 'satisplanner:v1';
+/** Versões boas anteriores (backup rotativo), da mais nova pra mais antiga */
+const BACKUP_KEY = 'satisplanner:backups:v1';
+/** quantas versões guardar */
+export const MAX_BACKUPS = 5;
+/** intervalo mínimo entre duas versões do backup (o salvamento normal roda a cada edição) */
+export const BACKUP_INTERVAL = 2 * 60_000;
 
 export interface SavedState {
   version: 1;
@@ -19,10 +25,32 @@ export interface SavedState {
 let idSeq = 0;
 export const newId = (prefix = 'n') => `${prefix}-${Date.now().toString(36)}-${(idSeq++).toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
 
+const isObj = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null;
+const finite = (v: unknown) => typeof v === 'number' && Number.isFinite(v);
+
+/** id, posição numérica e dados com `kind`: o mínimo pro canvas desenhar o node */
+function validNode(n: unknown) {
+  return (
+    isObj(n) &&
+    typeof n.id === 'string' &&
+    isObj(n.position) &&
+    finite(n.position.x) &&
+    finite(n.position.y) &&
+    isObj(n.data) &&
+    typeof n.data.kind === 'string'
+  );
+}
+
+function validEdge(e: unknown) {
+  return isObj(e) && typeof e.id === 'string' && typeof e.source === 'string' && typeof e.target === 'string';
+}
+
 /** Mantém só o que importa (descarta seleção, medidas etc.) */
 export function sanitize(raw: unknown): SavedState | null {
   const p = raw as Partial<SavedState> | null;
   if (!p || p.version !== 1 || !Array.isArray(p.nodes) || !Array.isArray(p.edges)) return null;
+  // um node ou esteira quebrado invalida o estado inteiro (melhor não salvar do que gravar lixo por cima)
+  if (!p.nodes.every(validNode) || !p.edges.every(validEdge)) return null;
   return {
     version: 1,
     defaultTier: p.defaultTier ?? 1,
@@ -46,23 +74,128 @@ export function sanitize(raw: unknown): SavedState | null {
   };
 }
 
-export function loadState(): SavedState {
-  try {
-    const raw = localStorage.getItem(KEY);
-    const s = raw && sanitize(JSON.parse(raw));
-    if (s) return s;
-  } catch {
-    /* storage indisponível ou corrompido: cai no exemplo */
-  }
-  return demoState();
+export interface Backup {
+  /** horário em que a versão foi guardada (ms) */
+  savedAt: number;
+  state: SavedState;
 }
 
-export function saveState(s: SavedState) {
+/* ---------- trava do salvamento ---------- */
+
+/** Quem está em estado de erro (ex.: o Error Boundary do app ou do canvas): enquanto houver alguém, nada é salvo */
+const blockers = new Set<string>();
+export const blockSaves = (who: string) => void blockers.add(who);
+export const unblockSaves = (who: string) => void blockers.delete(who);
+export const savesBlocked = () => blockers.size > 0;
+
+/* ---------- leitura ---------- */
+
+function readMain(): SavedState | null {
   try {
-    localStorage.setItem(KEY, JSON.stringify(sanitize(s)));
+    const raw = localStorage.getItem(KEY);
+    return raw ? sanitize(JSON.parse(raw)) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Versões guardadas, da mais nova pra mais antiga (as inválidas são ignoradas) */
+export function loadBackups(): Backup[] {
+  try {
+    const raw = JSON.parse(localStorage.getItem(BACKUP_KEY) ?? '[]') as unknown;
+    if (!Array.isArray(raw)) return [];
+    return raw.flatMap((b) => {
+      const state = isObj(b) && finite(b.savedAt) ? sanitize(b.state) : null;
+      return state ? [{ savedAt: b.savedAt as number, state }] : [];
+    });
+  } catch {
+    return [];
+  }
+}
+
+/** Estado salvo; se estiver corrompido, a versão mais nova do backup; sem nada, o exemplo */
+export function loadState(): SavedState {
+  return readMain() ?? loadBackups()[0]?.state ?? demoState();
+}
+
+/** Último estado bom guardado (o salvo ou, se ele estiver ruim, o backup mais novo) */
+export function lastGoodState(): SavedState | null {
+  return readMain() ?? loadBackups()[0]?.state ?? null;
+}
+
+/* ---------- gravação ---------- */
+
+function writeBackups(list: Backup[]) {
+  // sem espaço: vai largando as versões mais antigas até caber
+  for (let n = Math.min(list.length, MAX_BACKUPS); n > 0; n--) {
+    try {
+      localStorage.setItem(BACKUP_KEY, JSON.stringify(list.slice(0, n)));
+      return;
+    } catch {
+      /* tenta com menos */
+    }
+  }
+}
+
+/**
+ * Guarda a versão no backup rotativo: no máximo uma a cada BACKUP_INTERVAL (ou sempre, com `force`).
+ * Planta vazia não entra: não há o que restaurar.
+ */
+function pushBackup(state: SavedState, now: number, force = false) {
+  if (!state.nodes.length) return;
+  const list = loadBackups();
+  const latest = list[0];
+  if (latest && JSON.stringify(latest.state) === JSON.stringify(state)) return;
+  if (latest && !force && now - latest.savedAt < BACKUP_INTERVAL) return;
+  writeBackups([{ savedAt: now, state }, ...list]);
+}
+
+/**
+ * Salva o estado se ele for válido e nenhum Error Boundary estiver em erro.
+ * Retorna se salvou (um estado ruim nunca grava por cima do bom).
+ */
+export function saveState(s: SavedState, now = Date.now()): boolean {
+  if (savesBlocked()) return false;
+  const clean = sanitize(s);
+  if (!clean) {
+    console.warn('[satisplanner] estado inválido: salvamento automático ignorado');
+    return false;
+  }
+  try {
+    localStorage.setItem(KEY, JSON.stringify(clean));
   } catch {
     /* sem storage, segue sem salvar */
+    return false;
   }
+  pushBackup(clean, now);
+  return true;
+}
+
+/**
+ * Volta para uma versão do backup. A planta atual entra no backup antes, então dá pra desfazer.
+ * Retorna o estado restaurado (null se a versão não existe mais).
+ */
+export function restoreBackup(savedAt: number, now = Date.now()): SavedState | null {
+  const chosen = loadBackups().find((b) => b.savedAt === savedAt);
+  if (!chosen) return null;
+  const current = readMain();
+  if (current) pushBackup(current, now, true);
+  try {
+    localStorage.setItem(KEY, JSON.stringify(chosen.state));
+  } catch {
+    /* sem storage: o app ainda pode aplicar o estado em memória */
+  }
+  return chosen.state;
+}
+
+/** Baixa o estado como .json (Exportar e o backup do painel de erro) */
+export function downloadJson(s: SavedState, name: string) {
+  const blob = new Blob([JSON.stringify(sanitize(s), null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  a.click();
+  URL.revokeObjectURL(a.href);
 }
 
 const belt = (id: string, source: string, sh: number, target: string, th: number): BeltEdge => ({

@@ -32,7 +32,7 @@ import { SidePanel } from './components/SidePanel';
 import { BeltInspector } from './components/BeltInspector';
 import { SimContext } from './sim/SimContext';
 import { simulate, type Issue } from './sim/simulate';
-import { demoState, loadState, newId, sanitize, saveState } from './state/storage';
+import { demoState, downloadJson, loadState, newId, sanitize, saveState } from './state/storage';
 import { useHistory, type Snapshot } from './state/useHistory';
 import { useClipboard } from './state/useClipboard';
 import { useBoxSelection } from './state/useBoxSelection';
@@ -364,14 +364,8 @@ function Planner() {
     setTimeout(() => (s.nodes.length ? fitView({ padding: 0.15, maxZoom: 1, duration: 300 }) : setViewport({ x: 0, y: 0, zoom: 1 })), 50);
   };
 
-  const exportJson = () => {
-    const blob = new Blob([JSON.stringify(sanitize({ version: 1, nodes, edges, defaultTier, defaultPipeTier, gridBelts, beltLabels }), null, 2)], { type: 'application/json' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `fabrica-${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
-    URL.revokeObjectURL(a.href);
-  };
+  const exportJson = () =>
+    downloadJson({ version: 1, nodes, edges, defaultTier, defaultPipeTier, gridBelts, beltLabels }, `fabrica-${new Date().toISOString().slice(0, 10)}.json`);
 
   const importJson = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
