@@ -32,7 +32,7 @@ export const RAW_RESOURCES: ItemId[] = Object.keys(ITEMS)
   .filter(isResource)
   .sort((a, b) => ITEMS[a].name.localeCompare(ITEMS[b].name));
 const ALTERNATES = ALL_RECIPES.filter((r) => r.alternate);
-const altName = (name: string) => name.replace(/^Alternate: /, '');
+const altName = (name: string) => name.replace(/^(Alternate|Alternativa): /, '');
 
 const Dot = ({ item }: { item: ItemId }) => <span className="dot" style={{ background: itemColor(item) }} />;
 

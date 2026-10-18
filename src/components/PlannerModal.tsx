@@ -204,7 +204,7 @@ export function PlannerModal(props: { onClose: () => void; onGenerate: (plan: Pl
                 <optgroup label="Alternativas">
                   {options.filter((r) => r.alternate).map((r) => (
                     <option key={r.id} value={r.id}>
-                      {r.name.replace(/^Alternate: /, '')} · {MACHINES[r.machine].name}
+                      {r.name.replace(/^(Alternate|Alternativa): /, '')} · {MACHINES[r.machine].name}
                     </option>
                   ))}
                 </optgroup>

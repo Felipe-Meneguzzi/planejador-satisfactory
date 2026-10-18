@@ -781,7 +781,7 @@ export function MachineNodeView({ id, data, selected }: NodeProps<MachineNode>) 
       .filter((rc) => rc.alternate === alt)
       .map((rc) => (
         <option key={rc.id} value={rc.id}>
-          {rc.name.replace(/^Alternate: /, '')}
+          {rc.name.replace(/^(Alternate|Alternativa): /, '')}
         </option>
       ));
 
@@ -804,7 +804,7 @@ export function MachineNodeView({ id, data, selected }: NodeProps<MachineNode>) 
         <CollapsedSummary
           line={
             <span className="collapsed-recipe" title={recipe.name}>
-              {recipe.name.replace(/^Alternate: /, '')}
+              {recipe.name.replace(/^(Alternate|Alternativa): /, '')}
               {recipe.alternate && <span className="mini-chip alt">alt</span>}
             </span>
           }

@@ -19,7 +19,7 @@ export function nodeLabel(n?: FactoryNode): string {
       return `${WELL.title} · ${ITEMS[d.resource].name}`;
     case 'machine': {
       const r = getRecipe(d);
-      return `${MACHINES[d.machine].name} · ${r.name.replace(/^Alternate: /, '')}`;
+      return `${MACHINES[d.machine].name} · ${r.name.replace(/^(Alternate|Alternativa): /, '')}`;
     }
     case 'splitter':
       return d.fluid ? 'Junção (divide)' : 'Divisor';

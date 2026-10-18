@@ -1,4 +1,5 @@
 import raw from './gamedata.json';
+import ptbr from './ptbr.json';
 import type { BeltItem, BeltTier, ExtractorKind, GeneratorData, GeneratorId, ItemId, MachineData, MachineId, MinerTier, PipeTier, Purity } from './types';
 
 /*
@@ -42,6 +43,7 @@ interface RawData {
     duration: number;
     inputs: { item: string; amount: number }[];
     outputs: { item: string; amount: number }[];
+    className?: string;
     /** receitas sazonais (FICSMAS) */
     event?: string;
     /** consumo variável em MW (ex.: Ballistic Warp Drive) */
@@ -79,6 +81,35 @@ interface RawData {
   };
 }
 const data = raw as unknown as RawData;
+
+/* ---------- idioma dos nomes ---------- */
+
+export type Lang = 'en' | 'pt-BR';
+const LANG_KEY = 'satisplanner:lang';
+export const getLang = (): Lang => {
+  try {
+    return localStorage.getItem(LANG_KEY) === 'pt-BR' ? 'pt-BR' : 'en';
+  } catch {
+    return 'en';
+  }
+};
+/** Guarda o idioma; os nomes são resolvidos na carga, então quem chama recarrega a página */
+export const setLang = (lang: Lang) => {
+  try {
+    localStorage.setItem(LANG_KEY, lang);
+  } catch {
+    /* sem storage */
+  }
+};
+export const LANG = getLang();
+/**
+ * Nome em português do jogo (CommunityResources/Docs/pt-BR.json, ver scripts/build-ptbr.mjs).
+ * Sem tradução confirmada, fica o nome em inglês. Só muda o que aparece: ids e slugs seguem em inglês.
+ */
+const tr = (name: string) => (LANG === 'pt-BR' ? (ptbr.names as Record<string, string>)[name] ?? name : name);
+const trRecipe = (className: string | undefined, name: string) => (LANG === 'pt-BR' && className ? (ptbr.recipes as Record<string, string>)[className] ?? name : name);
+/** Tira o "Alternate: " / "Alternativa: " do começo do nome da receita */
+export const plainRecipeName = (name: string) => name.replace(/^(Alternate|Alternativa): /, '');
 
 /** Receitas de eventos sazonais ficam de fora do planejador */
 const recipesData = data.recipes.filter((r) => !r.event);
@@ -155,7 +186,7 @@ export interface ItemInfo {
 export const ITEMS: Record<ItemId, ItemInfo> = Object.fromEntries(
   [...itemNames].sort().map((name) => {
     const id = slug(name);
-    return [id, { name, color: ITEM_COLORS[id] ?? hashColor(id), fluid: fluidForm.has(id), form: fluidForm.get(id) }];
+    return [id, { name: tr(name), color: ITEM_COLORS[id] ?? hashColor(id), fluid: fluidForm.has(id), form: fluidForm.get(id) }];
   }),
 );
 
@@ -207,8 +238,8 @@ export interface ExtractorInfo {
 }
 const ex = data.extractors;
 export const EXTRACTORS: Record<ExtractorKind, ExtractorInfo> = {
-  water: { kind: 'water', name: ex.water.name, resources: [slug(ex.water.resource)], usesPurity: false, overclockable: ex.water.overclockable, rate: () => ex.water.rate, power: ex.water.power },
-  oil: { kind: 'oil', name: ex.oil.name, resources: [slug(ex.oil.resource)], usesPurity: true, overclockable: ex.oil.overclockable, rate: (p) => ex.oil.rates[p], power: ex.oil.power },
+  water: { kind: 'water', name: tr(ex.water.name), resources: [slug(ex.water.resource)], usesPurity: false, overclockable: ex.water.overclockable, rate: () => ex.water.rate, power: ex.water.power },
+  oil: { kind: 'oil', name: tr(ex.oil.name), resources: [slug(ex.oil.resource)], usesPurity: true, overclockable: ex.oil.overclockable, rate: (p) => ex.oil.rates[p], power: ex.oil.power },
 };
 /** dá pra mudar o clock do extrator */
 export const extractorClockable = (k: ExtractorKind) => !!EXTRACTORS[k]?.overclockable;
@@ -253,7 +284,7 @@ export const MACHINES: Record<MachineId, MachineInfo> = Object.fromEntries(
     const style = MACHINE_STYLE[id] ?? { icon: '🏭', color: '#555b66' };
     return [
       id,
-      { id, name: m.name, icon: style.icon, color: style.color, power: m.power, inputs: m.inputs, outputs: m.outputs, sloopSlots: m.somersloopSlots ?? 0, variablePower: m.variablePower },
+      { id, name: tr(m.name), icon: style.icon, color: style.color, power: m.power, inputs: m.inputs, outputs: m.outputs, sloopSlots: m.somersloopSlots ?? 0, variablePower: m.variablePower },
     ];
   }),
 );
@@ -285,7 +316,7 @@ export const RECIPES: Record<string, Recipe> = Object.fromEntries(
       id,
       {
         id,
-        name: r.name,
+        name: trRecipe(r.className, r.name),
         alternate: r.alternate,
         machine: slug(r.machine),
         inputs: r.inputs.map((p) => ({ item: slug(p.item), rate: perMin(p.amount, r.duration) })),
@@ -351,7 +382,7 @@ const fuelGenerators: GeneratorInfo[] = (data.generators ?? []).map((g) => {
   const id = slug(g.name);
   return {
     id,
-    name: g.name,
+    name: tr(g.name),
     ...genStyle(id),
     power: g.power,
     overclockable: g.overclockable,
@@ -367,10 +398,10 @@ const aug = data.augmenter;
 export const GENERATORS: Record<GeneratorId, GeneratorInfo> = Object.fromEntries(
   [
     ...fuelGenerators,
-    { id: slug(geo.name), name: geo.name, ...genStyle(slug(geo.name)), power: geo.purities.normal.avg, overclockable: geo.overclockable, fuels: [], geothermal: geo.purities },
+    { id: slug(geo.name), name: tr(geo.name), ...genStyle(slug(geo.name)), power: geo.purities.normal.avg, overclockable: geo.overclockable, fuels: [], geothermal: geo.purities },
     {
       id: slug(aug.name),
-      name: aug.name,
+      name: tr(aug.name),
       ...genStyle(slug(aug.name)),
       power: aug.power,
       overclockable: aug.overclockable,
@@ -420,8 +451,8 @@ const satelliteLimit = Object.fromEntries(
 export const WELL = {
   /** o poço em si (nome da página do wiki); o node representa o poço inteiro */
   title: 'Resource Well',
-  name: pr.name,
-  extractorName: pr.extractor.name,
+  name: tr(pr.name),
+  extractorName: tr(pr.extractor.name),
   /** MW do pressurizador a 100% (os satélites não consomem) */
   power: pr.power,
   powerExponent: pr.powerExponent,
@@ -439,7 +470,7 @@ export const WELL = {
 
 const sk = data.sink;
 export const SINK = {
-  name: sk.name,
+  name: tr(sk.name),
   /** MW enquanto recebe itens (parado não consome) */
   power: sk.power,
   /** pontos por item (só sólidos) */
