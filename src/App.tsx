@@ -65,6 +65,9 @@ import { useClipboard } from './state/useClipboard';
 import { useBoxSelection } from './state/useBoxSelection';
 import { LabelRootContext, SettingsContext } from './state/settings';
 import { PlannerModal } from './components/PlannerModal';
+import { MapModal } from './components/MapModal';
+import { SheetModal } from './components/SheetModal';
+import { LANG, setLang } from './game/data';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { CanvasCrash } from './components/RecoveryPanel';
 import { BackupMenu } from './components/Backups';
@@ -337,6 +340,13 @@ function Planner() {
   // o "copiado" fica no Planner: copia numa aba e cola em outra
   const clipboard = useClipboard(GRID);
   const [plannerOpen, setPlannerOpen] = useState(false);
+  const [mapOpen, setMapOpen] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  // os nomes são resolvidos na carga: troca o idioma e recarrega (o projeto é salvo no pagehide)
+  const toggleLang = () => {
+    setLang(LANG === 'pt-BR' ? 'en' : 'pt-BR');
+    window.location.reload();
+  };
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -344,7 +354,7 @@ function Planner() {
       const t = e.target as HTMLElement;
       // Dentro de campos de texto o Ctrl+Z nativo do campo continua valendo
       if (t.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName)) return;
-      const k = e.key.toLowerCase();
+      const k = e.key?.toLowerCase();
       if (k === 'z' && !e.shiftKey) undo();
       else if (k === 'y' || (k === 'z' && e.shiftKey)) redo();
       else if (k === 'c' && !e.shiftKey) {
@@ -370,7 +380,7 @@ function Planner() {
   const dialogOpen = plannerOpen || !!pending || shareOpen || summaryOpen;
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (!(e.ctrlKey || e.metaKey) || e.shiftKey || e.altKey || e.key.toLowerCase() !== 'k') return;
+      if (!(e.ctrlKey || e.metaKey) || e.shiftKey || e.altKey || e.key?.toLowerCase() !== 'k') return;
       e.preventDefault();
       if (dialogOpen) return;
       // posição do mouse no canvas na hora de abrir: é ali que "Adicionar" põe o node
@@ -384,7 +394,7 @@ function Planner() {
   // R gira os nodes selecionados 90° no sentido horário; Shift+R no anti-horário
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.ctrlKey || e.metaKey || e.altKey || e.key.toLowerCase() !== 'r') return;
+      if (e.ctrlKey || e.metaKey || e.altKey || e.key?.toLowerCase() !== 'r') return;
       const t = e.target as HTMLElement;
       if (t.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName)) return;
       e.preventDefault();
@@ -801,6 +811,9 @@ function Planner() {
   const buildQuickItems = (): QuickItem[] => {
     const actions: Omit<QuickItem, 'group' | 'id'>[] = [
       { label: 'Gerar linha…', icon: '🏭', keywords: 'planejar producao calculadora', run: () => setPlannerOpen(true) },
+      { label: 'Mapa do save (HDs, Somersloops, Mercer)…', icon: '🗺', keywords: 'waypoint sav jogo esfera santuario', run: () => setMapOpen(true) },
+      { label: 'Planilha de fábrica…', icon: '📋', keywords: 'balanco controle receitas maquinas sobra excel', run: () => setSheetOpen(true) },
+      { label: LANG === 'pt-BR' ? 'Nomes em inglês (English)' : 'Nomes em português (PT-BR)', icon: '🌐', keywords: 'idioma traducao lingua language portugues ingles', run: toggleLang },
       { label: 'Nova fábrica', icon: '＋', keywords: 'aba criar', run: () => addFactory() },
       { label: 'Duplicar esta fábrica', icon: '⧉', keywords: 'aba copiar', run: () => duplicateFactory(activeId) },
       { label: 'Resumo do projeto', icon: '📊', keywords: 'todas fabricas total', run: () => setSummaryOpen(true) },
@@ -948,6 +961,18 @@ function Planner() {
           >
             🏷 Rótulos
           </button>
+          <button
+            onClick={toggleLang}
+            title={LANG === 'pt-BR' ? 'Nomes do jogo em português (oficiais). Clique pra voltar pro inglês' : 'Nomes do jogo em inglês. Clique pra usar os nomes oficiais em português'}
+          >
+            🌐 {LANG === 'pt-BR' ? 'PT-BR' : 'EN'}
+          </button>
+          <button onClick={() => setSheetOpen(true)} title="Planilha: informe o que entra, as receitas e as máquinas e veja produção e sobra de cada item">
+            📋 Planilha
+          </button>
+          <button onClick={() => setMapOpen(true)} title="Abrir um save do jogo e ver o que falta pegar; cria waypoints no save">
+            🗺 Mapa do save
+          </button>
           <MenuButton
             label="📁 Arquivo ▾"
             title="Exportar, importar, exemplo e limpar"
@@ -980,6 +1005,8 @@ function Planner() {
       />
 
       {quickOpen && <CommandPalette items={quickItems} onClose={() => setQuickOpen(false)} />}
+      {sheetOpen && <SheetModal onClose={() => setSheetOpen(false)} />}
+      {mapOpen && <MapModal onClose={() => setMapOpen(false)} />}
       {plannerOpen && <PlannerModal onClose={() => setPlannerOpen(false)} onGenerate={generateLine} />}
       {pending && (
         <IncomingDialog
